@@ -73,7 +73,7 @@ This repository contains a `.repos` file that helps you clone the required depen
     ```
 4. **Install the dependencies**
     ```bash
-    vcs import src < src/franka.repos --recursive --skip-existing
+    vcs import src < src/franka_ros2/franka.repos --recursive --skip-existing
     ```
 5. **Detect and install project dependencies**
    ```bash
