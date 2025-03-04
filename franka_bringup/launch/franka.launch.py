@@ -74,11 +74,11 @@ def robot_description_dependent_nodes_spawner(
             package='controller_manager',
             executable='ros2_control_node',
             parameters=[franka_controllers,
-                        {'robot_description': robot_description},
                         {'arm_id': arm_id},
                         {'load_gripper': load_gripper},
                         ],
-            remappings=[('joint_states', 'franka/joint_states')],
+            remappings=[('joint_states', 'franka/joint_states'),
+                        ('controller_manager/robot_description', 'robot_description')],
             output={
                 'stdout': 'screen',
                 'stderr': 'screen',
