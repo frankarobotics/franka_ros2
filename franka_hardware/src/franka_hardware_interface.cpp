@@ -398,12 +398,25 @@ hardware_interface::return_type FrankaHardwareInterface::perform_command_mode_sw
 hardware_interface::return_type FrankaHardwareInterface::prepare_command_mode_switch(
     const std::vector<std::string>& start_interfaces,
     const std::vector<std::string>& stop_interfaces) {
-  auto contains_interface_type = [](const std::string& interface,
-                                    const std::string& interface_type) {
+  auto contains_interface_type = [this](const std::string& interface,
+                                        const std::string& interface_type) {
     size_t slash_position = interface.find('/');
     if (slash_position != std::string::npos && slash_position + 1 < interface.size()) {
       std::string after_slash = interface.substr(slash_position + 1);
-      return after_slash == interface_type;
+      std::string before_slash = interface.substr(0, slash_position);
+
+      if (after_slash == interface_type) {
+        if (interface_type != "position" && interface_type != "velocity" &&
+            interface_type != "effort" && interface_type != "acceleration") {
+          return true;
+        }
+
+        for (const auto& joint : this->info_.joints) {
+          if (before_slash == joint.name) {
+            return true;
+          }
+        }
+      }
     }
     return false;
   };
