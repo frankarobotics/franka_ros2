@@ -22,6 +22,10 @@
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp_lifecycle/lifecycle_publisher.hpp>
 #include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
+// TODO: Remove this define when the realtime_publisher is updated in ROS 2
+// realtime_publisher has been almost completely re-written in the Rolling release
+// Those changes have been partially backported to Humble, but still require this define
+#define NON_POLLING 1  // NOLINT
 #include <realtime_tools/realtime_publisher.hpp>
 
 #include "franka_msgs/msg/franka_robot_state.hpp"

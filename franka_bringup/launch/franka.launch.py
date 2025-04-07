@@ -38,10 +38,12 @@ def robot_description_dependent_nodes_spawner(
         arm_id,
         use_fake_hardware,
         fake_sensor_commands,
-        load_gripper):
+        load_gripper,
+        arm_prefix):
 
     robot_ip_str = context.perform_substitution(robot_ip)
     arm_id_str = context.perform_substitution(arm_id)
+    arm_prefix_str = context.perform_substitution(arm_prefix)
     use_fake_hardware_str = context.perform_substitution(use_fake_hardware)
     fake_sensor_commands_str = context.perform_substitution(
         fake_sensor_commands)
@@ -57,6 +59,7 @@ def robot_description_dependent_nodes_spawner(
                                                'hand': load_gripper_str,
                                                'use_fake_hardware': use_fake_hardware_str,
                                                'fake_sensor_commands': fake_sensor_commands_str,
+                                               'arm_prefix': arm_prefix_str,
                                            }).toprettyxml(indent='  ')
 
     franka_controllers = PathJoinSubstitution(
@@ -89,6 +92,7 @@ def robot_description_dependent_nodes_spawner(
 
 def generate_launch_description():
     arm_id_parameter_name = 'arm_id'
+    arm_prefix_parameter_name = 'arm_prefix'
     robot_ip_parameter_name = 'robot_ip'
     load_gripper_parameter_name = 'load_gripper'
     use_fake_hardware_parameter_name = 'use_fake_hardware'
@@ -96,6 +100,7 @@ def generate_launch_description():
     use_rviz_parameter_name = 'use_rviz'
 
     arm_id = LaunchConfiguration(arm_id_parameter_name)
+    arm_prefix = LaunchConfiguration(arm_prefix_parameter_name)
     robot_ip = LaunchConfiguration(robot_ip_parameter_name)
     load_gripper = LaunchConfiguration(load_gripper_parameter_name)
     use_fake_hardware = LaunchConfiguration(use_fake_hardware_parameter_name)
@@ -113,7 +118,8 @@ def generate_launch_description():
             arm_id,
             use_fake_hardware,
             fake_sensor_commands,
-            load_gripper])
+            load_gripper,
+            arm_prefix])
 
     launch_description = LaunchDescription([
         DeclareLaunchArgument(
@@ -140,6 +146,10 @@ def generate_launch_description():
             default_value='true',
             description='Use Franka Gripper as an end-effector, otherwise, the robot is loaded '
                         'without an end-effector.'),
+        DeclareLaunchArgument(
+            arm_prefix_parameter_name,
+            default_value='',
+            description='The prefix of the arm.'),
         Node(
             package='joint_state_publisher',
             executable='joint_state_publisher',
