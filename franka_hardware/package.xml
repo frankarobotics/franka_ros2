@@ -11,6 +11,7 @@
 
   <depend>libfranka</depend>
   <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
   <depend>franka_msgs</depend>
   <depend>hardware_interface</depend>
   <depend>pluginlib</depend>
