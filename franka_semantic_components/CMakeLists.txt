@@ -20,6 +20,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     geometry_msgs
     sensor_msgs
     hardware_interface
+    controller_interface
     rclcpp_lifecycle
     urdf)
 
