@@ -18,7 +18,8 @@
             ],
             "settings": {
                 "python.analysis.extraPaths": [
-                    "/opt/ros/humble/lib/python3.10/site-packages"
+                    "/opt/ros/humble/lib/python3.10/site-packages",
+                    "${workspaceFolder}/install"
                 ],
                 "terminal.integrated.defaultProfile.linux": "bash",
                 "terminal.integrated.profiles.linux": { "bash": { "path": "/bin/bash" } }
