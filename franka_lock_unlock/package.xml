@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>franka_lock_unlock</name>
+  <version>4.2.1</version>
+  <description>Lock or unlock the Franka Emika Panda joint brakes programmatically.</description>
+
+  <author email="ethz@juliankeller.net">jk-ethz</author>
+  <maintainer email="ethz@juliankeller.net">jk-ethz</maintainer>
+
+  <license>AGPLv3</license>
+  <url type="website">https://github.com/jk-ethz/franka_lock_unlock</url>
+
+  <exec_depend>launch_xml</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+
+</package>

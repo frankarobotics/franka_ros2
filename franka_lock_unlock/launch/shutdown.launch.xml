@@ -1,0 +1,13 @@
+<launch>
+    <arg name="hostname"/>
+    <arg name="username" default="admin"/>
+    <arg name="password"/>
+
+    <node name="franka_shutdown"
+          pkg="franka_lock_unlock"
+          exec="franka_shutdown"
+          output="screen"
+          emulate_tty="True"
+          args="$(var hostname) $(var username) $(var password) -w -r"
+    />
+</launch>
