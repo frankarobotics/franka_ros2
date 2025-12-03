@@ -15,7 +15,7 @@ from time import sleep
 import argparse
 from requests.exceptions import ConnectionError
 from urllib.parse import urljoin
-from franka_client import FrankaClient
+from .franka_client import FrankaClient
 
 
 class FrankaShutdown(FrankaClient):

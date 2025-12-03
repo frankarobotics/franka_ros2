@@ -16,7 +16,7 @@ from threading import Event
 import atexit
 import argparse
 from urllib.parse import urljoin
-from franka_client import FrankaClient
+from .franka_client import FrankaClient
 
 
 class FrankaLockUnlock(FrankaClient):
