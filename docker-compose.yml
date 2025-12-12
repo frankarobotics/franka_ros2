@@ -14,6 +14,7 @@ services:
     stdin_open: true
     volumes:
       - ./:/ros2_ws/src
+      - franka_install_ws:/ros2_ws/install
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ./limits.conf:/etc/security/limits.conf
       - /dev:/dev
@@ -26,3 +27,6 @@ services:
       rtprio: 99
       rttime: -1
       memlock: 8428281856
+
+volumes:
+  franka_install_ws:
