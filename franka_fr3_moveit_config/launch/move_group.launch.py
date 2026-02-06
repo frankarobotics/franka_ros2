@@ -63,11 +63,6 @@ def generate_launch_description():
         default_value='true',
         description='Whether to load the gripper or not (true or false)'
     )
-    load_gripper_arg = DeclareLaunchArgument(
-        load_gripper_parameter_name,
-        default_value='true',
-        description='Whether to load the gripper or not (true or false)'
-    )
     use_fake_hardware_arg = DeclareLaunchArgument(
         use_fake_hardware_parameter_name,
         default_value='false',
