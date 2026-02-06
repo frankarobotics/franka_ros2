@@ -53,6 +53,31 @@ def generate_launch_description():
     db_arg = DeclareLaunchArgument(
         'db', default_value='False', description='Database flag'
     )
+    namespace_arg = DeclareLaunchArgument(
+        namespace_parameter_name,
+        default_value='',
+        description='Namespace for the robot.'
+    )
+    load_gripper_arg = DeclareLaunchArgument(
+        load_gripper_parameter_name,
+        default_value='true',
+        description='Whether to load the gripper or not (true or false)'
+    )
+    load_gripper_arg = DeclareLaunchArgument(
+        load_gripper_parameter_name,
+        default_value='true',
+        description='Whether to load the gripper or not (true or false)'
+    )
+    use_fake_hardware_arg = DeclareLaunchArgument(
+        use_fake_hardware_parameter_name,
+        default_value='false',
+        description='Use fake hardware')
+    fake_sensor_commands_arg = DeclareLaunchArgument(
+        fake_sensor_commands_parameter_name,
+        default_value='false',
+        description="Fake sensor commands. Only valid when '{}' is true".format(
+            use_fake_hardware_parameter_name)
+    )
 
     franka_xacro_file = os.path.join(
         get_package_share_directory('franka_description'),
@@ -110,6 +135,10 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            namespace_arg,
+            load_gripper_arg,
+            use_fake_hardware_arg,
+            fake_sensor_commands_arg,
             db_arg,
             run_move_group_node,
         ]
