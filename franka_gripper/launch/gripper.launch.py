@@ -43,7 +43,7 @@ def generate_robot_nodes(context):
         Node(
                 package='franka_gripper',
                 executable='franka_gripper_node',
-                name=['franka_gripper'],
+                name=[robot_type, '_gripper'],
                 namespace=namespace,
                 parameters=[{'robot_ip': robot_ip, 'joint_names': joint_names}, gripper_config],
                 condition=UnlessCondition(use_fake_hardware),
@@ -53,7 +53,7 @@ def generate_robot_nodes(context):
         Node(
             package='franka_gripper',
             executable='fake_gripper_state_publisher.py',
-            name=['franka_gripper'],
+            name=[robot_type, '_gripper'],
             namespace=namespace,
             parameters=[{'robot_ip': robot_ip, 'joint_names': joint_names}, gripper_config],
             condition=IfCondition(use_fake_hardware),
