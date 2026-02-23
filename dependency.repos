@@ -1,12 +1,12 @@
 repositories:
   franka_description:
     type: git
-    url: https://github.com/frankarobotics/franka_description.git
-    version: 2.6.0
+    url: ssh://git@bitbucket.fe.lan:7999/moctrl/franka_description.git
+    version: PRCUN-5983-mobile-fr-3-duo-move-it-integration
   libfranka:
     type: git
     url: https://github.com/frankarobotics/libfranka.git
-    version: 0.20.4
+    version: 0.20.5
   gz-ros2-control:
     type: git
     url: https://github.com/ros-controls/gz_ros2_control.git

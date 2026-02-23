@@ -1,0 +1,26 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: franka_description
+    relative_path: robots/mobile_fr3_duo_v0_2/mobile_fr3_duo_v0_2.urdf.xacro
+    xacro_args: use_fake_hardware:=true ros2_control:=true
+  srdf:
+    relative_path: config/mobile_fr3_duo_v0_2.srdf
+  package_settings:
+    author_name: Franka Robotics GmbH
+    author_email: support@franka.de
+    generated_timestamp: 1771857193
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
