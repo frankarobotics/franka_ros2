@@ -27,16 +27,16 @@ Use the following launch file to start the gripper::
 In a different tab you can now perform the homing and send a grasp command.::
 
 
-    ros2 action send_goal /fr3_gripper/homing franka_msgs/action/Homing {}
-    ros2 action send_goal -f /fr3_gripper/grasp franka_msgs/action/Grasp "{width: 0.00, speed: 0.03, force: 50}"
+    ros2 action send_goal /franka_gripper/homing franka_msgs/action/Homing {}
+    ros2 action send_goal -f /franka_gripper/grasp franka_msgs/action/Grasp "{width: 0.00, speed: 0.03, force: 50}"
 
 The inner and outer epsilon are 0.005 meter per default. You can also explicitly set the epsilon::
 
-    ros2 action send_goal -f /fr3_gripper/grasp franka_msgs/action/Grasp "{width: 0.00, speed: 0.03, force: 50, epsilon: {inner: 0.01, outer: 0.01}}"
+    ros2 action send_goal -f /franka_gripper/grasp franka_msgs/action/Grasp "{width: 0.00, speed: 0.03, force: 50, epsilon: {inner: 0.01, outer: 0.01}}"
 
 To stop the grasping, you can use ``stop`` service.::
 
-    ros2 service call /fr3_gripper/stop std_srvs/srv/Trigger {}
+    ros2 service call /franka_gripper/stop std_srvs/srv/Trigger {}
 
 Changes from franka_ros
 -----------------------

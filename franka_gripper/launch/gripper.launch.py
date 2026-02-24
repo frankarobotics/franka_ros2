@@ -86,6 +86,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'namespace',
+                default_value='',
                 description=(
                     'Namespace for the gripper nodes. If not set, the nodes will not be '
                     'namespaced.'
