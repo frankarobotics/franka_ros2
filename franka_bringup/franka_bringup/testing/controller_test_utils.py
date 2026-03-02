@@ -1,16 +1,17 @@
-#  Copyright (c) 2026 Franka Robotics GmbH
+# Copyright 2026 Franka Robotics GmbH
 #
-#  Licensed under the Apache License, Version 2.0 (the 'License');
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an 'AS IS' BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 
 """
 Shared utilities for controller integration tests.
@@ -24,7 +25,7 @@ This module provides common functionality for testing ROS2 controllers:
 
 import time
 
-from integration_launch_testing.controller_service_client import (
+from franka_bringup.testing.controller_service_client import (
     ControllerServiceClient,
 )
 from rcl_interfaces.srv import GetParameters

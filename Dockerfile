@@ -20,6 +20,7 @@ RUN apt-get update && \
         gdb \
         git \
         nano \
+        iputils-ping \
         openssh-client \
         python3-colcon-argcomplete \
         python3-colcon-common-extensions \
@@ -51,6 +52,8 @@ RUN sudo apt-get update \
         ros-jazzy-hardware-interface-testing \
         ros-jazzy-ament-cmake-clang-format \
         ros-jazzy-ament-cmake-clang-tidy \
+        ros-jazzy-ament-cmake-ros \
+        ros-jazzy-ament-cmake-test \
         ros-jazzy-controller-manager \
         ros-jazzy-ros2-control-test-assets \
         ros-jazzy-hardware-interface \

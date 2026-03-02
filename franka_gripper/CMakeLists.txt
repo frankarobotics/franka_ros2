@@ -59,6 +59,8 @@ install(PROGRAMS
         DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
+
+    find_package(ament_cmake_ros REQUIRED)
     find_package(ament_cmake_clang_format REQUIRED)
     find_package(ament_cmake_copyright REQUIRED)
     find_package(ament_cmake_cppcheck REQUIRED)
@@ -66,6 +68,7 @@ if(BUILD_TESTING)
     find_package(ament_cmake_lint_cmake REQUIRED)
     find_package(ament_cmake_pep257 REQUIRED)
     find_package(ament_cmake_xmllint REQUIRED)
+    find_package(launch_testing_ament_cmake REQUIRED)
 
     set(CPP_DIRECTORIES src include)
     ament_clang_format(CONFIG_FILE ../.clang-format ${CPP_DIRECTORIES})
@@ -75,6 +78,19 @@ if(BUILD_TESTING)
     ament_flake8()
     ament_pep257()
     ament_xmllint()
+
+    if(NOT ROBOT_IP)
+        set(ROBOT_IP "172.16.0.1")
+        message(STATUS "ROBOT_IP not defined, defaulting to ${ROBOT_IP}...")
+    endif()
+
+    function(add_ros_isolated_launch_test path)
+      set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
+      add_launch_test("${path}" RUNNER "${RUNNER}" ARGS "robot_ip:=${ROBOT_IP}" TIMEOUT 500)
+    endfunction()
+
+    add_ros_isolated_launch_test(test/test_hardware_franka_gripper_position.py)
+
 endif()
 
 ament_package()
