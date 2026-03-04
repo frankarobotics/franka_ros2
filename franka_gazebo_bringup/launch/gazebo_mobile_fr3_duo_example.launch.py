@@ -24,6 +24,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
+
 def get_robot_description(context: LaunchContext, load_gripper, franka_hand, with_sensors):
     load_gripper_str = context.perform_substitution(load_gripper)
     franka_hand_str = context.perform_substitution(franka_hand)
@@ -66,17 +67,21 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
 
     return [robot_state_publisher]
 
+
 def set_gz_sim_resource_path(context, with_sensors):
     with_sensors_val = context.perform_substitution(with_sensors).lower()
     if with_sensors_val == 'true':
         sensors_share = os.path.dirname(get_package_share_directory('franka_mobile_sensors'))
         description_share = os.path.dirname(get_package_share_directory('franka_description'))
-        olv_module_descriptions_share = os.path.dirname(get_package_share_directory('olv_module_descriptions'))
-        os.environ['GZ_SIM_RESOURCE_PATH'] = f"{sensors_share}:{description_share}:{olv_module_descriptions_share}"
+        olv_module_descriptions_share = os.path.dirname(
+            get_package_share_directory('olv_module_descriptions'))
+        os.environ['GZ_SIM_RESOURCE_PATH'] = f"{sensors_share}:{
+            description_share}:{olv_module_descriptions_share}"
     else:
         description_share = os.path.dirname(get_package_share_directory('franka_description'))
         os.environ['GZ_SIM_RESOURCE_PATH'] = description_share
     return []
+
 
 def get_gz_world(context, with_sensors, world):
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
@@ -99,6 +104,7 @@ def get_gz_world(context, with_sensors, world):
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
         launch_arguments={'gz_args': f'{world_path} -r'}.items(),
     )]
+
 
 def get_bridge(context, with_sensors):
     with_sensors_val = context.perform_substitution(with_sensors).lower()
@@ -124,14 +130,14 @@ def get_bridge(context, with_sensors):
             '/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU',
         ])
         remappings.extend([
-            ('/camera_front/image_raw',              '/camera_front/color/image_raw'),
-            ('/camera_front/image_raw/camera_info',  '/camera_front/color/camera_info'),
-            ('/camera_rear/image_raw',               '/camera_rear/color/image_raw'),
-            ('/camera_rear/image_raw/camera_info',   '/camera_rear/color/camera_info'),
-            ('/camera_left/image_raw',               '/camera_left/color/image_raw'),
-            ('/camera_left/image_raw/camera_info',   '/camera_left/color/camera_info'),
-            ('/camera_right/image_raw',              '/camera_right/color/image_raw'),
-            ('/camera_right/image_raw/camera_info',  '/camera_right/color/camera_info'),
+            ('/camera_front/image_raw', '/camera_front/color/image_raw'),
+            ('/camera_front/image_raw/camera_info', '/camera_front/color/camera_info'),
+            ('/camera_rear/image_raw', '/camera_rear/color/image_raw'),
+            ('/camera_rear/image_raw/camera_info', '/camera_rear/color/camera_info'),
+            ('/camera_left/image_raw', '/camera_left/color/image_raw'),
+            ('/camera_left/image_raw/camera_info', '/camera_left/color/camera_info'),
+            ('/camera_right/image_raw', '/camera_right/color/image_raw'),
+            ('/camera_right/image_raw/camera_info', '/camera_right/color/camera_info'),
         ])
 
     return [Node(
@@ -157,13 +163,13 @@ def generate_launch_description():
     world = LaunchConfiguration(world_name)
 
     load_gripper_launch_argument = DeclareLaunchArgument(
-            load_gripper_name,
-            default_value='true',
-            description='true/false for activating the gripper')
+        load_gripper_name,
+        default_value='true',
+        description='true/false for activating the gripper')
     franka_hand_launch_argument = DeclareLaunchArgument(
-            franka_hand_name,
-            default_value='franka_hand',
-            description='Default value: franka_hand')
+        franka_hand_name,
+        default_value='franka_hand',
+        description='Default value: franka_hand')
     namespace_launch_argument = DeclareLaunchArgument(
         namespace_name,
         default_value='',
@@ -183,7 +189,8 @@ def generate_launch_description():
         function=get_robot_description,
         args=[load_gripper, franka_hand, with_sensors])
 
-    set_gz_sim_resource_path_action = OpaqueFunction(function=set_gz_sim_resource_path, args=[with_sensors])
+    set_gz_sim_resource_path_action = OpaqueFunction(
+        function=set_gz_sim_resource_path, args=[with_sensors])
     gazebo_world = OpaqueFunction(function=get_gz_world, args=[with_sensors, world])
     bridge = OpaqueFunction(function=get_bridge, args=[with_sensors])
 
@@ -199,11 +206,11 @@ def generate_launch_description():
     rviz_file = os.path.join(get_package_share_directory('franka_description'), 'rviz',
                              'visualize_franka.rviz')
     rviz = Node(package='rviz2',
-             executable='rviz2',
-             name='rviz2',
-             namespace=namespace,
-             arguments=['--display-config', rviz_file, '-f', 'world'],
-    )
+                executable='rviz2',
+                name='rviz2',
+                namespace=namespace,
+                arguments=['--display-config', rviz_file, '-f', 'world'],
+                )
 
     load_joint_state_broadcaster = Node(
         package='controller_manager',
