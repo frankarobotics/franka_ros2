@@ -1,8 +1,9 @@
 #!groovy
-@Library('fe-pipeline-steps@feat/robot_api')
-import de.franka.jenkins.FeRobotApi
-
 pipeline {
+
+  libraries {
+    lib('fe-pipeline-steps')
+  }
 
   agent {
     node {
@@ -203,64 +204,11 @@ pipeline {
         script {
           echo "Checking connectivity to Master Controller..."
           sh "ping -c 5 ${params.robotIp}"
-
-          def robot = new FeRobotApi(this, params.robotIp)
-
-          try {
-            // take control token
-            robot.controlTokenStatus()
-            robot.controlTokenTake()
-            robot.controlTokenStatus()
-
-            sh 'sleep 1'
-
-            // unlock brakes (worth adding some retries)
-            robot.jointsStatus()
-            robot.jointsUnlock()
-
-            if (!robot.areAllJointsUnlocked()) {
-              robot.jointsStatus()
-              throw new RuntimeException("Failed to unlock joints")
-            }
-
-            sh 'sleep 5'
-
-            // Activate FCI
-            robot.fciStatus()
-            robot.fciActivate()
-
-            if(!robot.isFciActive()) {
-              robot.fciStatus()
-              throw new RuntimeException("Failed to activate FCI")
-            }
-
-            sh 'sleep 1'
-
-            echo 'Running hardware tests...'
-            sh '''
-                . install/setup.sh
-                colcon test \
-                  --base-paths src \
-                  --packages-select franka_bringup \
-                  --event-handlers console_direct+ \
-                  --ctest-args --tests-regex test_hardware
-
-                colcon test-result --verbose
-            '''
-          }
-          finally {
-            try {
-                robot.fciDeactivate()
-                sh 'sleep 1'
-                robot.jointsLock()
-                sh 'sleep 5'
-                robot.controlTokenRelease()
-
-            }
-            catch(Exception cleanupErr){
-                println "Cleanup warning: ${cleanupErr.message}"
-            }
-          }
+          sh """
+            . install/setup.sh
+            chmod +x ./src/franka_ros2/scripts/*.sh
+            ./src/franka_ros2/scripts/run_hardware_tests.sh ${params.robotIp}
+          """
         }
       }
     }
