@@ -4,55 +4,15 @@ moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControll
 
 moveit_simple_controller_manager:
   controller_names:
-    - right_arm_controller
-    - left_arm_controller
-    - mobile_base_controller
-    - spine_controller
-    - left_hand_controller
-    - right_hand_controller
     - full_body_controller
 
-  right_arm_controller:
-    type: FollowJointTrajectory
-    joints:
-      - right_fr3v2_joint1
-      - right_fr3v2_joint2
-      - right_fr3v2_joint3
-      - right_fr3v2_joint4
-      - right_fr3v2_joint5
-      - right_fr3v2_joint6
-      - right_fr3v2_joint7
-  left_arm_controller:
-    type: FollowJointTrajectory
-    joints:
-      - left_fr3v2_joint1
-      - left_fr3v2_joint2
-      - left_fr3v2_joint3
-      - left_fr3v2_joint4
-      - left_fr3v2_joint5
-      - left_fr3v2_joint6
-      - left_fr3v2_joint7
-  mobile_base_controller:
-    type: FollowJointTrajectory
-    joints:
-      - planar_base_joint
-  spine_controller:
-    type: FollowJointTrajectory
-    joints:
-      - franka_spine_vertical_joint
-  left_hand_controller:
-    type: FollowJointTrajectory
-    joints:
-      - left_fr3v2_finger_joint1
-  right_hand_controller:
-    type: FollowJointTrajectory
-    joints:
-      - right_fr3v2_finger_joint1
   full_body_controller:
+    action_ns: follow_joint_trajectory
     type: FollowJointTrajectory
     joints:
-      - planar_base_joint
-      - franka_spine_vertical_joint
+      - planar_x
+      - planar_y
+      - planar_theta
       - left_fr3v2_joint1
       - left_fr3v2_joint2
       - left_fr3v2_joint3

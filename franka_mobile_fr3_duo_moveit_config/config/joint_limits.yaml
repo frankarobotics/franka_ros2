@@ -8,34 +8,24 @@ default_acceleration_scaling_factor: 0.1
 # Specific joint properties can be changed with the keys [max_position, min_position, max_velocity, max_acceleration]
 # Joint limits can be turned off with [has_velocity_limits, has_acceleration_limits]
 joint_limits:
-  planar_base_joint/x:
+  planar_x:
     has_velocity_limits: true
-    max_velocity: 0.10000000000000001
+    max_velocity: 2.0
     has_acceleration_limits: true
-    max_acceleration: 3.75
-  planar_base_joint/y:
+    max_acceleration: 2.5
+  planar_y:
     has_velocity_limits: true
-    max_velocity: 0.10000000000000001
+    max_velocity: 2.0
     has_acceleration_limits: true
-    max_acceleration: 3.75
-  planar_base_joint/theta:
+    max_acceleration: 2.5
+  planar_theta:
     has_velocity_limits: true
-    max_velocity: 0.10000000000000001
+    max_velocity: 5.0
     has_acceleration_limits: true
-    max_acceleration: 3.75
+    max_acceleration: 7.5
   franka_spine_vertical_joint:
     has_velocity_limits: true
     max_velocity: 0.10000000000000001
-    has_acceleration_limits: true
-    max_acceleration: 3.75
-  left_fr3v2_finger_joint1:
-    has_velocity_limits: true
-    max_velocity: 0.20000000000000001
-    has_acceleration_limits: true
-    max_acceleration: 3.75
-  left_fr3v2_finger_joint2:
-    has_velocity_limits: true
-    max_velocity: 0.20000000000000001
     has_acceleration_limits: true
     max_acceleration: 3.75
   left_fr3v2_joint1:
@@ -71,16 +61,6 @@ joint_limits:
   left_fr3v2_joint7:
     has_velocity_limits: true
     max_velocity: 5.2599999999999998
-    has_acceleration_limits: true
-    max_acceleration: 3.75
-  right_fr3v2_finger_joint1:
-    has_velocity_limits: true
-    max_velocity: 0.20000000000000001
-    has_acceleration_limits: true
-    max_acceleration: 3.75
-  right_fr3v2_finger_joint2:
-    has_velocity_limits: true
-    max_velocity: 0.20000000000000001
     has_acceleration_limits: true
     max_acceleration: 3.75
   right_fr3v2_joint1:

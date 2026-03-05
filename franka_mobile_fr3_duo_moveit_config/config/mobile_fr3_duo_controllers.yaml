@@ -1,0 +1,54 @@
+# This config file is used by ros2_control
+controller_manager:
+  ros__parameters:
+    update_rate: 1000  # Hz
+    thread_priority: 98
+    overruns:
+      manage: false
+      print_warnings: false
+
+    full_body_controller:
+      type: mobile_fr3_duo_joint_trajectory_controller/MobileFR3DuoJointTrajectoryController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+  
+full_body_controller:
+  ros__parameters:
+    update_rate: 1000
+    joints:
+      - planar_x
+      - planar_y
+      - planar_theta
+      - left_fr3v2_joint1
+      - left_fr3v2_joint2
+      - left_fr3v2_joint3
+      - left_fr3v2_joint4
+      - left_fr3v2_joint5
+      - left_fr3v2_joint6
+      - left_fr3v2_joint7
+      - right_fr3v2_joint1
+      - right_fr3v2_joint2
+      - right_fr3v2_joint3
+      - right_fr3v2_joint4
+      - right_fr3v2_joint5
+      - right_fr3v2_joint6
+      - right_fr3v2_joint7
+    robot_types: ['tmrv0_2', 'fr3v2', 'fr3v2']
+    robot_prefixes: ['', 'left', 'right']
+    k_gains:
+      - 24.0
+      - 24.0
+      - 24.0
+      - 24.0
+      - 10.0
+      - 6.0
+      - 2.0
+    d_gains:
+      - 2.0
+      - 2.0
+      - 2.0
+      - 1.0
+      - 1.0
+      - 1.0
+      - 0.5
