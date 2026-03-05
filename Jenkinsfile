@@ -39,10 +39,6 @@ pipeline {
     string(name: "robotIp",
             defaultValue: "172.16.0.1",
             description: "The static IP of the robot to run tests onto")
-
-    booleanParam(name: 'cleanWorkspace', 
-            defaultValue: false, 
-            description: 'Wipe entire workspace before build')
   }
 
 
@@ -51,9 +47,7 @@ pipeline {
       options { skipDefaultCheckout true }
       steps {
         script{
-          if (params.cleanWorkspace) {
-            cleanWs()
-          }
+          cleanWs()
         }
         checkout([
             $class: 'GitSCM',
@@ -216,6 +210,7 @@ pipeline {
   post {
       always {
           script {
+              cleanWs()
               notifyBitbucket()
           }
       }
