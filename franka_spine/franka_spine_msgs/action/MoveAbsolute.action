@@ -1,0 +1,11 @@
+# Command an absolute move of the Franka Spine.
+float64 position       # Target position [m]
+float64 velocity       # Motion velocity [m/s], must be > 0
+float64 acceleration   # Motion acceleration [m/s²], must be > 0
+float64 deceleration   # Motion deceleration [m/s²], must be > 0
+---
+bool success         # True if the target position was reached
+string stop_by       # How the motion was stopped (from spine response)
+string error         # Error description if success is false
+---
+float64 current_position  # Current spine position [m]

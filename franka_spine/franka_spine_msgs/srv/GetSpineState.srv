@@ -1,0 +1,8 @@
+# Query the current spine state of the Franka Spine.
+# Possible states: NotReadyToSwitchOn, SwitchedOff, ReadyToSwitchOn,
+#   MotorOff, SwitchedOn, QuickStopActive, FaultReactionActive, Fault, Unknown.
+---
+string state              # Current spine state
+string error_code         # Error code (empty when no error)
+string error_description  # Human-readable error description
+bool success              # True if the REST call succeeded

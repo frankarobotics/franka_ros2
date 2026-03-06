@@ -1,6 +1,11 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+UNRELEASED
+----------
+
+* feat: Added the spline action server and examples for the Franka Spine
+
 v3.2.2 (2026-03-03)
 -------------------
 
@@ -15,9 +20,9 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.4.0 requires ROS 2 Jazz
 * feat: integration_launch_testing: added smoke tests for the example controllers
 * feat: integration_launch_testing: test example controllers using example.launch.py
 * fix: gripper_example_controller also works without namespace
-* fix: corrected logs in franka_hardware 
+* fix: corrected logs in franka_hardware
 * fix: gravity_compensation_example_controller, move_to_start_example_controller, joint_impedance_example_controller work with parametrized robot_type
-* fix: jazzy compatibility matrix 
+* fix: jazzy compatibility matrix
 * fix: joint_impedance_with_ik_example_controller checked for 'robot_id' instead of 'robot_type' argument
 * fix: added missing dependency to rclcpp_action in franka_hardware package.xml
 * fix: franka_hardware test fixed
