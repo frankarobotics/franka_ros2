@@ -46,7 +46,7 @@ Now you can launch the velocity example with Gazebo simulator.
 
 .. code-block:: shell
 
-    ros2 launch franka_gazebo_bringup gazebo_joint_velocity_controller_example.launch.py load_gripper:=true franka_hand:='franka_hand'
+    ros2 launch franka_gazebo_bringup gazebo_franka_arm_example_controller.launch.py load_gripper:=true franka_hand:='franka_hand' controller:='joint_velocity_example_controller'
 
 
 Keep in mind that the gripper joint has a bug with the joint velocity controller.
@@ -62,7 +62,7 @@ Then you can run with the following command.
 
 .. code-block:: shell
 
-    ros2 launch franka_gazebo_bringup gazebo_joint_position_controller_example.launch.py load_gripper:=true franka_hand:='franka_hand'
+    ros2 launch franka_gazebo_bringup gazebo_franka_arm_example_controller.launch.py load_gripper:=true franka_hand:='franka_hand' controller:='joint_position_example_controller'
 
 
 Joint Impedance Control Example with Gazebo
@@ -85,7 +85,7 @@ Then you can run the impedance control example.
 
 .. code-block:: shell
 
-    ros2 launch franka_gazebo_bringup gazebo_joint_impedance_controller_example.launch.py load_gripper:=true franka_hand:='franka_hand'
+    ros2 launch franka_gazebo_bringup gazebo_franka_arm_example_controller.launch.py load_gripper:=true franka_hand:='franka_hand' controller:='joint_impedance_example_controller'
 
 Mobile FR3 Duo Example with Gazebo
 -----------------------------------
