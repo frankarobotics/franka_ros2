@@ -1,6 +1,6 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, Shutdown
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, Shutdown
 from launch.substitutions import (
     LaunchConfiguration,
     PathJoinSubstitution,
@@ -17,7 +17,7 @@ import yaml
 import json
 
 
-def get_robot_descriptions(robot_name, package_name):
+def get_robot_descriptions(robot_name, package_name, use_fake_hardware):
 
     robot_description_file_path = os.path.join(
         get_package_share_directory("franka_description"),
@@ -40,7 +40,7 @@ def get_robot_descriptions(robot_name, package_name):
             "hand": "false",
             "load_gripper": "false",
             "ee_id": "None",
-            "use_fake_hardware": "false",
+            "use_fake_hardware": use_fake_hardware,
             "ros2_control": "true",
             "fake_sensor_commands": "false",
             'is_async': 'true',
@@ -210,7 +210,9 @@ def get_controller_nodes(package_name):
     return controller_nodes
 
 
-def generate_launch_description():
+def generate_nodes(context):
+    use_fake_hardware = LaunchConfiguration("use_fake_hardware").perform(context)
+
     robot_type = "mobile_fr3_duo"
     hardware_version = "v0_2"
 
@@ -220,7 +222,7 @@ def generate_launch_description():
     namespace = LaunchConfiguration('namespace', default='')
 
     robot_description, robot_description_semantic = get_robot_descriptions(
-        robot_name, package_name
+        robot_name, package_name, use_fake_hardware
     )
 
     joint_state_publisher = get_joint_state_publisher(namespace)
@@ -291,14 +293,23 @@ def generate_launch_description():
     )
 
     controller_nodes = get_controller_nodes(package_name)
-
-    return LaunchDescription(
-        [
+    return ([
             robot_state_publisher,
             move_group_node,
             ros2_control_node,
             joint_state_publisher,
             rviz_node,
         ]
-        + controller_nodes
+        + controller_nodes)
+
+def generate_launch_description():
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                "use_fake_hardware",
+                default_value='false',
+                description='Fakes the hardware if true. If false, the real hardware is expected to be connected.',
+            ),
+            OpaqueFunction(function=generate_nodes)
+        ]
     )

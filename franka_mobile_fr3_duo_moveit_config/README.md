@@ -75,10 +75,10 @@ The planner won't succeed if a joint belonging to the move group, was not manual
 Build, source and launch the created package like this:
 
 ```sh
-colcon build --packages-select franka_mobile_fr3_duo_moveit_config
+colcon build --packages-up-to franka_mobile_fr3_duo_moveit_config
 source install/setup.bash
 export ROS_DOMAIN_ID=201 # optional but recommended 
-ros2 launch franka_mobile_fr3_duo_moveit_config moveit.launch.py
+ros2 launch franka_mobile_fr3_duo_moveit_config moveit.launch.py use_fake_hardware:=true
 ```
 
 In Rviz, select `full_body` as "Planning Group", `<random_valid>` as "Goal State" and increase the "Velocity Scaling" and "Accel. Scaling", then click "Plan" for a quick demo, or play with the 3D markers to your liking:

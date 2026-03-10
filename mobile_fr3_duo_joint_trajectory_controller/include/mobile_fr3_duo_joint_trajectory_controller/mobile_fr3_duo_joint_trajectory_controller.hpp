@@ -105,10 +105,17 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
 
   bool has_active_trajectory() const;
 
+  std::shared_ptr<trajectory_msgs::msg::JointTrajectory> set_hold_position();
+
+  std::shared_ptr<trajectory_msgs::msg::JointTrajectory> set_success_trajectory_point();
+
+  std::atomic<bool> rt_is_holding_{false};
+
   realtime_tools::RealtimeBuffer<std::shared_ptr<trajectory_msgs::msg::JointTrajectory>>
       new_trajectory_msg_;
 
   std::shared_ptr<Trajectory> current_trajectory_ = nullptr;
+  std::shared_ptr<trajectory_msgs::msg::JointTrajectory> hold_position_msg_ptr_ = nullptr;
 
  private:
   std::vector<std::string> joint_names_;
