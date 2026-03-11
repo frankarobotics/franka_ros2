@@ -137,7 +137,7 @@ def generate_launch_description():
         executable='rviz2',
         name='rviz2',
         namespace=namespace,
-        arguments=['--display-config', rviz_file, '-f', 'world'],
+        arguments=['--display-config', rviz_file, '-f', 'base_link'],
     )
 
     load_joint_state_broadcaster = ExecuteProcess(

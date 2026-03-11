@@ -91,10 +91,11 @@ def set_gz_sim_resource_path(context, with_sensors):
     return []
 
 
-def get_gz_world(context, with_sensors, world, gz_args):
+def get_gz_world(context: LaunchContext, with_sensors, world, gz_args):
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
     with_sensors_val = context.perform_substitution(with_sensors).lower()
     world_val = context.perform_substitution(world).strip()
+    gz_args_val = context.perform_substitution(gz_args)
 
     if world_val:
         world_path = os.path.join(
@@ -110,7 +111,7 @@ def get_gz_world(context, with_sensors, world, gz_args):
     return [IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
-        launch_arguments={'gz_args': f'{world_path} {gz_args}'}.items(),
+        launch_arguments={'gz_args': f'{world_path} {gz_args_val}'}.items(),
     )]
 
 
@@ -229,7 +230,7 @@ def generate_launch_description():
                 executable='rviz2',
                 name='rviz2',
                 namespace=namespace,
-                arguments=['--display-config', rviz_file, '-f', 'world'],
+                arguments=['--display-config', rviz_file, '-f', 'base_link'],
                 condition=IfCondition(rviz))
 
     load_joint_state_broadcaster = Node(

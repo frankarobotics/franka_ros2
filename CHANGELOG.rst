@@ -38,6 +38,8 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.4.0 requires ROS 2 Jazz
 * fix: added arm_prefix functionality to all franka_example_controllers and franka_robot_state_broadcaster
 * chore: vendored controller_manager 4.39.2 to avoid version mismatch with gz_ros_sim
 * chore: removed integration_launch_testing package, moved integration tests in their subpackage
+* chore: refactored gazebo launch files, added integration tests
+* chore: refactored mFR3duo example controller to be gazebo independent by chaining `swerve_ik_controller`
 
 v3.2.0 (2026-01-15)
 -------------------

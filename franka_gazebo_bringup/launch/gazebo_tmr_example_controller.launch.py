@@ -47,7 +47,6 @@ def get_robot_description(context: LaunchContext):
         mappings={
             'ros2_control': 'true',
             'gazebo': 'true',
-            'gazebo_effort': 'true'
         }
     )
 
@@ -86,7 +85,7 @@ def generate_launch_description():
         description='Namespace for the robot. If not set, the robot will be launched in the root namespace.')
     gz_args_launch_argument = DeclareLaunchArgument(
         gz_args_name,
-        default_value='-r empty.sdf',
+        default_value='empty.sdf -r',
         description='Extra args to be forwared to gazebo')
     rviz_launch_argument = DeclareLaunchArgument(
         rviz_name,
@@ -133,7 +132,7 @@ def generate_launch_description():
                      executable='rviz2',
                      name='rviz2',
                      namespace=namespace,
-                     arguments=['--display-config', rviz_file, '-f', 'world'],
+                     arguments=['--display-config', rviz_file, '-f', 'base_link'],
                      condition=IfCondition(rviz))
 
     joint_state_broadcaster = Node(
@@ -175,7 +174,6 @@ def generate_launch_description():
 
     # For gazebo, let's chain the ik controller to simulate the tmr master controller's ik
     swerve_ik_controller_node = Node(
-        name="swerve_ik_controller",
         package="controller_manager",
         executable="spawner",
         arguments=["swerve_ik_controller"],
