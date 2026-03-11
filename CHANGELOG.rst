@@ -1,6 +1,11 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+UNRELEASED
+----------
+
+* chore: refactored cartesian velocity example controller to be gazebo independent by chaining `swerve_ik_controller`
+
 v2.3.0 (2026-03-10)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 1.6.1 requires ROS 2 Humble

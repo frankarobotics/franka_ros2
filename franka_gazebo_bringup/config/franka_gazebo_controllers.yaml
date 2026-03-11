@@ -14,15 +14,18 @@
 
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
-      
-      mobile_cartesian_velocity_with_ik_example_controller:
-        type: franka_example_controllers/MobileCartesianVelocityWithIkExampleController
 
       mobile_fr3_duo_joint_impedance_example_controller:
         type: franka_example_controllers/MobileFr3DuoJointImpedanceExampleController
       
       gravity_compensation_example_controller:
         type: franka_example_controllers/GravityCompensationExampleController
+    
+      mobile_cartesian_velocity_controller:
+        type: franka_example_controllers/MobileCartesianVelocityExampleController
+
+      swerve_ik_controller:
+        type: franka_example_controllers/SwerveIKController
 
 /**:
   joint_position_example_controller:
@@ -55,7 +58,10 @@
         - 1.0
         - 0.5
 
-/**:  
-  mobile_cartesian_velocity_with_ik_example_controller:
-    ros__parameters:
-      robot_type: "tmrv0_2"
+swerve_ik_controller:
+  ros__parameters:
+    prefix: "tmrv0_2"
+
+mobile_cartesian_velocity_controller:
+  ros__parameters:
+    cartesian_velocity_interface_prefix: swerve_ik_controller/

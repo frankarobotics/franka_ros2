@@ -29,7 +29,6 @@ MobileCartesianVelocityExampleController::command_interface_configuration() cons
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
   config.names = franka_cartesian_velocity_->get_command_interface_names();
-
   return config;
 }
 
@@ -100,20 +99,25 @@ controller_interface::return_type MobileCartesianVelocityExampleController::upda
 }
 
 CallbackReturn MobileCartesianVelocityExampleController::on_init() {
+  get_node()->declare_parameter("cartesian_velocity_interface_prefix", "");
+  cartesian_velocity_interface_prefix_ =
+      get_node()->get_parameter("cartesian_velocity_interface_prefix").as_string();
   return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn MobileCartesianVelocityExampleController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  std::string ns = get_node()->get_namespace();
+  const std::string ns = get_node()->get_namespace();
+  const std::string cmd_vel_topic = ns == "/"
+                                        ? "/mobile_cartesian_velocity_controller/cmd_vel"
+                                        : ns + "/mobile_cartesian_velocity_controller/cmd_vel";
 
   franka_cartesian_velocity_ =
       std::make_unique<franka_semantic_components::FrankaCartesianVelocityInterface>(
-          franka_semantic_components::FrankaCartesianVelocityInterface(false));
+          cartesian_velocity_interface_prefix_, false);
 
   cmd_vel_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
-      fmt::format("{}/mobile_cartesian_velocity_controller/cmd_vel", ns), queue_size_,
-      [this](const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+      cmd_vel_topic, queue_size_, [this](const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
         last_cmd_vel_ = msg;
         last_cmd_time_ = 0.0;
       });

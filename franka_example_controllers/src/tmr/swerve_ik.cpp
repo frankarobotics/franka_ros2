@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <franka_example_controllers/tmr/swerve_ik.hpp>
+#include "swerve_ik.hpp"
 
 namespace franka_example_controllers {
 
-void computeSwerveIK(double vx,
+bool computeSwerveIK(double vx,
                      double vy,
                      double wz,
                      const Eigen::Vector4d& wheel_positions,
@@ -24,6 +24,18 @@ void computeSwerveIK(double vx,
                      Eigen::Vector4d& steering_angles,
                      Eigen::Vector4d& wheel_velocities,
                      std::array<WheelCommand, 2>& commands) {
+  if (!std::isfinite(wheel_radius) || fabs(wheel_radius) < 1e-3 || wheel_radius < 0) {
+    return false;
+  }
+
+  if (!std::isfinite(vx) || !std::isfinite(vy) || !std::isfinite(wz)) {
+    return false;
+  }
+
+  if (wheel_positions.isApprox(Eigen::Vector4d::Zero(), 1e-3)) {
+    return false;
+  }
+
   constexpr int kNumberOfWheels = 2;
   Eigen::Array2d x = wheel_positions.head<2>();
   Eigen::Array2d y = wheel_positions.tail<2>();
@@ -53,6 +65,8 @@ void computeSwerveIK(double vx,
     steering_angles(i) = commands[i].steering_angle;
     wheel_velocities(i) = commands[i].wheel_velocity;
   }
+
+  return true;
 }
 
 }  // namespace franka_example_controllers

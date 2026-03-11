@@ -50,6 +50,7 @@ add_library(
         src/tmr/mobile_cartesian_velocity_example_controller.cpp
         src/tmr/mobile_cartesian_velocity_with_ik_example_controller.cpp
         src/tmr/swerve_ik.cpp
+        src/tmr/swerve_ik_controller.cpp
 )
 target_include_directories(
         ${PROJECT_NAME}
