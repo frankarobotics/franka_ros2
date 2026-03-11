@@ -25,7 +25,7 @@ import launch_testing
 import launch_testing.actions
 import rclpy
 
-TEST_DURATION = 2.0  # sec
+TEST_DURATION = 5.0  # sec
 
 def generate_test_description():
     """Generate the test launch descriptions."""

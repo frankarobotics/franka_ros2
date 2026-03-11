@@ -23,6 +23,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -90,7 +91,7 @@ def set_gz_sim_resource_path(context, with_sensors):
     return []
 
 
-def get_gz_world(context, with_sensors, world):
+def get_gz_world(context, with_sensors, world, gz_args):
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
     with_sensors_val = context.perform_substitution(with_sensors).lower()
     world_val = context.perform_substitution(world).strip()
@@ -109,7 +110,7 @@ def get_gz_world(context, with_sensors, world):
     return [IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
-        launch_arguments={'gz_args': f'{world_path} -r'}.items(),
+        launch_arguments={'gz_args': f'{world_path} {gz_args}'}.items(),
     )]
 
 
@@ -162,12 +163,16 @@ def generate_launch_description():
     namespace_name = 'namespace'
     with_sensors_name = 'with_sensors'
     world_name = 'world'
+    rviz_name = 'rviz'
+    gz_args_name = 'gz_args'
 
     load_gripper = LaunchConfiguration(load_gripper_name)
     franka_hand = LaunchConfiguration(franka_hand_name)
     namespace = LaunchConfiguration(namespace_name)
     with_sensors = LaunchConfiguration(with_sensors_name)
     world = LaunchConfiguration(world_name)
+    rviz = LaunchConfiguration(rviz_name)
+    gz_args = LaunchConfiguration(gz_args_name)
 
     load_gripper_launch_argument = DeclareLaunchArgument(
         load_gripper_name,
@@ -191,6 +196,14 @@ def generate_launch_description():
         description='SDF world filename inside franka_gazebo_bringup/worlds/ to load. '
                     'Overrides the default world selection. '
                     'Example: sensor_demo_world.sdf')
+    gz_args_launch_argument = DeclareLaunchArgument(
+        gz_args_name,
+        default_value='-r',
+        description='Extra args to be forwared to gazebo')
+    rviz_launch_argument = DeclareLaunchArgument(
+        rviz_name,
+        default_value='true',
+        description='true/false for visualizing the robot in rviz')
 
     robot_state_publisher = OpaqueFunction(
         function=get_robot_description,
@@ -198,7 +211,7 @@ def generate_launch_description():
 
     set_gz_sim_resource_path_action = OpaqueFunction(
         function=set_gz_sim_resource_path, args=[with_sensors])
-    gazebo_world = OpaqueFunction(function=get_gz_world, args=[with_sensors, world])
+    gazebo_world = OpaqueFunction(function=get_gz_world, args=[with_sensors, world, gz_args])
     bridge = OpaqueFunction(function=get_bridge, args=[with_sensors])
 
     spawn = Node(
@@ -212,12 +225,12 @@ def generate_launch_description():
 
     rviz_file = os.path.join(get_package_share_directory('franka_description'), 'rviz',
                              'visualize_franka.rviz')
-    rviz = Node(package='rviz2',
+    rviz_node = Node(package='rviz2',
                 executable='rviz2',
                 name='rviz2',
                 namespace=namespace,
                 arguments=['--display-config', rviz_file, '-f', 'world'],
-                )
+                condition=IfCondition(rviz))
 
     load_joint_state_broadcaster = Node(
         package='controller_manager',
@@ -255,10 +268,12 @@ def generate_launch_description():
         namespace_launch_argument,
         with_sensors_launch_argument,
         world_launch_argument,
+        gz_args_launch_argument,
+        rviz_launch_argument,
         set_gz_sim_resource_path_action,
         gazebo_world,
         robot_state_publisher,
-        rviz,
+        rviz_node,
         spawn,
         bridge,
         RegisterEventHandler(

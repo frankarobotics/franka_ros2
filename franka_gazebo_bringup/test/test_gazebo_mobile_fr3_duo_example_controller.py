@@ -25,7 +25,7 @@ import launch_testing
 import launch_testing.actions
 import rclpy
 
-TEST_DURATION = 2.0  # sec
+TEST_DURATION = 5.0  # sec
 
 def generate_test_description():
     """Generate the test launch descriptions."""
@@ -38,14 +38,14 @@ def generate_test_description():
                         'franka_gazebo_bringup'
                     ),
                     'launch',
-                    'gazebo_mobile_fr3_duo_example_controller.launch.py',
+                    'gazebo_mobile_fr3_duo_example.launch.py',
                 ]
             )
         ),
 
         # let's use gazebo server mode and headless rendering for fast setup/teardown
         launch_arguments={
-            'gz_args': 'empty.sdf -r -s --headless-rendering',
+            'gz_args': '-r -s --headless-rendering',
             'rviz': 'false'
         }.items(),
     )
