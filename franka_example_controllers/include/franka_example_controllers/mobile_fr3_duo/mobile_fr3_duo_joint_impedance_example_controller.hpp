@@ -64,8 +64,6 @@ class MobileFr3DuoJointImpedanceExampleController
   const int num_base_joints = 4;
   const int kArmStateInterfaces = 7 * 2;
   const int kArmCommandInterfaces = 7;
-  const int kBaseCommandInterfacesSimulation = 4;
-  const int kBaseStateInterfacesSimulation = 4;
   const int kBaseCommandInterfacesHardware = 6;
   const int kBaseStateInterfacesHardware = 8;
   int kBaseCommandInterfaces_;
