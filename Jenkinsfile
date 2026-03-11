@@ -29,7 +29,7 @@ pipeline {
            description: 'SSH URL to clone franka_description.')
 
     string(name: 'frankaDescriptionBranch',
-           defaultValue: 'jazzy',
+           defaultValue: 'main',
            description: 'Branch or tag to checkout for franka_description.')
 
     booleanParam(name: 'executeHardwareTestsOnRobot',
