@@ -33,44 +33,20 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
-def load_controller(context: LaunchContext, controller_name):
-    controller_name_str = context.perform_substitution(controller_name)
-    return [Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=[
-            controller_name_str,
-            '--controller-manager-timeout', '30',
-        ],
-        parameters=[PathJoinSubstitution([
-            FindPackageShare('franka_gazebo_bringup'),
-            'config',
-            'franka_gazebo_controllers.yaml'
-        ])],
-        output='screen',
-    )]
-
-
-def get_robot_description(context: LaunchContext, robot_type, load_gripper, franka_hand):
-    robot_type_str = context.perform_substitution(robot_type)
-    load_gripper_str = context.perform_substitution(load_gripper)
-    franka_hand_str = context.perform_substitution(franka_hand)
+def get_robot_description(context: LaunchContext):
 
     franka_xacro_file = os.path.join(
-        get_package_share_directory('franka_gazebo_bringup'),
-        'urdf',
-        'franka_arm.gazebo.xacro'
+        get_package_share_directory('franka_description'),
+        'robots',
+        'tmrv0_2',
+        'tmrv0_2.urdf.xacro'
     )
 
     robot_description_config = xacro.process_file(
         franka_xacro_file,
         mappings={
-            'robot_type': robot_type_str,
-            'hand': load_gripper_str,
             'ros2_control': 'true',
             'gazebo': 'true',
-            'ee_id': franka_hand_str,
-            'gazebo_effort': 'true'
         }
     )
 
@@ -95,45 +71,21 @@ def get_robot_description(context: LaunchContext, robot_type, load_gripper, fran
 
 def generate_launch_description():
     # Configure ROS nodes for launch
-    load_gripper_name = 'load_gripper'
-    franka_hand_name = 'franka_hand'
-    robot_type_name = 'robot_type'
     namespace_name = 'namespace'
-    controller_name = 'controller'
     rviz_name = 'rviz'
     gz_args_name = 'gz_args'
 
-    load_gripper = LaunchConfiguration(load_gripper_name)
-    franka_hand = LaunchConfiguration(franka_hand_name)
-    robot_type = LaunchConfiguration(robot_type_name)
     namespace = LaunchConfiguration(namespace_name)
-    controller = LaunchConfiguration(controller_name)
     rviz = LaunchConfiguration(rviz_name)
     gz_args = LaunchConfiguration(gz_args_name)
 
-    load_gripper_launch_argument = DeclareLaunchArgument(
-        load_gripper_name,
-        default_value='false',
-        description='true/false for activating the gripper')
-    franka_hand_launch_argument = DeclareLaunchArgument(
-        franka_hand_name,
-        default_value='franka_hand',
-        description='Default value: franka_hand')
-    robot_type_launch_argument = DeclareLaunchArgument(
-        robot_type_name,
-        default_value='fr3',
-        description='Available values: fr3, fp3 and fer')
     namespace_launch_argument = DeclareLaunchArgument(
         namespace_name,
         default_value='',
         description='Namespace for the robot. If not set, the robot will be launched in the root namespace.')
-    controller_launch_argument = DeclareLaunchArgument(
-        controller_name,
-        default_value='gravity_compensation_example_controller',
-        description='The controller name to be used. You can choose one from the franka_example_controllers.')
     gz_args_launch_argument = DeclareLaunchArgument(
         gz_args_name,
-        default_value='-r empty.sdf',
+        default_value='empty.sdf -r',
         description='Extra args to be forwared to gazebo')
     rviz_launch_argument = DeclareLaunchArgument(
         rviz_name,
@@ -143,7 +95,7 @@ def generate_launch_description():
     # Get robot description
     robot_state_publisher = OpaqueFunction(
         function=get_robot_description,
-        args=[robot_type, load_gripper, franka_hand])
+        args=[])
 
     # Gazebo Sim
     os.environ['GZ_SIM_RESOURCE_PATH'] = os.path.dirname(
@@ -193,17 +145,42 @@ def generate_launch_description():
         output='screen'
     )
 
-    launch_controller = OpaqueFunction(
-        function=load_controller,
-        args=[controller]
+    # Start of the control chain, a simple circular reference
+    circle_reference_node = ExecuteProcess(
+        cmd=['ros2', 'topic', 'pub',
+            '/mobile_cartesian_velocity_controller/cmd_vel',
+            'geometry_msgs/msg/TwistStamped',
+            '{header: {frame_id: base_link}, twist: {linear: {x: 0.1}, angular: {z: 0.1}}}',
+            '--rate', '10'
+        ],
+    )
+
+
+    # Let's use the cartesian velocity example controller 
+    mobile_cartesian_velocity_controller_node = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=[
+            'mobile_cartesian_velocity_controller',
+            '--controller-manager-timeout', '30',
+        ],
+        parameters=[PathJoinSubstitution([
+            FindPackageShare('franka_gazebo_bringup'),
+            'config',
+            'franka_gazebo_controllers.yaml'
+        ])],
+        output='screen',
+    )
+
+    # For gazebo, let's chain the ik controller to simulate the tmr master controller's ik
+    swerve_ik_controller_node = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["swerve_ik_controller"],
     )
 
     return LaunchDescription([
-        load_gripper_launch_argument,
-        franka_hand_launch_argument,
-        robot_type_launch_argument,
         namespace_launch_argument,
-        controller_launch_argument,
         gz_args_launch_argument,
         rviz_launch_argument,
         gazebo_empty_world,
@@ -220,9 +197,16 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster,
-                on_exit=[launch_controller],
+                on_exit=[swerve_ik_controller_node], 
             )
         ),
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=swerve_ik_controller_node,
+                on_exit=[mobile_cartesian_velocity_controller_node], 
+            )
+        ),
+        circle_reference_node,
         RegisterEventHandler(
             OnShutdown(
                 on_shutdown=[

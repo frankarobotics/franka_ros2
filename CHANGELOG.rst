@@ -5,6 +5,8 @@ UNRELEASED
 ----------
 
 * feat: Added the spline action server and examples for the Franka Spine
+* chore: refactored gazebo launch files, added integration tests
+* chore: refactored mFR3duo example controller to be gazebo independent by chaining `swerve_ik_controller`
 
 v3.2.2 (2026-03-03)
 -------------------

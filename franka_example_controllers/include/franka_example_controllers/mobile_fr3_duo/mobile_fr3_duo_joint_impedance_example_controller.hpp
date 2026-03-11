@@ -20,9 +20,8 @@
 
 #include <Eigen/Eigen>
 #include <controller_interface/controller_interface.hpp>
+#include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
-
-#include <franka_example_controllers/tmr/swerve_ik.hpp>
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
@@ -57,12 +56,14 @@ class MobileFr3DuoJointImpedanceExampleController
   std::vector<std::string> arm_prefixes_;
   std::vector<std::string> robot_prefixes_;
   std::string robot_description_;
+
+  // TMR cartesian velocity interface
+  std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>
+      franka_cartesian_velocity_;
   const int num_arm_joints = 7;
   const int num_base_joints = 4;
   const int kArmStateInterfaces = 7 * 2;
   const int kArmCommandInterfaces = 7;
-  const int kBaseCommandInterfacesSimulation = 4;
-  const int kBaseStateInterfacesSimulation = 4;
   const int kBaseCommandInterfacesHardware = 6;
   const int kBaseStateInterfacesHardware = 8;
   int kBaseCommandInterfaces_;
@@ -81,14 +82,6 @@ class MobileFr3DuoJointImpedanceExampleController
   const double k_mobile_time_max_{8.0};  // Longer period for mobile base
   const double k_mobile_v_max_{0.1};     // Max linear velocity (m/s)
   const double k_mobile_angle_{0.0};     // Move forward/backward
-
-  // IK parameters
-  bool simulate_in_gazebo_{false};
-  double wheel_radius_;
-  Eigen::Vector4d wheel_positions_;
-  Eigen::Vector4d steering_angles_, wheel_velocities_;
-
-  std::array<franka_example_controllers::WheelCommand, 2> commands_;
 
   // Helper methods
   void updateJointStates();

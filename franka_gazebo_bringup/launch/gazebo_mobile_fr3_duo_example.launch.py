@@ -14,6 +14,7 @@
 
 import os
 import xacro
+import xml.dom.minidom
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -21,8 +22,10 @@ from launch import LaunchContext, LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 
 def get_robot_description(context: LaunchContext, load_gripper, franka_hand, with_sensors):
@@ -53,6 +56,11 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
             'gazebo_effort': 'true'
         }
     )
+
+    if not isinstance(robot_description_config, xml.dom.minidom.Document):
+        raise RuntimeError(
+            f'The given xacro file {franka_xacro_file} is not a valid xml format.')
+
     robot_description = {'robot_description': robot_description_config.toxml()}
 
     robot_state_publisher = Node(
@@ -83,10 +91,11 @@ def set_gz_sim_resource_path(context, with_sensors):
     return []
 
 
-def get_gz_world(context, with_sensors, world):
+def get_gz_world(context: LaunchContext, with_sensors, world, gz_args):
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
     with_sensors_val = context.perform_substitution(with_sensors).lower()
     world_val = context.perform_substitution(world).strip()
+    gz_args_val = context.perform_substitution(gz_args)
 
     if world_val:
         world_path = os.path.join(
@@ -102,7 +111,7 @@ def get_gz_world(context, with_sensors, world):
     return [IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
-        launch_arguments={'gz_args': f'{world_path} -r'}.items(),
+        launch_arguments={'gz_args': f'{world_path} {gz_args_val}'}.items(),
     )]
 
 
@@ -155,12 +164,16 @@ def generate_launch_description():
     namespace_name = 'namespace'
     with_sensors_name = 'with_sensors'
     world_name = 'world'
+    rviz_name = 'rviz'
+    gz_args_name = 'gz_args'
 
     load_gripper = LaunchConfiguration(load_gripper_name)
     franka_hand = LaunchConfiguration(franka_hand_name)
     namespace = LaunchConfiguration(namespace_name)
     with_sensors = LaunchConfiguration(with_sensors_name)
     world = LaunchConfiguration(world_name)
+    rviz = LaunchConfiguration(rviz_name)
+    gz_args = LaunchConfiguration(gz_args_name)
 
     load_gripper_launch_argument = DeclareLaunchArgument(
         load_gripper_name,
@@ -184,6 +197,14 @@ def generate_launch_description():
         description='SDF world filename inside franka_gazebo_bringup/worlds/ to load. '
                     'Overrides the default world selection. '
                     'Example: sensor_demo_world.sdf')
+    gz_args_launch_argument = DeclareLaunchArgument(
+        gz_args_name,
+        default_value='-r',
+        description='Extra args to be forwared to gazebo')
+    rviz_launch_argument = DeclareLaunchArgument(
+        rviz_name,
+        default_value='true',
+        description='true/false for visualizing the robot in rviz')
 
     robot_state_publisher = OpaqueFunction(
         function=get_robot_description,
@@ -191,7 +212,7 @@ def generate_launch_description():
 
     set_gz_sim_resource_path_action = OpaqueFunction(
         function=set_gz_sim_resource_path, args=[with_sensors])
-    gazebo_world = OpaqueFunction(function=get_gz_world, args=[with_sensors, world])
+    gazebo_world = OpaqueFunction(function=get_gz_world, args=[with_sensors, world, gz_args])
     bridge = OpaqueFunction(function=get_bridge, args=[with_sensors])
 
     spawn = Node(
@@ -205,12 +226,12 @@ def generate_launch_description():
 
     rviz_file = os.path.join(get_package_share_directory('franka_description'), 'rviz',
                              'visualize_franka.rviz')
-    rviz = Node(package='rviz2',
+    rviz_node = Node(package='rviz2',
                 executable='rviz2',
                 name='rviz2',
                 namespace=namespace,
-                arguments=['--display-config', rviz_file, '-f', 'world'],
-                )
+                arguments=['--display-config', rviz_file, '-f', 'base_link'],
+                condition=IfCondition(rviz))
 
     load_joint_state_broadcaster = Node(
         package='controller_manager',
@@ -227,7 +248,19 @@ def generate_launch_description():
         arguments=['mobile_fr3_duo_joint_impedance_example_controller',
                    '--controller-manager-timeout', '120',
                    '--service-call-timeout', '60'],
+        parameters=[PathJoinSubstitution([
+            FindPackageShare('franka_gazebo_bringup'),
+            'config',
+            'franka_gazebo_controllers.yaml'
+        ])],
         output='screen',
+    )
+
+    # chain the ik controller to simulate master controller's ik
+    swerve_ik_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["swerve_ik_controller"],
     )
 
     return LaunchDescription([
@@ -236,10 +269,12 @@ def generate_launch_description():
         namespace_launch_argument,
         with_sensors_launch_argument,
         world_launch_argument,
+        gz_args_launch_argument,
+        rviz_launch_argument,
         set_gz_sim_resource_path_action,
         gazebo_world,
         robot_state_publisher,
-        rviz,
+        rviz_node,
         spawn,
         bridge,
         RegisterEventHandler(
@@ -250,7 +285,13 @@ def generate_launch_description():
         ),
         RegisterEventHandler(
             event_handler=OnProcessExit(
-                target_action=load_joint_state_broadcaster,
+                target_action=spawn,
+                on_exit=[swerve_ik_controller],
+            )
+        ),
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=swerve_ik_controller,
                 on_exit=[mobile_fr3_duo_controller],
             )
         ),
