@@ -30,17 +30,19 @@
 /**:
   joint_position_example_controller:
     ros__parameters:
+      robot_type: "fr3"
       gazebo: true
 
 /**:
   joint_velocity_example_controller:
     ros__parameters:
+      robot_type: "fr3"
       gazebo: true
 
 /**:    
   joint_impedance_example_controller:
     ros__parameters:
-      robot_type: "fr3v2"
+      robot_type: "fr3"
       k_gains:
         - 24.0
         - 24.0
@@ -58,10 +60,12 @@
         - 1.0
         - 0.5
 
-swerve_ik_controller:
-  ros__parameters:
-    prefix: "tmrv0_2"
+/**:
+  swerve_ik_controller:
+    ros__parameters:
+      prefix: "tmrv0_2"
 
-mobile_cartesian_velocity_controller:
-  ros__parameters:
-    cartesian_velocity_interface_prefix: swerve_ik_controller/
+/**:
+  mobile_cartesian_velocity_controller:
+    ros__parameters:
+      cartesian_velocity_interface_prefix: swerve_ik_controller/

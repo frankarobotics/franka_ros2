@@ -99,7 +99,9 @@ controller_interface::return_type MobileCartesianVelocityExampleController::upda
 }
 
 CallbackReturn MobileCartesianVelocityExampleController::on_init() {
-  get_node()->declare_parameter("cartesian_velocity_interface_prefix", "");
+  if(!get_node()->has_parameter("cartesian_velocity_interface_prefix")){
+    get_node()->declare_parameter("cartesian_velocity_interface_prefix", "");
+  }
   cartesian_velocity_interface_prefix_ =
       get_node()->get_parameter("cartesian_velocity_interface_prefix").as_string();
   return CallbackReturn::SUCCESS;

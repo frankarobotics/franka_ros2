@@ -28,7 +28,9 @@ controller_interface::CallbackReturn SwerveIKController::on_init() {
   wheel_velocities_.setZero();
   wheel_radius_ = 0.05;
 
-  get_node()->declare_parameter("prefix", "");
+  if(!get_node()->has_parameter("prefix")){
+    get_node()->declare_parameter("prefix", "");
+  }
   const std::string prefix = this->get_node()->get_parameter("prefix").as_string();
   prefix_ = prefix.empty() ? "" : prefix + "_";
 
@@ -94,14 +96,8 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
   }
 
   for (size_t i = 0; i < 2; ++i) {
-    if (!command_interfaces_[2 * i].set_value(commands[i].steering_angle)) {
-      RCLCPP_WARN(get_node()->get_logger(), "Failed to set steering angle for wheel %zu: %f", i,
-                  commands[i].steering_angle);
-    }
-    if (!command_interfaces_[2 * i + 1].set_value(commands[i].wheel_velocity)) {
-      RCLCPP_WARN(get_node()->get_logger(), "Failed to set wheel velocity for wheel %zu: %f", i,
-                  commands[i].wheel_velocity);
-    }
+    command_interfaces_[2 * i].set_value(commands[i].steering_angle);
+    command_interfaces_[2 * i + 1].set_value(commands[i].wheel_velocity);
   }
 
   return controller_interface::return_type::OK;
@@ -127,9 +123,7 @@ SwerveIKController::on_export_reference_interfaces() {
 }
 
 // NO OP, we are chaining
-controller_interface::return_type SwerveIKController::update_reference_from_subscribers(
-    const rclcpp::Time& /*time*/,
-    const rclcpp::Duration& /*period*/) {
+controller_interface::return_type SwerveIKController::update_reference_from_subscribers() {
   return controller_interface::return_type::OK;
 }
 

@@ -211,7 +211,7 @@ def generate_launch_description():
             OnShutdown(
                 on_shutdown=[
                     ExecuteProcess(
-                        cmd=['pkill', '-SIGINT', '-f', 'gz sim'],
+                        cmd=['pkill', '-SIGINT', 'ruby'],
                         name='gz_sim_graceful_shutdown',
                     )
                 ]
