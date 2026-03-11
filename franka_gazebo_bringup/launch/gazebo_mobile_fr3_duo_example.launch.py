@@ -14,6 +14,7 @@
 
 import os
 import xacro
+import xml.dom.minidom
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -54,6 +55,11 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
             'gazebo_effort': 'true'
         }
     )
+
+    if not isinstance(robot_description_config, xml.dom.minidom.Document):
+        raise RuntimeError(
+            f'The given xacro file {franka_xacro_file} is not a valid xml format.')
+
     robot_description = {'robot_description': robot_description_config.toxml()}
 
     robot_state_publisher = Node(

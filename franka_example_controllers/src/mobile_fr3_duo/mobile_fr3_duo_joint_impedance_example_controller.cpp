@@ -45,10 +45,10 @@ controller_interface::InterfaceConfiguration
 MobileFr3DuoJointImpedanceExampleController::state_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-    for (int i = 0; i < num_base_joints; ++i) {
-      config.names.push_back(robot_types_[0] + "_joint_" + std::to_string(i) + "/position");
-      config.names.push_back(robot_types_[0] + "_joint_" + std::to_string(i) + "/velocity");
-    }
+  for (int i = 0; i < num_base_joints; ++i) {
+    config.names.push_back(robot_types_[0] + "_joint_" + std::to_string(i) + "/position");
+    config.names.push_back(robot_types_[0] + "_joint_" + std::to_string(i) + "/velocity");
+  }
 
   for (int arm = 0; arm < 2; ++arm) {
     for (int i = 1; i <= num_arm_joints; ++i) {
@@ -103,11 +103,11 @@ CallbackReturn MobileFr3DuoJointImpedanceExampleController::on_init() {
     auto_declare<std::vector<std::string>>("robot_prefixes", {});
     auto_declare<std::vector<std::string>>("robot_types", {});
     auto_declare<double>("wheel_radius", 0.1);
-    auto_declare<std::string>("reference_controller", "");
+    auto_declare<std::string>("cartesian_velocity_interface_prefix", "");
   } catch (...) {
     return CallbackReturn::ERROR;
   }
-  
+
   return CallbackReturn::SUCCESS;
 }
 
@@ -117,9 +117,11 @@ CallbackReturn MobileFr3DuoJointImpedanceExampleController::on_configure(
   auto d = get_node()->get_parameter("d_gains").as_double_array();
   robot_prefixes_ = get_node()->get_parameter("robot_prefixes").as_string_array();
   robot_types_ = get_node()->get_parameter("robot_types").as_string_array();
-  const std::string reference_controller = get_node()->get_parameter("reference_controller").as_string();
-  RCLCPP_WARN(get_node()->get_logger(), reference_controller.c_str());
-  franka_cartesian_velocity_ = std::make_unique<franka_semantic_components::FrankaCartesianVelocityInterface>(reference_controller, false);
+  const std::string cartesian_velocity_interface_prefix =
+      get_node()->get_parameter("cartesian_velocity_interface_prefix").as_string();
+  franka_cartesian_velocity_ =
+      std::make_unique<franka_semantic_components::FrankaCartesianVelocityInterface>(
+          cartesian_velocity_interface_prefix, false);
 
   kBaseStateInterfaces_ = kBaseStateInterfacesHardware;
   kBaseCommandInterfaces_ = kBaseCommandInterfacesHardware;
@@ -194,9 +196,9 @@ void MobileFr3DuoJointImpedanceExampleController::updateMobileBaseCommand(const 
   const Eigen::Vector3d linear{v_x, v_y, 0.0};
   const Eigen::Vector3d angular{0.0, 0.0, 0.0};
 
-  if(!franka_cartesian_velocity_->setCommand(linear, angular)){
-      RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000, 
-      "Failed to set tmr velocity");
+  if (!franka_cartesian_velocity_->setCommand(linear, angular)) {
+    RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
+                         "Failed to set tmr velocity");
   }
 }
 

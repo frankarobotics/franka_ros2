@@ -56,7 +56,7 @@ joint_impedance_example_controller:
 
 mobile_cartesian_velocity_controller:
   ros__parameters:
-    reference_controller: swerve_ik_controller/
+    cartesian_velocity_interface_prefix: swerve_ik_controller/
 
 swerve_ik_controller:
   ros__parameters:
@@ -64,7 +64,7 @@ swerve_ik_controller:
 
 mobile_fr3_duo_joint_impedance_example_controller:
   ros__parameters:
-    reference_controller: swerve_ik_controller/
+    cartesian_velocity_interface_prefix: swerve_ik_controller/
     robot_types: ['tmrv0_2', 'fr3v2', 'fr3v2']
     robot_prefixes: ['', 'left', 'right']
     k_gains:
