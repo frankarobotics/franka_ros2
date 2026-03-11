@@ -88,11 +88,9 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
   const double wz = reference_interfaces_[5];
 
   std::array<WheelCommand, 2> commands;
-  if (std::isfinite(vx) && std::isfinite(vy) && std::isfinite(wz)) {
-    computeSwerveIK(vx, vy, wz, wheel_positions_, wheel_radius_, steering_angles_,
-                    wheel_velocities_, commands);
-  } else {
-    // RCLCPP_WARN(get_node()->get_logger(), "NaN/inf values command references.");
+  if (!computeSwerveIK(vx, vy, wz, wheel_positions_, wheel_radius_, steering_angles_,
+                       wheel_velocities_, commands)) {
+    // NO OP, send zero commands
   }
 
   for (size_t i = 0; i < 2; ++i) {

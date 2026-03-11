@@ -37,7 +37,7 @@ struct WheelCommand {
  * @param[out] wheel_velocities A 4-element vector to store the computed wheel velocities (rad/s).
  * @param[out] commands An array of 2 WheelCommand objects to store control commands for each wheel.
  */
-void computeSwerveIK(double vx,
+bool computeSwerveIK(double vx,
                      double vy,
                      double wz,
                      const Eigen::Vector4d& wheel_positions,
