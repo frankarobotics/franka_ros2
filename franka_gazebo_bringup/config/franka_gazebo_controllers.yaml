@@ -20,6 +20,9 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
+    swerve_ik_controller:
+      type: franka_example_controllers/SwerveIKController
+
 joint_position_example_controller:
   ros__parameters:
     gazebo: true

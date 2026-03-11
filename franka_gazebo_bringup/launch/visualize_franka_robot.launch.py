@@ -37,9 +37,10 @@ def get_robot_description(context: LaunchContext, robot_type, load_gripper, fran
     franka_hand_str = context.perform_substitution(franka_hand)
 
     franka_xacro_file = os.path.join(
-        get_package_share_directory('franka_gazebo_bringup'),
-        'urdf',
-        'franka_arm.gazebo.xacro'
+        get_package_share_directory('franka_description'),
+        'robots',
+        robot_type_str,
+        f'{robot_type_str}.urdf.xacro'
     )
 
     robot_description_config = xacro.process_file(

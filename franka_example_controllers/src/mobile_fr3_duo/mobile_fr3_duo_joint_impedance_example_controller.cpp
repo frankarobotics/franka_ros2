@@ -14,7 +14,6 @@
 
 #include <franka_example_controllers/mobile_fr3_duo/mobile_fr3_duo_joint_impedance_example_controller.hpp>
 #include <franka_example_controllers/robot_utils.hpp>
-#include <franka_example_controllers/tmr/swerve_ik.hpp>
 
 #include <cmath>
 #include <string>
@@ -29,13 +28,8 @@ MobileFr3DuoJointImpedanceExampleController::command_interface_configuration() c
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
-  if (simulate_in_gazebo_) {
-    config.names = {robot_types_[0] + "_joint_0/position", robot_types_[0] + "_joint_1/velocity",
-                    robot_types_[0] + "_joint_2/position", robot_types_[0] + "_joint_3/velocity"};
-  } else {
-    config.names = {"vx/cartesian_velocity", "vy/cartesian_velocity", "vz/cartesian_velocity",
-                    "wx/cartesian_velocity", "wy/cartesian_velocity", "wz/cartesian_velocity"};
-  }
+  config.names = {"vx/cartesian_velocity", "vy/cartesian_velocity", "vz/cartesian_velocity",
+                  "wx/cartesian_velocity", "wy/cartesian_velocity", "wz/cartesian_velocity"};
 
   for (size_t index = 0; index < arm_prefixes_.size(); ++index) {
     for (int i = 1; i <= num_arm_joints; ++i) {
@@ -51,20 +45,10 @@ controller_interface::InterfaceConfiguration
 MobileFr3DuoJointImpedanceExampleController::state_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-  if (simulate_in_gazebo_) {
-    for (int i = 0; i < num_base_joints; ++i) {
-      if (i % 2 == 0) {
-        config.names.push_back(robot_types_[0] + "_joint_" + std::to_string(i) + "/position");
-      } else {
-        config.names.push_back(robot_types_[0] + "_joint_" + std::to_string(i) + "/velocity");
-      }
-    }
-  } else {
     for (int i = 0; i < num_base_joints; ++i) {
       config.names.push_back(robot_types_[0] + "_joint_" + std::to_string(i) + "/position");
       config.names.push_back(robot_types_[0] + "_joint_" + std::to_string(i) + "/velocity");
     }
-  }
 
   for (int arm = 0; arm < 2; ++arm) {
     for (int i = 1; i <= num_arm_joints; ++i) {
@@ -118,15 +102,11 @@ CallbackReturn MobileFr3DuoJointImpedanceExampleController::on_init() {
     auto_declare<std::vector<std::string>>("arm_prefixes", {});
     auto_declare<std::vector<std::string>>("robot_prefixes", {});
     auto_declare<std::vector<std::string>>("robot_types", {});
-    auto_declare<bool>("simulate_in_gazebo", false);
     auto_declare<double>("wheel_radius", 0.1);
   } catch (...) {
     return CallbackReturn::ERROR;
   }
 
-  wheel_positions_ << 0.3, -0.2, -0.3, 0.2;
-  steering_angles_.setZero();
-  wheel_velocities_.setZero();
 
   return CallbackReturn::SUCCESS;
 }
@@ -137,13 +117,10 @@ CallbackReturn MobileFr3DuoJointImpedanceExampleController::on_configure(
   auto d = get_node()->get_parameter("d_gains").as_double_array();
   robot_prefixes_ = get_node()->get_parameter("robot_prefixes").as_string_array();
   robot_types_ = get_node()->get_parameter("robot_types").as_string_array();
-  simulate_in_gazebo_ = get_node()->get_parameter("simulate_in_gazebo").as_bool();
-  wheel_radius_ = get_node()->get_parameter("wheel_radius").as_double();
+  // wheel_radius_ = get_node()->get_parameter("wheel_radius").as_double();
 
-  kBaseStateInterfaces_ =
-      simulate_in_gazebo_ ? kBaseStateInterfacesSimulation : kBaseStateInterfacesHardware;
-  kBaseCommandInterfaces_ =
-      simulate_in_gazebo_ ? kBaseCommandInterfacesSimulation : kBaseCommandInterfacesHardware;
+  kBaseStateInterfaces_ = kBaseStateInterfacesHardware;
+  kBaseCommandInterfaces_ = kBaseCommandInterfacesHardware;
 
   auto arm_prefixes_begin = robot_prefixes_.begin() + 1;
   arm_prefixes_ = std::vector<std::string>(arm_prefixes_begin, arm_prefixes_begin + 2);
@@ -211,28 +188,12 @@ void MobileFr3DuoJointImpedanceExampleController::updateMobileBaseCommand(const 
   double v_y = std::sin(k_mobile_angle_) * v;
   const double wz = 0.0;
 
-  if (simulate_in_gazebo_) {
-    franka_example_controllers::computeSwerveIK(v_x, v_y, wz, wheel_positions_, wheel_radius_,
-                                                steering_angles_, wheel_velocities_, commands_);
-
-    for (size_t i = 0; i < 2; ++i) {
-      if (!command_interfaces_[2 * i].set_value(commands_[i].steering_angle)) {
-        RCLCPP_WARN(get_node()->get_logger(), "Failed to set steering angle for wheel %zu: %f", i,
-                    commands_[i].steering_angle);
-      }
-      if (!command_interfaces_[2 * i + 1].set_value(commands_[i].wheel_velocity)) {
-        RCLCPP_WARN(get_node()->get_logger(), "Failed to set wheel velocity for wheel %zu: %f", i,
-                    commands_[i].wheel_velocity);
-      }
-    }
-  } else {
-    std::array<double, 6> values = {v_x, v_y, 0.0, 0.0, 0.0, wz};
-    std::array<std::string, 6> labels = {"vx", "vy", "vz", "wx", "wy", "wz"};
-    for (int i = 0; i < kBaseCommandInterfacesHardware; ++i) {
-      if (!command_interfaces_[i].set_value(values[i])) {
-        RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
-                             "Failed to set %s velocity", labels[i].c_str());
-      }
+  std::array<double, 6> values = {v_x, v_y, 0.0, 0.0, 0.0, wz};
+  std::array<std::string, 6> labels = {"vx", "vy", "vz", "wx", "wy", "wz"};
+  for (int i = 0; i < kBaseCommandInterfacesHardware; ++i) {
+    if (!command_interfaces_[i].set_value(values[i])) {
+      RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
+                            "Failed to set %s velocity", labels[i].c_str());
     }
   }
 }

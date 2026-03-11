@@ -21,8 +21,9 @@ from launch import LaunchContext, LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 
 def get_robot_description(context: LaunchContext, load_gripper, franka_hand, with_sensors):
@@ -230,6 +231,16 @@ def generate_launch_description():
         output='screen',
     )
 
+    swerve_ik_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        # arguments=["swerve_ik_controller", "--param-file", PathJoinSubstitution([
+            # FindPackageShare('franka_gazebo_bringup'),
+            # 'config',
+            # 'franka_gazebo_controllers.yaml']) ],
+        arguments=["swerve_ik_controller"],
+    )
+
     return LaunchDescription([
         load_gripper_launch_argument,
         franka_hand_launch_argument,
@@ -251,7 +262,7 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=load_joint_state_broadcaster,
-                on_exit=[mobile_fr3_duo_controller],
+                on_exit=[swerve_ik_controller],
             )
         ),
     ])

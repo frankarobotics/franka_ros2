@@ -22,8 +22,6 @@
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include <franka_example_controllers/tmr/swerve_ik.hpp>
-
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
 namespace franka_example_controllers {
@@ -81,14 +79,6 @@ class MobileFr3DuoJointImpedanceExampleController
   const double k_mobile_time_max_{8.0};  // Longer period for mobile base
   const double k_mobile_v_max_{0.1};     // Max linear velocity (m/s)
   const double k_mobile_angle_{0.0};     // Move forward/backward
-
-  // IK parameters
-  bool simulate_in_gazebo_{false};
-  double wheel_radius_;
-  Eigen::Vector4d wheel_positions_;
-  Eigen::Vector4d steering_angles_, wheel_velocities_;
-
-  std::array<franka_example_controllers::WheelCommand, 2> commands_;
 
   // Helper methods
   void updateJointStates();

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="franka_arm_gazebo">
+    <xacro:arg name="robot_type" default="fr3"/>
+
+    <!-- Include base robot fr3 -->
+    <xacro:include filename="$(find franka_description)/robots/$(arg robot_type)/$(arg robot_type).urdf.xacro"/>
+
+    <!-- Include gazebo macros -->
+    <xacro:include filename="$(find franka_gazebo_bringup)/urdf/sensors.xacro"/>
+    <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
+
+    <!-- Arm IMUs -->
+    <!-- arm prefix is inherited from the franka_description xacro -->
+    <xacro:franka_gazebo_arm_imus arm_prefix="$(arg arm_prefix)" robot_type="$(arg robot_type)" imu_side="top"/>
+    <xacro:franka_gazebo_arm_imus arm_prefix="$(arg arm_prefix)" robot_type="$(arg robot_type)" imu_side="bottom"/>
+
+    <!-- Disable gravity on arm links: the example controllers do not
+         implement gravity compensation, so the arms would collapse. -->
+    <xacro:disable_arm_gravity prefix="$(arg arm_prefix)" robot_type="$(arg robot_type)"/>
+
+</robot>
