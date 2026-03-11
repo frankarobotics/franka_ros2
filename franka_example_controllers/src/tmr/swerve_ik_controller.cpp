@@ -92,7 +92,7 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
     computeSwerveIK(vx, vy, wz, wheel_positions_, wheel_radius_, steering_angles_,
                     wheel_velocities_, commands);
   } else {
-    RCLCPP_WARN(get_node()->get_logger(), "NaN/inf values command references.");
+    // RCLCPP_WARN(get_node()->get_logger(), "NaN/inf values command references.");
   }
 
   for (size_t i = 0; i < 2; ++i) {
