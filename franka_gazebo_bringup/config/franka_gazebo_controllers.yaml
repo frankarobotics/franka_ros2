@@ -19,6 +19,9 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
+    
+    mobile_cartesian_velocity_controller:
+      type: franka_example_controllers/MobileCartesianVelocityExampleController
 
     swerve_ik_controller:
       type: franka_example_controllers/SwerveIKController
@@ -51,10 +54,17 @@ joint_impedance_example_controller:
       - 1.0
       - 0.5
 
+mobile_cartesian_velocity_controller:
+  ros__parameters:
+    reference_controller: swerve_ik_controller/
+
+swerve_ik_controller:
+  ros__parameters:
+    prefix: "tmrv0_2"
+
 mobile_fr3_duo_joint_impedance_example_controller:
   ros__parameters:
-    gazebo: true
-    simulate_in_gazebo: true
+    reference_controller: swerve_ik_controller/
     robot_types: ['tmrv0_2', 'fr3v2', 'fr3v2']
     robot_prefixes: ['', 'left', 'right']
     k_gains:

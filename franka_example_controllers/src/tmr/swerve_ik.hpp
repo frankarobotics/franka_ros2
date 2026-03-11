@@ -19,8 +19,8 @@
 namespace franka_example_controllers {
 
 struct WheelCommand {
-  double steering_angle;
-  double wheel_velocity;
+  double steering_angle = 0.0;
+  double wheel_velocity = 0.0;
 };
 
 /**

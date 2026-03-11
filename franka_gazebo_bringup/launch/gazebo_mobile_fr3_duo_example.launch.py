@@ -228,16 +228,18 @@ def generate_launch_description():
         arguments=['mobile_fr3_duo_joint_impedance_example_controller',
                    '--controller-manager-timeout', '120',
                    '--service-call-timeout', '60'],
+        parameters=[PathJoinSubstitution([
+            FindPackageShare('franka_gazebo_bringup'),
+            'config',
+            'franka_gazebo_controllers.yaml'
+        ])],
         output='screen',
     )
 
+    # chain the ik controller to simulate master controller's ik
     swerve_ik_controller = Node(
         package="controller_manager",
         executable="spawner",
-        # arguments=["swerve_ik_controller", "--param-file", PathJoinSubstitution([
-            # FindPackageShare('franka_gazebo_bringup'),
-            # 'config',
-            # 'franka_gazebo_controllers.yaml']) ],
         arguments=["swerve_ik_controller"],
     )
 
@@ -261,8 +263,14 @@ def generate_launch_description():
         ),
         RegisterEventHandler(
             event_handler=OnProcessExit(
-                target_action=load_joint_state_broadcaster,
+                target_action=spawn,
                 on_exit=[swerve_ik_controller],
+            )
+        ),
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=swerve_ik_controller,
+                on_exit=[mobile_fr3_duo_controller],
             )
         ),
     ])

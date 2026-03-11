@@ -25,9 +25,15 @@ namespace franka_example_controllers
 
 controller_interface::CallbackReturn SwerveIKController::on_init()
 {
+  // TODO pick up correct ik configuration from the TMR urdf tfs
   wheel_positions_ << 0.3, -0.2, -0.3, 0.2;
   steering_angles_.setZero();
   wheel_velocities_.setZero();
+  wheel_radius_ = 0.05;
+
+  get_node()->declare_parameter("prefix", "");
+  const std::string prefix = this->get_node()->get_parameter("prefix").as_string();
+  prefix_ = prefix.empty() ? "" : prefix + "_";
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -87,23 +93,19 @@ controller_interface::CallbackReturn SwerveIKController::on_deactivate(
 bool SwerveIKController::on_set_chained_mode(bool /*chained_mode*/) { return true; }
 
 controller_interface::return_type SwerveIKController::update_and_write_commands(
-  const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
-  elapsed_time_ += period.seconds();
+  const double vx = reference_interfaces_[0];
+  const double vy = reference_interfaces_[1];
+  const double wz = reference_interfaces_[5];
 
-  double cycle = std::floor(std::pow(
-      -1.0, (elapsed_time_ - std::fmod(elapsed_time_, k_mobile_time_max_)) / k_mobile_time_max_));
-
-  double v = cycle * k_mobile_v_max_ / 2.0 *
-             (1.0 - std::cos(2.0 * M_PI / k_mobile_time_max_ * elapsed_time_));
-
-  double v_x = std::cos(k_mobile_angle_) * v;
-  double v_y = std::sin(k_mobile_angle_) * v;
-  const double wz = 0.0;
   std::array<WheelCommand, 2> commands;
-
-  computeSwerveIK(v_x, v_y, wz, wheel_positions_, wheel_radius_,
-                                              steering_angles_, wheel_velocities_, commands);
+  if(std::isfinite(vx) && std::isfinite(vy) && std::isfinite(wz)){
+    computeSwerveIK(vx, vy, wz, wheel_positions_, wheel_radius_,
+                                                steering_angles_, wheel_velocities_, commands);
+  }else{
+    RCLCPP_WARN(get_node()->get_logger(), "NaN/inf values command references.");
+  }
 
   for (size_t i = 0; i < 2; ++i) {
     if (!command_interfaces_[2 * i].set_value(commands[i].steering_angle)) {
@@ -132,8 +134,8 @@ SwerveIKController::on_export_reference_interfaces()
 
   for (size_t i = 0; i < names.size(); ++i) {
     interfaces.emplace_back(
-      "swerve_ik_controller",
-      names[i],// + "_cartesian_velocity",
+      get_node()->get_name(),
+      names[i] + "/cartesian_velocity", // TODO link this to be the same as the FrankaCartesianVelocityCommandInterfaceName
       &reference_interfaces_[i]);
   }
 

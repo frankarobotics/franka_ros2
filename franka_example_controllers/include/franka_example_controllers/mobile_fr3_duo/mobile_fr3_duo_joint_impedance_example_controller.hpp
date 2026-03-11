@@ -21,6 +21,7 @@
 #include <Eigen/Eigen>
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
@@ -55,6 +56,9 @@ class MobileFr3DuoJointImpedanceExampleController
   std::vector<std::string> arm_prefixes_;
   std::vector<std::string> robot_prefixes_;
   std::string robot_description_;
+
+  // TMR cartesian velocity interface
+  std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface> franka_cartesian_velocity_;
   const int num_arm_joints = 7;
   const int num_base_joints = 4;
   const int kArmStateInterfaces = 7 * 2;
