@@ -48,6 +48,7 @@ class MobileCartesianVelocityExampleController : public controller_interface::Co
       franka_cartesian_velocity_;
   geometry_msgs::msg::TwistStamped::SharedPtr last_cmd_vel_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_sub_;
+  std::string cartesian_velocity_interface_prefix_ = "";
 
   double prev_linear_velocity_x_ = 0.0;
   double prev_linear_velocity_y_ = 0.0;

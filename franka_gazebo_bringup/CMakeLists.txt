@@ -27,6 +27,7 @@ if(BUILD_TESTING)
     add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
   endfunction()
   add_ros_isolated_launch_test(test/test_gazebo_franka_arm_example_controller.py)
+  add_ros_isolated_launch_test(test/test_gazebo_tmr_example_controller.py)
 endif()
 
 ament_package()

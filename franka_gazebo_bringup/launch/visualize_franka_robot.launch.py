@@ -40,7 +40,7 @@ def get_robot_description(context: LaunchContext, robot_type, load_gripper, fran
         get_package_share_directory('franka_description'),
         'robots',
         robot_type_str,
-        robot_type_str + '.urdf.xacro'
+        f'{robot_type_str}.urdf.xacro'
     )
 
     robot_description_config = xacro.process_file(
@@ -130,7 +130,7 @@ def generate_launch_description():
         executable='rviz2',
         name='rviz2',
         namespace=namespace,
-        arguments=['--display-config', rviz_file, '-f', 'world'],
+        arguments=['--display-config', rviz_file, '-f', 'base_link'],
     )
 
     load_joint_state_broadcaster = ExecuteProcess(
