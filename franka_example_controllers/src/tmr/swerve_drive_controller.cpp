@@ -1,0 +1,235 @@
+// Copyright (c) 2025 Franka Robotics GmbH
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <franka_example_controllers/tmr/swerve_drive_controller.hpp>
+#include <tf2/LinearMath/Quaternion.hpp>
+
+#include <cassert>
+#include <cmath>
+#include <exception>
+#include <string>
+
+#include <Eigen/Eigen>
+#include "fmt/format.h"
+
+
+namespace franka_example_controllers {
+
+controller_interface::InterfaceConfiguration
+SwerveDriveController::command_interface_configuration() const {
+  controller_interface::InterfaceConfiguration config;
+  config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+  config.names = franka_cartesian_velocity_->get_command_interface_names();
+  return config;
+}
+
+controller_interface::InterfaceConfiguration SwerveDriveController::state_interface_configuration()
+    const {
+  controller_interface::InterfaceConfiguration config;
+  config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+
+  config.names = {"joint_0/position", "joint_1/velocity", "joint_2/position", "joint_3/velocity"};
+  return config;
+}
+
+controller_interface::return_type SwerveDriveController::update(const rclcpp::Time& time,
+                                                                const rclcpp::Duration& period) {
+  auto logger = get_node()->get_logger();
+
+  double command_linear_x = command_interfaces_[0].get_optional().value();
+  double command_linear_y = command_interfaces_[1].get_optional().value();
+  double command_angular_z = command_interfaces_[5].get_optional().value();
+
+  const double estimate_steering_position_wheel_1 = state_interfaces_[0].get_optional().value();
+  const double estimate_drive_velocity_wheel_1 = state_interfaces_[1].get_optional().value();
+
+  const double estimate_steering_position_wheel_2 = state_interfaces_[2].get_optional().value();
+  const double estimate_steering_position_wheel_3 = state_interfaces_[3].get_optional().value();
+
+  if (!std::isfinite(command_linear_x) || !std::isfinite(command_linear_y) ||
+      !std::isfinite(command_angular_z)) {
+    // NaNs occur on initialization when the reference interfaces are not yet set
+    return controller_interface::return_type::OK;
+  }
+
+  // if (params_.open_loop) { // update odometry on ref
+  //   odometry_.update(linear_command_x, linea_command_y, angular_command_z, time);
+  // } else { // update odometry on est
+
+  //   if (params_.position_feedback) {
+  //     odometry_.update(left_feedback_mean, right_feedback_mean, time);
+  //   } else {
+  //     odometry_.updateFromVelocity(left_feedback_mean * left_wheel_radius * period.seconds(),
+  //                                  right_feedback_mean * right_wheel_radius * period.seconds(),
+  //                                  time);
+  //   }
+  // }
+
+  tf2::Quaternion orientation;
+  orientation.setRPY(0.0, 0.0, odometry_.getHeading());
+
+  bool should_publish = false;
+  try {
+    if (previous_publish_timestamp_ + publish_period_ < time) {
+      previous_publish_timestamp_ += publish_period_;
+      should_publish = true;
+    }
+  } catch (const std::runtime_error&) {
+    // Handle exceptions when the time source changes and initialize publish timestamp
+    previous_publish_timestamp_ = time;
+    should_publish = true;
+  }
+
+  if (should_publish) {
+    if (enable_odom_nav_msg_ && realtime_odom_nav_publisher_) {
+      odom_nav_message_.header.stamp = time;
+      odom_nav_message_.header.frame_id = odom_frame_id_;
+      odom_nav_message_.pose.pose.position.x = odometry_.getX();
+      odom_nav_message_.pose.pose.position.y = odometry_.getY();
+      odom_nav_message_.pose.pose.orientation.x = orientation.x();
+      odom_nav_message_.pose.pose.orientation.y = orientation.y();
+      odom_nav_message_.pose.pose.orientation.z = orientation.z();
+      odom_nav_message_.pose.pose.orientation.w = orientation.w();
+      odom_nav_message_.twist.twist.linear.x = odometry_.getLinearX();
+      odom_nav_message_.twist.twist.linear.y = odometry_.getLinearY();
+      odom_nav_message_.twist.twist.angular.z = odometry_.getAngular();
+      realtime_odom_nav_publisher_->try_publish(odom_nav_message_);
+    }
+
+    if (enable_odom_tf_msg_ && realtime_odom_tf_publisher_) {
+      auto& transform = odom_tf_message_.transforms.front();
+      transform.header.stamp = time;
+      transform.header.frame_id = tf_frame_id_;
+      transform.transform.translation.x = odometry_.getX();
+      transform.transform.translation.y = odometry_.getY();
+      transform.transform.rotation.x = orientation.x();
+      transform.transform.rotation.y = orientation.y();
+      transform.transform.rotation.z = orientation.z();
+      transform.transform.rotation.w = orientation.w();
+      realtime_odom_tf_publisher_->try_publish(odom_tf_message_);
+    }
+  }
+
+  double& last_linear_x = previous_two_commands_.back()[0];
+  double& second_to_last_linear_x = previous_two_commands_.front()[0];
+
+  double& last_linear_y = previous_two_commands_.back()[1];
+  double& second_to_last_linear_y = previous_two_commands_.front()[1];
+
+  double& last_angular = previous_two_commands_.back()[2];
+  double& second_to_last_angular = previous_two_commands_.front()[3];
+
+  // rate limiting
+  linear_x_limiter_->limit(command_linear_x, last_linear_x, second_to_last_linear_x,
+                           period.seconds());
+  linear_y_limiter_->limit(command_linear_y, last_linear_y, second_to_last_linear_y,
+                           period.seconds());
+  angular_z_limiter_->limit(command_angular_z, last_angular, second_to_last_angular,
+                            period.seconds());
+  previous_two_commands_.pop();
+  previous_two_commands_.push({{command_linear_x, command_linear_y, command_angular_z}});
+
+  // Publish limited velocity
+  if (publish_limited_velocity_ && realtime_cmd_vel_out_publisher_) {
+    limited_velocity_message_.header.stamp = time;
+    limited_velocity_message_.header.frame_id = "base_link";
+    limited_velocity_message_.twist.linear.x = command_linear_x;
+    limited_velocity_message_.twist.linear.y = command_linear_y;
+    limited_velocity_message_.twist.linear.z = 0.0;
+    limited_velocity_message_.twist.angular.x = 0.0;
+    limited_velocity_message_.twist.angular.y = 0.0;
+    limited_velocity_message_.twist.angular.z = command_angular_z;
+    realtime_cmd_vel_out_publisher_->try_publish(limited_velocity_message_);
+  }
+
+  last_cmd_time_ += period.seconds();
+
+  const Eigen::Vector3d cartesian_linear_velocity(command_linear_y, command_linear_y, 0.0);
+  const Eigen::Vector3d cartesian_angular_velocity(0.0, 0.0, command_angular_z);
+
+  if (franka_cartesian_velocity_->setCommand(cartesian_linear_velocity,
+                                             cartesian_angular_velocity)) {
+    return controller_interface::return_type::OK;
+  } else {
+    RCLCPP_FATAL(get_node()->get_logger(),
+                 "Set command failed. Did you activate the elbow command interface?");
+    return controller_interface::return_type::ERROR;
+  }
+
+  return controller_interface::return_type::OK;
+}
+
+CallbackReturn SwerveDriveController::on_init() {
+  cartesian_velocity_interface_prefix_ =
+      auto_declare<std::string>("cartesian_velocity_interface_prefix", "");
+  franka_cartesian_velocity_ =
+      std::make_unique<franka_semantic_components::FrankaCartesianVelocityInterface>(
+          cartesian_velocity_interface_prefix_, false);
+
+  tf_frame_id_ = auto_declare("tf_frame_id", "world");
+  odom_frame_id_ = auto_declare("odom_frame_id", "base_link");
+
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn SwerveDriveController::on_configure(
+    const rclcpp_lifecycle::State& /*previous_state*/) {
+  const auto odom_velocity_rolling_window_size = auto_declare<int>("velocity_rolling_window_size", 10);
+  odometry_.setVelocityRollingWindowSize(odom_velocity_rolling_window_size);
+
+  // cmd_vel pub/sub
+  cmd_vel_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
+      "~/cmd_vel", 1000, [this](const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+        last_cmd_vel_ = msg;
+        last_cmd_time_ = 0;
+      });
+  cmd_vel_out_pub_ = get_node()->create_publisher<geometry_msgs::msg::TwistStamped>(
+      "~/cmd_vel_out", rclcpp::SystemDefaultsQoS());
+  realtime_cmd_vel_out_publisher_ =
+      std::make_shared<realtime_tools::RealtimePublisher<geometry_msgs::msg::TwistStamped>>(cmd_vel_out_pub_);
+
+  // tf2
+  odom_tf_pub_ =
+      get_node()->create_publisher<tf2_msgs::msg::TFMessage>("/tf", rclcpp::SystemDefaultsQoS());
+  realtime_odom_tf_publisher_ =
+      std::make_shared<realtime_tools::RealtimePublisher<tf2_msgs::msg::TFMessage>>(odom_tf_pub_);
+
+  // nav
+  odom_nav_pub_ =
+      get_node()->create_publisher<nav_msgs::msg::Odometry>("~/odom", rclcpp::SystemDefaultsQoS());
+  realtime_odom_nav_publisher_ =
+      std::make_shared<realtime_tools::RealtimePublisher<nav_msgs::msg::Odometry>>(odom_nav_pub_);
+  
+
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn SwerveDriveController::on_activate(
+    const rclcpp_lifecycle::State& /*previous_state*/) {
+  franka_cartesian_velocity_->assign_loaned_command_interfaces(command_interfaces_);
+  last_cmd_vel_ = std::make_shared<geometry_msgs::msg::TwistStamped>();
+  return CallbackReturn::SUCCESS;
+}
+
+controller_interface::CallbackReturn SwerveDriveController::on_deactivate(
+    const rclcpp_lifecycle::State& /*previous_state*/) {
+  franka_cartesian_velocity_->release_interfaces();
+  return CallbackReturn::SUCCESS;
+}
+
+}  // namespace franka_example_controllers
+#include "pluginlib/class_list_macros.hpp"
+// NOLINTNEXTLINE
+PLUGINLIB_EXPORT_CLASS(franka_example_controllers::SwerveDriveController,
+                       controller_interface::ControllerInterface)

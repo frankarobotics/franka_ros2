@@ -28,10 +28,7 @@ controller_interface::CallbackReturn SwerveIKController::on_init() {
   wheel_velocities_.setZero();
   wheel_radius_ = 0.05;
 
-  get_node()->declare_parameter("prefix", "");
-  const std::string prefix = this->get_node()->get_parameter("prefix").as_string();
-  prefix_ = prefix.empty() ? "" : prefix + "_";
-
+  prefix_ = auto_declare<std::string>("prefix", "");
   return controller_interface::CallbackReturn::SUCCESS;
 }
 

@@ -30,6 +30,9 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_msgs REQUIRED)
+find_package(diff_drive_controller REQUIRED)
 
 add_library(
         ${PROJECT_NAME}
@@ -51,9 +54,10 @@ add_library(
         src/fr3/model_example_controller.cpp
         src/motion_generator.cpp
         src/fr3/move_to_start_example_controller.cpp
-        src/tmr/mobile_cartesian_velocity_example_controller.cpp
         src/tmr/swerve_ik.cpp
+        src/tmr/odometry.cpp
         src/tmr/swerve_ik_controller.cpp
+        src/tmr/swerve_drive_controller.cpp
 )
 target_include_directories(
         ${PROJECT_NAME}
@@ -75,6 +79,8 @@ ament_target_dependencies(
         rclcpp
         rclcpp_lifecycle
         std_srvs
+        tf2_msgs
+        diff_drive_controller
 )
 
 pluginlib_export_plugin_description_file(
