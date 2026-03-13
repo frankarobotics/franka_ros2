@@ -31,8 +31,6 @@ Odometry::Odometry(size_t velocity_rolling_window_size)
       linear_x_(0.0),
       linear_y_(0.0),
       angular_(0.0),
-      left_wheel_old_pos_(0.0),
-      right_wheel_old_pos_(0.0),
       velocity_rolling_window_size_(velocity_rolling_window_size),
       linear_x_accumulator_(velocity_rolling_window_size),
       linear_y_accumulator_(velocity_rolling_window_size),
@@ -43,37 +41,6 @@ void Odometry::init(const rclcpp::Time& time) {
   resetAccumulators();
   timestamp_ = time;
 }
-
-// bool Odometry::updateFromVelocity(double left_vel, double right_vel, const rclcpp::Time& time) {
-//   const double dt = time.seconds() - timestamp_.seconds();
-//   if (dt < 0.0001) {
-//     return false;  // Interval too small to integrate with
-//   }
-//   // Compute linear and angular diff:
-//   // const double linear = (left_vel + right_vel) * 0.5;
-//   // // Now there is a bug about scout angular velocity
-//   // const double angular = (right_vel - left_vel) / wheel_separation_;
-
-//   // Integrate odometry:
-//   // integrateExact(linear, angular);
-
-//   // timestamp_ = time;
-
-//   // // Estimate speeds using a rolling mean to filter them out:
-//   // linear_accumulator_.accumulate(linear / dt);
-//   // angular_accumulator_.accumulate(angular / dt);
-
-//   // linear_ = linear_accumulator_.getRollingMean();
-//   // angular_ = angular_accumulator_.getRollingMean();
-
-//   return true;
-// }
-
-bool Odometry::update(const std::array<double, 2>& steering_positions,
-                      const std::array<double, 2>& wheel_velocities,
-                      const rclcpp::Time& time) {
-                        return true;
-                      }
 
 void Odometry::update(double linear_x, double linear_y, double angular, const rclcpp::Time& time) {
   /// Save last linear and angular velocity:
@@ -114,11 +81,12 @@ void Odometry::integrateExact(double linear_x, double linear_y, double angular) 
   } else {
     // TODO revise exact integration
     /// Exact integration (should solve problems when angular is zero):
-    // const double heading_old = heading_;
-    // const double r = linear / angular;
-    // heading_ += angular;
-    // x_ += r * (std::sin(heading_) - std::sin(heading_old));
-    // y_ += -r * (std::cos(heading_) - std::cos(heading_old));
+    const double heading_old = heading_;
+    const double linear = std::hypot(linear_x, linear_y);
+    const double r = linear / angular;
+    heading_ += angular;
+    x_ += r * (std::sin(heading_) - std::sin(heading_old));
+    y_ += -r * (std::cos(heading_) - std::cos(heading_old));
   }
 }
 

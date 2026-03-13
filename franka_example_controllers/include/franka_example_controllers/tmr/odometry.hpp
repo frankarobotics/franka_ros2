@@ -31,9 +31,6 @@ class Odometry {
   explicit Odometry(size_t velocity_rolling_window_size = 10);
 
   void init(const rclcpp::Time& time);
-  bool update(const std::array<double, 2>& steering_positions,
-              const std::array<double, 2>& wheel_velocities,
-              const rclcpp::Time& time);
   void update(double linear_x, double linear_y, double angular, const rclcpp::Time& time);
   void resetOdometry();
 
@@ -44,7 +41,6 @@ class Odometry {
   double getLinearY() const { return linear_y_; }
   double getAngular() const { return angular_; }
 
-  void setWheelParams(double wheel_separation, double left_wheel_radius, double right_wheel_radius);
   void setVelocityRollingWindowSize(size_t velocity_rolling_window_size);
 
  private:
@@ -71,10 +67,6 @@ class Odometry {
   double linear_x_;  //   [m/s]
   double linear_y_;  //   [m/s]
   double angular_;   // [rad/s]
-
-  // Previous wheel position/state [rad]:
-  double left_wheel_old_pos_;
-  double right_wheel_old_pos_;
 
   // Rolling mean accumulators for the linear and angular velocities:
   size_t velocity_rolling_window_size_;

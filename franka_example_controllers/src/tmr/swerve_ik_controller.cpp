@@ -17,18 +17,25 @@
 
 #include <algorithm>
 
-#include "swerve_ik.hpp"
+#include "utils.hpp"
 
 namespace franka_example_controllers {
 
 controller_interface::CallbackReturn SwerveIKController::on_init() {
-  // TODO pick up correct ik configuration from the TMR urdf tfs
-  wheel_positions_ << 0.3, -0.2, -0.3, 0.2;
-  steering_angles_.setZero();
-  wheel_velocities_.setZero();
-  wheel_radius_ = 0.05;
 
   prefix_ = auto_declare<std::string>("prefix", "");
+
+  const std::string wheel_1_link_name = auto_declare("wheel_1_link_name", "");
+  const std::string wheel_2_link_name = auto_declare("wheel_2_link_name", "");
+  const std::string base_link_name = auto_declare("base_link_name", "base_link");
+
+  const std::string robot_description = get_robot_description();
+  const SE3 wheel_position_1 = get_se3_from_description(robot_description, base_link_name, wheel_1_link_name);
+  const SE3 wheel_position_2 = get_se3_from_description(robot_description, base_link_name, wheel_2_link_name);
+  double wheel_radius = get_wheel_radius_from_description(robot_description, wheel_1_link_name);
+  std::array<Eigen::Vector2d, 2> wheel_positions{ wheel_position_1.p.head<2>(), wheel_position_2.p.head<2>() };
+
+  swerve_kinematics_.emplace(SwerveKinematics(wheel_positions, wheel_radius));
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -54,7 +61,7 @@ controller_interface::InterfaceConfiguration SwerveIKController::state_interface
 
 controller_interface::CallbackReturn SwerveIKController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  // get some params here
+  
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -84,20 +91,20 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
   const double vy = reference_interfaces_[1];
   const double wz = reference_interfaces_[5];
 
-  std::array<WheelCommand, 2> commands;
-  if (!computeSwerveIK(vx, vy, wz, wheel_positions_, wheel_radius_, steering_angles_,
-                       wheel_velocities_, commands)) {
+
+  std::array<double, 2> steering_angles{0, 0}, wheel_speeds{0, 0};
+  if (!swerve_kinematics_->inverse(vx, vy, wz, steering_angles, wheel_speeds)) {
     // NO OP, send zero commands
   }
 
   for (size_t i = 0; i < 2; ++i) {
-    if (!command_interfaces_[2 * i].set_value(commands[i].steering_angle)) {
+    if (!command_interfaces_[2 * i].set_value(steering_angles[i])) {
       RCLCPP_WARN(get_node()->get_logger(), "Failed to set steering angle for wheel %zu: %f", i,
-                  commands[i].steering_angle);
+                  steering_angles[i]);
     }
-    if (!command_interfaces_[2 * i + 1].set_value(commands[i].wheel_velocity)) {
+    if (!command_interfaces_[2 * i + 1].set_value(wheel_speeds[i])) {
       RCLCPP_WARN(get_node()->get_logger(), "Failed to set wheel velocity for wheel %zu: %f", i,
-                  commands[i].wheel_velocity);
+                  wheel_speeds[i]);
     }
   }
 

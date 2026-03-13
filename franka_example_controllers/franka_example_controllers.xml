@@ -102,8 +102,8 @@
             The swerve IK controller for TMR. Currently used only for gazebo simulation.
         </description>
     </class>
-    <class name="franka_example_controllers/MobileCartesianVelocityExampleController"
-        type="franka_example_controllers::MobileCartesianVelocityExampleController"
+    <class name="franka_example_controllers/SwerveDriveController"
+        type="franka_example_controllers::SwerveDriveController"
         base_class_type="controller_interface::ControllerInterface">
         <description>
             The mobile cartesian velocity example controller fowards cartesian velocity commands to the mobile robot.

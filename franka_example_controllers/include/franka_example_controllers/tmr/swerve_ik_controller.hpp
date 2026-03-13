@@ -22,6 +22,7 @@
 #include <Eigen/Eigen>
 
 #include <controller_interface/chainable_controller_interface.hpp>
+#include "swerve_kinematics.hpp"
 
 namespace franka_example_controllers {
 
@@ -62,8 +63,7 @@ class SwerveIKController : public controller_interface::ChainableControllerInter
       const rclcpp::Duration& period) override;
 
  private:
-  Eigen::Vector4d wheel_positions_, steering_angles_, wheel_velocities_;
-  double wheel_radius_{0.0};
+  std::optional<SwerveKinematics> swerve_kinematics_;
 
   std::string prefix_;
 };

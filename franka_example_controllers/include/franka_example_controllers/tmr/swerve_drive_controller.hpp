@@ -28,6 +28,7 @@
 #include <tf2_msgs/msg/tf_message.hpp>
 
 #include "odometry.hpp"
+#include "swerve_kinematics.hpp"
 
 namespace franka_example_controllers {
 
@@ -55,9 +56,17 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   std::string cartesian_velocity_interface_prefix_ = "";
   std::string odom_frame_id_= "";
   std::string tf_frame_id_= "";
+  bool odom_open_loop_ = false;
   bool publish_limited_velocity_ = false;  // on cmd_vel_out
   bool enable_odom_tf_msg_ = false;
   bool enable_odom_nav_msg_ = false;
+  double publish_rate_ = 50.0;
+  double cmd_vel_timeout_ = 0.5;
+  double last_cmd_time_ = 0.0;
+  double wheel_radius_ = 0.05;
+
+  rclcpp::Duration publish_period_ = rclcpp::Duration::from_nanoseconds(0);
+  rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
 
   std::queue<std::array<double, 3>> previous_two_commands_;
 
@@ -80,14 +89,10 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_nav_pub_;
   rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr odom_tf_pub_;
 
-  double publish_rate_ = 50.0;
-  rclcpp::Duration publish_period_ = rclcpp::Duration::from_nanoseconds(0);
-  rclcpp::Duration cmd_vel_timeout_ = rclcpp::Duration::from_seconds(0.5);
-  rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
-  double last_cmd_time_;
 
   // twist integration
   Odometry odometry_;
+  std::unique_ptr<SwerveKinematics> swerve_kinematics_;
 
   // rate limiting
   using SpeedLimiter = ::diff_drive_controller::SpeedLimiter;
