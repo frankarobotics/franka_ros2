@@ -32,9 +32,10 @@ class SwerveKinematics {
                double vy,
                double wz,
                std::array<double, 2>& steering_angles,
-               std::array<double, 2>& wheel_speeds) const;
+               std::array<double, 2>& wheel_speeds);
 
  private:
+  std::array<double, 2> steering_angles_, wheel_speeds_;
   std::array<Eigen::Vector2d, 2> wheel_positions_;
   double wheel_radius_;
 };

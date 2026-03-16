@@ -43,10 +43,14 @@ void Odometry::init(const rclcpp::Time& time) {
 }
 
 void Odometry::update(double linear_x, double linear_y, double angular, const rclcpp::Time& time) {
-  /// Save last linear and angular velocity:
-  linear_x_ = linear_x;
-  linear_y_ = linear_y;
-  angular_ = angular;
+
+  linear_x_accumulator_.accumulate(linear_x);
+  linear_y_accumulator_.accumulate(linear_y);
+  angular_accumulator_.accumulate(angular);
+
+  linear_x_ = linear_x_accumulator_.getRollingMean();
+  linear_y_ = linear_y_accumulator_.getRollingMean();
+  angular_ = angular_accumulator_.getRollingMean();
 
   /// Integrate odometry:
   const double dt = time.seconds() - timestamp_.seconds();
@@ -68,10 +72,11 @@ void Odometry::setVelocityRollingWindowSize(size_t velocity_rolling_window_size)
 
 void Odometry::integrateRungeKutta2(double linear_x, double linear_y, double angular) {
   const double direction = heading_ + angular * 0.5;
+  const double cos_d = std::cos(direction);
+  const double sin_d = std::sin(direction);
 
-  /// Runge-Kutta 2nd order integration:
-  x_ += linear_x * std::cos(direction);
-  y_ += linear_y * std::sin(direction);
+  x_ += linear_x * cos_d - linear_y * sin_d;
+  y_ += linear_x * sin_d + linear_y * cos_d;
   heading_ += angular;
 }
 
@@ -83,10 +88,11 @@ void Odometry::integrateExact(double linear_x, double linear_y, double angular) 
     /// Exact integration (should solve problems when angular is zero):
     const double heading_old = heading_;
     const double linear = std::hypot(linear_x, linear_y);
+    const double strafe_angle = std::atan2(linear_y, linear_x);
     const double r = linear / angular;
     heading_ += angular;
-    x_ += r * (std::sin(heading_) - std::sin(heading_old));
-    y_ += -r * (std::cos(heading_) - std::cos(heading_old));
+    x_ += r * (std::sin(heading_ + strafe_angle) - std::sin(heading_old + strafe_angle));
+    y_ += -r * (std::cos(heading_ + strafe_angle) - std::cos(heading_old + strafe_angle));
   }
 }
 

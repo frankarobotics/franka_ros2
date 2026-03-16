@@ -30,6 +30,8 @@
 #include "odometry.hpp"
 #include "swerve_kinematics.hpp"
 
+#include <franka_example_controllers/swerve_drive_controller_parameters.hpp>
+
 namespace franka_example_controllers {
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
@@ -53,13 +55,15 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
 
  private:
   // params
-  std::string cartesian_velocity_interface_prefix_ = "";
-  std::string odom_frame_id_= "";
-  std::string tf_frame_id_= "";
+  std::string command_interface_prefix_ = "";
+  std::string state_interface_prefix_ = "";
+  std::string odom_frame_id_ = "";
+  std::string tf_frame_id_ = "";
+  std::string base_link_frame_id_ = "";
   bool odom_open_loop_ = false;
-  bool publish_limited_velocity_ = false;  // on cmd_vel_out
-  bool enable_odom_tf_msg_ = false;
-  bool enable_odom_nav_msg_ = false;
+  bool publish_limited_velocity_ = true;  // on cmd_vel_out
+  bool enable_odom_tf_msg_ = true;
+  bool enable_odom_nav_msg_ = true;
   double publish_rate_ = 50.0;
   double cmd_vel_timeout_ = 0.5;
   double last_cmd_time_ = 0.0;
@@ -82,13 +86,13 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   realtime_tools::RealtimeThreadSafeBox<geometry_msgs::msg::TwistStamped> received_velocity_msg_;
   realtime_tools::RealtimePublisherSharedPtr<nav_msgs::msg::Odometry> realtime_odom_nav_publisher_;
   realtime_tools::RealtimePublisherSharedPtr<tf2_msgs::msg::TFMessage> realtime_odom_tf_publisher_;
-  realtime_tools::RealtimePublisherSharedPtr<geometry_msgs::msg::TwistStamped> realtime_cmd_vel_out_publisher_;
+  realtime_tools::RealtimePublisherSharedPtr<geometry_msgs::msg::TwistStamped>
+      realtime_cmd_vel_out_publisher_;
 
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_sub_;
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_out_pub_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_nav_pub_;
   rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr odom_tf_pub_;
-
 
   // twist integration
   Odometry odometry_;
@@ -99,6 +103,9 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   std::unique_ptr<SpeedLimiter> linear_x_limiter_;
   std::unique_ptr<SpeedLimiter> linear_y_limiter_;
   std::unique_ptr<SpeedLimiter> angular_z_limiter_;
+
+  std::shared_ptr<swerve_drive_controller::ParamListener> param_listener_;
+  swerve_drive_controller::Params params_;
 };
 
 }  // namespace franka_example_controllers

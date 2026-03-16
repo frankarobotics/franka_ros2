@@ -148,7 +148,7 @@ def generate_launch_description():
     # Start of the control chain, a simple circular reference
     circle_reference_node = ExecuteProcess(
         cmd=['ros2', 'topic', 'pub',
-            '/mobile_cartesian_velocity_controller/cmd_vel',
+            '/swerve_drive_controller/cmd_vel',
             'geometry_msgs/msg/TwistStamped',
             '{header: {frame_id: base_link}, twist: {linear: {x: 0.1}, angular: {z: 0.1}}}',
             '--rate', '10'
@@ -161,7 +161,7 @@ def generate_launch_description():
         package='controller_manager',
         executable='spawner',
         arguments=[
-            'mobile_cartesian_velocity_controller',
+            'swerve_drive_controller',
             '--controller-manager-timeout', '30',
         ],
         parameters=[PathJoinSubstitution([

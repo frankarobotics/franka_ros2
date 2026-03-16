@@ -37,6 +37,9 @@ double get_wheel_radius_from_description(const std::string& robot_description,
   urdf_model.initString(robot_description);
 
   auto wheel_link = urdf_model.getLink(link_name);
+  if(wheel_link == nullptr){
+    throw std::invalid_argument("Link name" + link_name + " does not exist in robot description"); 
+  }
   auto cylinder = std::dynamic_pointer_cast<urdf::Cylinder>(
       wheel_link->collision->geometry);  // or ->visual->geometry, should be the same!!
   return cylinder->radius;

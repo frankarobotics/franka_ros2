@@ -34,7 +34,6 @@ bool SwerveKinematics::forward(const std::array<double, 2>& steering_angles,
                                double& vx,
                                double& vy,
                                double& wz) const {
-
   // Each wheel velocity vector in world frame
   // v_wheel = [v*cos(θ), v*sin(θ)]
   // Body velocity constraint per wheel:
@@ -78,10 +77,12 @@ bool SwerveKinematics::inverse(double vx,
                                double vy,
                                double wz,
                                std::array<double, 2>& steering_angles,
-                               std::array<double, 2>& wheel_speeds) const {
+                               std::array<double, 2>& wheel_speeds) {
   if (!std::isfinite(vx) || !std::isfinite(vy) || !std::isfinite(wz)) {
     return false;
   }
+
+  static constexpr double eps = 1e-3;
 
   for (int i = 0; i < 2; ++i) {
     const double rx = wheel_positions_[i].x();
@@ -92,16 +93,16 @@ bool SwerveKinematics::inverse(double vx,
     const double vy_wheel = vy + wz * rx;
 
     double speed = std::sqrt(vx_wheel * vx_wheel + vy_wheel * vy_wheel) / wheel_radius_;
-    double angle = std::atan2(vy_wheel, vx_wheel);
+    double angle = speed > eps ? std::atan2(vy_wheel, vx_wheel) : steering_angles_[i];
 
-    // Avoid flipping: if angle diff > 90deg, reverse speed and flip angle
-    const double angle_diff = angle - steering_angles[i];
-    const double wrapped = std::atan2(std::sin(angle_diff), std::cos(angle_diff));
-
-    if (std::fabs(wrapped) > M_PI / 2.0) {
-      angle = std::atan2(-vy_wheel, -vx_wheel);
+    const double diff = angle - steering_angles_[i];
+    if (std::fabs(diff) > M_PI / 2.0) {
+      angle = speed > eps ? std::atan2(-vy_wheel, -vx_wheel) : steering_angles_[i];
       speed = -speed;
     }
+
+    steering_angles_[i] = angle;
+    wheel_speeds_[i] = speed;
 
     steering_angles[i] = angle;
     wheel_speeds[i] = speed;

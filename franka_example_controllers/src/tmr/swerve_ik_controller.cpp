@@ -25,8 +25,8 @@ controller_interface::CallbackReturn SwerveIKController::on_init() {
 
   prefix_ = auto_declare<std::string>("prefix", "");
 
-  const std::string wheel_1_link_name = auto_declare("wheel_1_link_name", "");
-  const std::string wheel_2_link_name = auto_declare("wheel_2_link_name", "");
+  const std::string wheel_1_link_name = auto_declare("wheel_1_link_name", "argo_drive_front_link");
+  const std::string wheel_2_link_name = auto_declare("wheel_2_link_name", "argo_drive_rear_link");
   const std::string base_link_name = auto_declare("base_link_name", "base_link");
 
   const std::string robot_description = get_robot_description();
@@ -94,7 +94,7 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
 
   std::array<double, 2> steering_angles{0, 0}, wheel_speeds{0, 0};
   if (!swerve_kinematics_->inverse(vx, vy, wz, steering_angles, wheel_speeds)) {
-    // NO OP, send zero commands
+    return controller_interface::return_type::OK; // do nothing
   }
 
   for (size_t i = 0; i < 2; ++i) {

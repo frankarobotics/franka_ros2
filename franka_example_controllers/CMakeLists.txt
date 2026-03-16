@@ -67,6 +67,11 @@ target_include_directories(
         include
         ${EIGEN3_INCLUDE_DIRS}
 )
+target_link_libraries(
+    ${PROJECT_NAME}
+    swerve_drive_controller_parameters
+)
+
 ament_target_dependencies(
         ${PROJECT_NAME}
         controller_interface
