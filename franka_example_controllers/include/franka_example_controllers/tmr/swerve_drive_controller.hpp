@@ -69,6 +69,9 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   double last_cmd_time_ = 0.0;
   double wheel_radius_ = 0.05;
 
+  std::array<double, 6> odom_pose_covariance_diagonal_;
+  std::array<double, 6> odom_twist_covariance_diagonal_;
+
   rclcpp::Duration publish_period_ = rclcpp::Duration::from_nanoseconds(0);
   rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
 

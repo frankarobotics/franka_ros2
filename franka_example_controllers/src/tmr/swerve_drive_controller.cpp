@@ -37,10 +37,9 @@ controller_interface::InterfaceConfiguration SwerveDriveController::state_interf
     const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-  config.names = {state_interface_prefix_ + "joint_0/position",
-                  state_interface_prefix_ + "joint_1/velocity",
-                  state_interface_prefix_ + "joint_2/position", 
-                  state_interface_prefix_ + "joint_3/velocity"};
+  config.names = {
+      state_interface_prefix_ + "joint_0/position", state_interface_prefix_ + "joint_1/velocity",
+      state_interface_prefix_ + "joint_2/position", state_interface_prefix_ + "joint_3/velocity"};
   return config;
 }
 
@@ -51,11 +50,11 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
   const auto age_of_last_command = (time - last_cmd_vel_->header.stamp).seconds();
 
   double command_linear_x = 0.0, command_linear_y = 0.0, command_angular_z = 0.0;
-  // if (age_of_last_command < cmd_vel_timeout_) {
+  if (age_of_last_command < cmd_vel_timeout_) {
     command_linear_x = last_cmd_vel_->twist.linear.x;
     command_linear_y = last_cmd_vel_->twist.linear.y;
     command_angular_z = last_cmd_vel_->twist.angular.z;
-  // }
+  }
 
   if (!std::isfinite(command_linear_x) || !std::isfinite(command_linear_y) ||
       !std::isfinite(command_angular_z)) {
@@ -77,7 +76,7 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
     const std::array<double, 2> velocities{estimate_drive_velocity_wheel_1,
                                            estimate_drive_velocity_wheel_2};
 
-    double vx{0}, vy{0}, wz{0};
+    double vx = 0, vy=0, wz=0;
     swerve_kinematics_->forward(steerings, velocities, vx, vy, wz);
     odometry_.update(vx, vy, wz, time);
   }
@@ -110,6 +109,7 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
       odom_nav_message_.twist.twist.linear.x = odometry_.getLinearX();
       odom_nav_message_.twist.twist.linear.y = odometry_.getLinearY();
       odom_nav_message_.twist.twist.angular.z = odometry_.getAngular();
+
       realtime_odom_nav_publisher_->try_publish(odom_nav_message_);
     }
 
@@ -176,7 +176,6 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
 }
 
 CallbackReturn SwerveDriveController::on_init() {
-
   param_listener_ = std::make_shared<swerve_drive_controller::ParamListener>(get_node());
   params_ = param_listener_->get_params();
 
@@ -192,6 +191,10 @@ CallbackReturn SwerveDriveController::on_init() {
   tf_frame_id_ = auto_declare("tf_frame_id", "world");
   odom_frame_id_ = auto_declare("odom_frame_id", "base_link");
   odom_open_loop_ = auto_declare("odom_open_loop", true);
+  enable_odom_tf_msg_ = auto_declare("enable_odom_tf", true);
+  enable_odom_nav_msg_ = auto_declare("enable_odom_nav", true);
+  publish_limited_velocity_ = auto_declare("publish_limited_velocity", true);
+  cmd_vel_timeout_ = auto_declare("cmd_vel_timeout", 0.5);
 
   const std::string argo_drive_front_link_name =
       auto_declare("wheel_1_link_name", "argo_drive_front_link");
@@ -209,7 +212,7 @@ CallbackReturn SwerveDriveController::on_init() {
   std::array<Eigen::Vector2d, 2> wheel_positions{front_wheel.p.head<2>(), back_wheel.p.head<2>()};
   double wheel_radius =
       get_wheel_radius_from_description(robot_description, argo_drive_front_link_name);
-  
+
   auto logger = get_node()->get_logger();
   RCLCPP_INFO(logger, "Wheel radius: %f", wheel_radius);
   RCLCPP_INFO(logger, "Wheel 1 x: %f, y: %f", wheel_positions[0].x(), wheel_positions[0].y());
@@ -226,7 +229,7 @@ CallbackReturn SwerveDriveController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   const auto odom_velocity_rolling_window_size =
       auto_declare<int>("velocity_rolling_window_size", 10);
-  
+
   auto logger = get_node()->get_logger();
 
   odometry_.setVelocityRollingWindowSize(odom_velocity_rolling_window_size);
@@ -234,22 +237,31 @@ CallbackReturn SwerveDriveController::on_configure(
   if (param_listener_->is_old(params_)) {
     params_ = param_listener_->get_params();
     RCLCPP_INFO(logger, "Parameters were updated");
-  }  
+  }
 
+  // measurement covariances
+  const std::vector<double> odom_pose_covariance_diagonal =
+      auto_declare<std::vector<double>>("odom_pose_covariance_diagonal", {0, 0, 0, 0, 0, 0});
+  const std::vector<double> odom_twist_covariance_diagonal =
+      auto_declare<std::vector<double>>("odom_twist_covariance_diagonal", {0, 0, 0, 0, 0, 0});
+  constexpr size_t NUM_DIMENSIONS = 6;
+  for (size_t index = 0; index < NUM_DIMENSIONS; ++index) {
+    const size_t diagonal_index = NUM_DIMENSIONS * index + index;
+    odom_nav_message_.pose.covariance[diagonal_index] = odom_pose_covariance_diagonal[index];
+    odom_nav_message_.twist.covariance[diagonal_index] = odom_twist_covariance_diagonal[index];
+  }
+
+  // rate limiting
   linear_x_limiter_ = std::make_unique<SpeedLimiter>(
       params_.linear.x.has_velocity_limits, params_.linear.x.has_acceleration_limits,
       params_.linear.x.has_jerk_limits, params_.linear.x.min_velocity,
-      params_.linear.x.max_velocity,
-      params_.linear.x.min_acceleration, params_.linear.x.max_acceleration,
-      params_.linear.x.min_jerk,
-      params_.linear.x.max_jerk);
+      params_.linear.x.max_velocity, params_.linear.x.min_acceleration,
+      params_.linear.x.max_acceleration, params_.linear.x.min_jerk, params_.linear.x.max_jerk);
   linear_y_limiter_ = std::make_unique<SpeedLimiter>(
       params_.linear.y.has_velocity_limits, params_.linear.y.has_acceleration_limits,
       params_.linear.y.has_jerk_limits, params_.linear.y.min_velocity,
-      params_.linear.y.max_velocity,
-      params_.linear.y.min_acceleration, params_.linear.y.max_acceleration,
-      params_.linear.y.min_jerk,
-      params_.linear.y.max_jerk);
+      params_.linear.y.max_velocity, params_.linear.y.min_acceleration,
+      params_.linear.y.max_acceleration, params_.linear.y.min_jerk, params_.linear.y.max_jerk);
   angular_z_limiter_ = std::make_unique<SpeedLimiter>(
       params_.angular.z.has_velocity_limits, params_.angular.z.has_acceleration_limits,
       params_.angular.z.has_jerk_limits, params_.angular.z.min_velocity,
@@ -279,7 +291,7 @@ CallbackReturn SwerveDriveController::on_configure(
       get_node()->create_publisher<nav_msgs::msg::Odometry>("~/odom", rclcpp::SystemDefaultsQoS());
   realtime_odom_nav_publisher_ =
       std::make_shared<realtime_tools::RealtimePublisher<nav_msgs::msg::Odometry>>(odom_nav_pub_);
-  
+
   odom_tf_message_.transforms.resize(1);
 
   return CallbackReturn::SUCCESS;

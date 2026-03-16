@@ -106,7 +106,7 @@
         type="franka_example_controllers::SwerveDriveController"
         base_class_type="controller_interface::ControllerInterface">
         <description>
-            The mobile cartesian velocity example controller fowards cartesian velocity commands to the mobile robot.
+            The mobile cartesian velocity example controller forwards cartesian velocity commands to the mobile robot.
         </description>
     </class>
 
