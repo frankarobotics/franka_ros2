@@ -8,6 +8,9 @@ UNRELEASED
 * chore: refactored gazebo launch files, added integration tests
 * chore: refactored mFR3duo example controller to be gazebo independent by chaining `swerve_ik_controller`
 * chore: removed vendored controller_manager
+* feat: added swerve_drive_controller for tmr with tf and odom support
+* chore: refactored swerve kinematics for `swerve_ik_controller`
+* fix: fixed franka_gazebo_bringup tmr example launch file for cmd_vel_timeout
 
 v3.2.2 (2026-03-03)
 -------------------
