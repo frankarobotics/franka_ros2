@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+  <xacro:include filename="$(find franka_description)/robots/common/utils.xacro" />
+
+  <xacro:macro name="wrist_camera_mount" params="prefix parent inertials *origin">   
+    <link name="${prefix}_wrist_camera_mount_casing_link" >
+      <visual>
+        <geometry>
+          <mesh filename="package://franka_vision_and_manipulation_kit/meshes/visual/wristcam_mount_D405_robotiq.dae"/>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://franka_vision_and_manipulation_kit/meshes/collision/wristcam_mount_D405_robotiq.stl"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="${inertials['wrist_camera_mount']['origin']['xyz']}" rpy="${inertials['wrist_camera_mount']['origin']['rpy']}" />
+        <mass value="${inertials['wrist_camera_mount']['mass']}" />
+        <inertia ixx="${inertials['wrist_camera_mount']['inertia']['xx']}" 
+                 ixy="${inertials['wrist_camera_mount']['inertia']['xy']}" 
+                 ixz="${inertials['wrist_camera_mount']['inertia']['xz']}" 
+                 iyy="${inertials['wrist_camera_mount']['inertia']['yy']}" 
+                 iyz="${inertials['wrist_camera_mount']['inertia']['yz']}" 
+                 izz="${inertials['wrist_camera_mount']['inertia']['zz']}" />
+      </inertial>
+    </link>
+
+    <joint name="${prefix}_wrist_camera_mount_base_joint" type="fixed">
+      <xacro:insert_block name="origin" />
+      <parent link="${parent}" />
+      <child  link="${prefix}_wrist_camera_mount_casing_link" />
+    </joint>
+
+    <link name="${prefix}_wrist_camera_mount_link" type="fixed" />
+
+    <joint name="${prefix}_wrist_camera_mount_attachment_joint" type="fixed">
+      <parent link="${prefix}_wrist_camera_mount_casing_link" />
+      <child  link="${prefix}_wrist_camera_mount_link" />
+      <origin xyz="0 0.0186 0.008" rpy="0 -${radians(70)} -${radians(90)}" />
+    </joint>
+
+  </xacro:macro>
+
+</robot>

@@ -1,0 +1,79 @@
+# Default vision and manipulation configuration
+define: &zed_camera_parameters
+  - general:
+      pub_resolution: CUSTOM
+      grab_resolution: HD720
+      pub_downscale_factor: 2.0
+      grab_frame_rate: 30
+      pub_frame_rate: 30.0
+    depth:
+      depth_mode: NONE
+    video:
+      brightness: 4 # Controls image brightness. Range: 0-8
+      contrast: 4 # Controls image contrast. Range: 0-8
+      hue: 0 # Controls image color. Range: 0-11
+      saturation: 4 # Controls image color intensity. Range: 0-8
+      sharpness: 0 # Controls image sharpness. Range: 0-8
+      gamma: 8 # Controls gamma correction. Range: 1-9
+      auto_exposure_gain: false
+      exposure: 80 # Controls shutter speed. Setting a long exposure time leads to an increase in motion blur. Range: 0-100
+      gain: 15 # Controls digital amplification of the signal from the camera sensors. Range: 0-100
+      auto_whitebalance: false
+      whitebalance_temperature: 60 # Controls camera white balance. Range: 28-65
+
+define: &realsense_camera_parameters
+  # RealSense D405 parameter file for realsense2_camera ROS 2 node
+
+  enable_color: true
+  enable_infra0: false                       # Disable infrared stream 0
+  enable_infra1: false                       # Disable infrared stream 1
+  enable_infra2: false                       # Disable infrared stream 2
+  pointcloud.enable: false                   # Disable pointcloud
+  enable_gyro: false                         # Disable gyroscope
+  enable_accel: false                        # Disable accelerometer
+  enable_rgbd: false                         # Disable RGB-D mode
+  enable_motion: false                       # Disable motion stream
+  align_depth.enable: false                  # Disable depth alignment to color stream
+  colorizer.enable: false                    # Disable colorizer for depth stream
+  decimation_filter.enable: false     
+  rotation_filter.enable: false      
+  spatial_filter.enable: false        
+  temporal_filter.enable: false       
+  disparity_filter.enable: false      
+  hole_filling_filter.enable: false   
+  hdr_merge.enable: false             
+
+  depth_module.color_profile: 640x480x30
+
+  depth_module.enable_auto_exposure: false   # Deactivate auto exposure (how long the camera sensor collects light for
+                                            # each frame) to allow manual control.
+  depth_module.exposure: 10000               # Standard is 8500, increased exposure time (in microseconds) for brighter image.
+  depth_module.gain: 64                      # Standard is 16, increased gain for additional brightness,
+                                            # but slightly reduced image quality.
+  enable_sync: true
+  initial_reset: true
+
+  # Device specific options
+  device_type: "d405"
+
+head:
+  camera_model: zedm
+  <<: *zed_camera_parameters
+
+left_arm:
+  gripper:
+    type: 2f_85
+    com_port: "/dev/serial/by-id/usb-FTDI_USB_TO_RS-485_DA8BU5F3-if00-port0"
+  camera:
+    serial_no: "_218622270588"
+    camera_namespace: left
+    <<: *realsense_camera_parameters
+
+right_arm:
+  gripper:
+    type: 2f_85
+    com_port: "/dev/serial/by-id/usb-FTDI_USB_TO_RS-485_DA8BS24U-if00-port0"
+  camera:
+    serial_no: "_218622272059"
+    camera_namespace: right
+    <<: *realsense_camera_parameters

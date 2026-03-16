@@ -22,3 +22,4 @@ Documentation for franka_ros2 Jazzy.
    ../franka_selfcollision/doc/index
    ../franka_semantic_components/doc/index
    ../franka_spine/index
+   ../franka_vision_and_manipulation_kit/doc/index

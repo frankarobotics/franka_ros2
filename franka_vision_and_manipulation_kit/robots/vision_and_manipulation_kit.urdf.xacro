@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fr3_duo_with_vision_and_manipulation_kit">
+
+  <xacro:include filename="$(find franka_vision_and_manipulation_kit)/robots/vision_and_manipulation_kit.xacro" />
+
+  <xacro:arg name="prefix" default="" />
+
+  <!-- Use mobile FR3 Duo -->
+  <xacro:arg name="mobile_platform" default="false" />
+
+  <!-- Define arguments -->
+  <!-- The IDs of the robot models to be used -->
+  <xacro:arg name="mobile_platform_type" default="tmrv0_2" />
+  <xacro:arg name="left_arm_type" default="fr3v2_1" />
+  <xacro:arg name="right_arm_type" default="fr3v2_1" />
+  
+  <!-- Don't print a prefix for joints, visuals, and links? -->
+  <xacro:arg name="no_prefix" default="false"/>
+
+  <!-- Where is the end-effector connected to, if different from the robot flange?  -->
+  <xacro:arg name="special_connection" default="" />
+
+  <!-- Position offset between ee and parent frame -->
+  <xacro:arg name="xyz_ee" default="0 0 0" />
+
+  <!-- Rotation offset between ee and parent frame -->
+  <xacro:arg name="rpy_ee" default= "0 0 ${-pi/4}" />
+
+  <!-- Position offset between ee frame and tcp frame -->
+  <xacro:arg name="tcp_xyz" default="0 0 0.1034" />
+
+  <!-- Rotation offset between ee frame and tcp frame -->
+  <xacro:arg name="tcp_rpy" default="0 0 0" />
+
+  <!-- Safety distance for the collision capsules -->
+  <xacro:arg name="safety_distance" default="0.03" />
+
+  <!-- Should self-collision be enabled? -->
+  <xacro:arg name="with_sc" default="false" />
+
+  <!-- Is the robot being controlled with ros2_control?" -->
+  <xacro:arg name="ros2_control" default="false" />
+
+  <!-- IP address or hostname of the robot" -->
+  <xacro:arg name="mobile_platform_ip" default="172.16.0.1" />
+  <xacro:arg name="left_arm_ip" default="172.16.0.2" />
+  <xacro:arg name="right_arm_ip" default="172.16.0.3" />
+
+  <!-- Should a fake hardware be used? -->
+  <xacro:arg name="use_fake_hardware" default="false" />
+
+  <!-- Should fake sensors be used? -->
+  <xacro:arg name="fake_sensor_commands" default="false" />
+
+  <!-- Should the robot be spawned in Gazebo?" -->
+  <xacro:arg name="gazebo" default="false" />
+
+  <!-- Should the robot be spawned in Gazebo with effort interfaces?" -->
+  <xacro:arg name="gazebo_effort" default="false" />
+
+  <!-- Name of the description package -->
+  <xacro:arg name="description_pkg" default="franka_description" />
+
+  <xacro:fr3_duo_with_vision_and_manipulation_kit
+    prefix="$(arg prefix)"
+    mobile_platform="$(arg mobile_platform)"
+    mobile_platform_type="$(arg mobile_platform_type)"
+    left_arm_type="$(arg left_arm_type)"
+    right_arm_type="$(arg right_arm_type)"
+    no_prefix="$(arg no_prefix)"
+    special_connection="$(arg special_connection)"
+    xyz_ee="$(arg xyz_ee)"
+    rpy_ee="$(arg rpy_ee)"
+    tcp_xyz="$(arg tcp_xyz)"
+    tcp_rpy="$(arg tcp_rpy)"
+    safety_distance="$(arg safety_distance)"
+    with_sc="$(arg with_sc)"
+    ros2_control="$(arg ros2_control)"
+    mobile_platform_ip="$(arg mobile_platform_ip)"
+    left_arm_ip="$(arg left_arm_ip)"
+    right_arm_ip="$(arg right_arm_ip)"
+    use_fake_hardware="$(arg use_fake_hardware)"
+    fake_sensor_commands="$(arg fake_sensor_commands)"
+    gazebo="$(arg gazebo)"
+    gazebo_effort="$(arg gazebo_effort)"
+    description_pkg="$(arg description_pkg)"
+  />
+
+
+</robot>
