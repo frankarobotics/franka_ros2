@@ -84,7 +84,7 @@ This repository contains a `.repos` file that helps you clone the required depen
 6. **Build**
    ```bash
    # use the --symlinks option to reduce disk usage, and facilitate development.
-   colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+   colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
    ```
 7. **Adjust Enviroment**
    ```bash
