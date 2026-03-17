@@ -26,12 +26,74 @@
 
 namespace franka_example_controllers {
 
+/**
+ * @brief Tracks the pose and velocity of a holonomic (omnidirectional) platform.
+ *
+ * Integrates body-frame velocities (vx, vy, wz) over time to maintain an estimate
+ * of the robot's 2D pose (x, y, heading) in the odometry frame. Velocities are
+ * smoothed using rolling mean accumulators to reduce noise.
+ *
+ * Two integration methods are available internally:
+ * - **Runge-Kutta 2**: more accurate for curved trajectories, used when angular
+ *   velocity is non-negligible.
+ * - **Exact integration**: closed-form solution for constant-curvature arcs,
+ *   used when angular velocity is below a threshold.
+ *
+ * Example usage:
+ * @code
+ * Odometry odom(10);  // 10-sample rolling window for velocity smoothing
+ * odom.init(node->now());
+ *
+ * // In the control loop:
+ * odom.update(vx, vy, wz, node->now());
+ * geometry_msgs::msg::Pose2D pose;
+ * pose.x = odom.getX();
+ * pose.y = odom.getY();
+ * pose.theta = odom.getHeading();
+ * @endcode
+ */
 class Odometry {
  public:
+  /**
+   * @brief Construct an Odometry tracker.
+   *
+   * @param velocity_rolling_window_size  Number of samples used for rolling mean
+   *                                      velocity smoothing. Larger values reduce
+   *                                      noise but increase latency. Default is 10.
+   */
   explicit Odometry(size_t velocity_rolling_window_size = 10);
 
+  /**
+   * @brief Initialize the odometry state and timestamp.
+   *
+   * Resets the pose to the origin, zeroes all velocities and accumulators,
+   * and records the given time as the integration start point.
+   * Must be called before the first call to update().
+   *
+   * @param time  Current ROS time.
+   */
   void init(const rclcpp::Time& time);
+
+  /**
+   * @brief Integrate a new velocity measurement and update pose and velocity estimates.
+   *
+   * Computes the elapsed time since the last update, integrates the displacement
+   * into the pose estimate, and updates the smoothed velocity via rolling mean
+   * accumulators. Selects between Runge-Kutta 2 and exact integration based on
+   * the magnitude of the angular velocity.
+   *
+   * @param linear_x  Body-frame linear velocity along X [m/s].
+   * @param linear_y  Body-frame linear velocity along Y [m/s].
+   * @param angular   Body-frame angular velocity around Z [rad/s].
+   * @param time      Current ROS time. Used to compute the integration timestep.
+   */
   void update(double linear_x, double linear_y, double angular, const rclcpp::Time& time);
+
+  /**
+   * @brief Reset the pose estimate to the origin and zero all velocities.
+   *
+   * Does not reset the timestamp or rolling window size.
+   */
   void resetOdometry();
 
   double getX() const { return x_; }

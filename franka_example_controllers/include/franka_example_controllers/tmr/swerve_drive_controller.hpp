@@ -70,7 +70,7 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
 
   rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
 
-  std::queue<std::array<double, 3>> previous_two_commands_;
+  std::queue<Eigen::Vector3d> previous_two_commands_;
 
   // franka interface
   std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>

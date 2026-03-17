@@ -130,14 +130,14 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
     }
   }
 
-  double last_linear_x = previous_two_commands_.back()[0];
-  double second_to_last_linear_x = previous_two_commands_.front()[0];
+  double last_linear_x = previous_two_commands_.back().x();
+  double second_to_last_linear_x = previous_two_commands_.front().x();
 
-  double last_linear_y = previous_two_commands_.back()[1];
-  double second_to_last_linear_y = previous_two_commands_.front()[1];
+  double last_linear_y = previous_two_commands_.back().y();
+  double second_to_last_linear_y = previous_two_commands_.front().y();
 
-  double last_angular = previous_two_commands_.back()[2];
-  double second_to_last_angular = previous_two_commands_.front()[2];
+  double last_angular = previous_two_commands_.back().z();
+  double second_to_last_angular = previous_two_commands_.front().z();
 
   // rate limiting
   linear_x_limiter_->limit(command_linear_x, last_linear_x, second_to_last_linear_x,
@@ -147,7 +147,7 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
   angular_z_limiter_->limit(command_angular_z, last_angular, second_to_last_angular,
                             period.seconds());
   previous_two_commands_.pop();
-  previous_two_commands_.push({{command_linear_x, command_linear_y, command_angular_z}});
+  previous_two_commands_.push({command_linear_x, command_linear_y, command_angular_z});
 
   if (publish_limited_velocity_ && realtime_cmd_vel_out_publisher_) {
     limited_velocity_message_.header.stamp = time;
