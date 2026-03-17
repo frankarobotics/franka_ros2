@@ -65,9 +65,6 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   double cmd_vel_timeout_ = 0.5;
   double last_cmd_time_ = 0.0;
 
-  std::array<double, 6> odom_pose_covariance_diagonal_;
-  std::array<double, 6> odom_twist_covariance_diagonal_;
-
   rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
 
   std::queue<Eigen::Vector3d> previous_two_commands_;

@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <Eigen/Eigen>
+#include <Eigen/Core>
 
 namespace franka_example_controllers {
 

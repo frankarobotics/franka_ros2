@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <Eigen/Dense>
 #include <franka_example_controllers/tmr/swerve_kinematics.hpp>
 
 namespace franka_example_controllers {
