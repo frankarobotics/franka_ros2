@@ -34,9 +34,6 @@
 
 namespace franka_example_controllers {
 
-using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
-
-namespace fsc = franka_semantic_components;
 /**
  * The cartesian velocity example controller
  */
@@ -67,18 +64,17 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   double publish_rate_ = 50.0;
   double cmd_vel_timeout_ = 0.5;
   double last_cmd_time_ = 0.0;
-  double wheel_radius_ = 0.05;
 
   std::array<double, 6> odom_pose_covariance_diagonal_;
   std::array<double, 6> odom_twist_covariance_diagonal_;
 
-  rclcpp::Duration publish_period_ = rclcpp::Duration::from_nanoseconds(0);
   rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
 
   std::queue<std::array<double, 3>> previous_two_commands_;
 
   // franka interface
-  std::unique_ptr<fsc::FrankaCartesianVelocityInterface> franka_cartesian_velocity_;
+  std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>
+      franka_cartesian_velocity_;
 
   // pub/sub
   geometry_msgs::msg::TwistStamped::SharedPtr last_cmd_vel_;

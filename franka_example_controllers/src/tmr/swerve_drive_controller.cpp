@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Franka Robotics GmbH
+// Copyright (c) 2026 Franka Robotics GmbH
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 #include <exception>
 #include <string>
 
-#include <Eigen/Eigen>
+#include <Eigen/Dense>
 #include "utils.hpp"
 
 namespace franka_example_controllers {
@@ -76,7 +76,7 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
     const std::array<double, 2> velocities{estimate_drive_velocity_wheel_1,
                                            estimate_drive_velocity_wheel_2};
 
-    double vx = 0, vy=0, wz=0;
+    double vx = 0, vy = 0, wz = 0;
     swerve_kinematics_->forward(steerings, velocities, vx, vy, wz);
     odometry_.update(vx, vy, wz, time);
   }
@@ -85,9 +85,11 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
   orientation.setRPY(0.0, 0.0, odometry_.getHeading());
 
   bool should_publish = false;
+  const rclcpp::Duration publish_period = rclcpp::Duration::from_seconds(1 / publish_rate_);
+
   try {
-    if (previous_publish_timestamp_ + publish_period_ < time) {
-      previous_publish_timestamp_ += publish_period_;
+    if (previous_publish_timestamp_ + publish_period < time) {
+      previous_publish_timestamp_ += publish_period;
       should_publish = true;
     }
   } catch (const std::runtime_error&) {
@@ -175,7 +177,7 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
   }
 }
 
-CallbackReturn SwerveDriveController::on_init() {
+controller_interface::CallbackReturn SwerveDriveController::on_init() {
   param_listener_ = std::make_shared<swerve_drive_controller::ParamListener>(get_node());
   params_ = param_listener_->get_params();
 
@@ -194,6 +196,7 @@ CallbackReturn SwerveDriveController::on_init() {
   enable_odom_tf_msg_ = auto_declare("enable_odom_tf", true);
   enable_odom_nav_msg_ = auto_declare("enable_odom_nav", true);
   publish_limited_velocity_ = auto_declare("publish_limited_velocity", true);
+  publish_rate_ = auto_declare("publish_rate", 50);
   cmd_vel_timeout_ = auto_declare("cmd_vel_timeout", 0.5);
 
   const std::string argo_drive_front_link_name =
@@ -225,7 +228,7 @@ CallbackReturn SwerveDriveController::on_init() {
   return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn SwerveDriveController::on_configure(
+controller_interface::CallbackReturn SwerveDriveController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   const auto odom_velocity_rolling_window_size =
       auto_declare<int>("velocity_rolling_window_size", 10);
@@ -297,7 +300,7 @@ CallbackReturn SwerveDriveController::on_configure(
   return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn SwerveDriveController::on_activate(
+controller_interface::CallbackReturn SwerveDriveController::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   franka_cartesian_velocity_->assign_loaned_command_interfaces(command_interfaces_);
   last_cmd_vel_ = std::make_shared<geometry_msgs::msg::TwistStamped>();

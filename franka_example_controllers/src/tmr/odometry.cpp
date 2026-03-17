@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
- * Author: Andrea Franceschetti
- * Code inspired by ros2_controllers/diff_drive_controller
- */
-
 #include <cmath>
 
 #include <franka_example_controllers/tmr/odometry.hpp>
@@ -43,7 +38,6 @@ void Odometry::init(const rclcpp::Time& time) {
 }
 
 void Odometry::update(double linear_x, double linear_y, double angular, const rclcpp::Time& time) {
-
   linear_x_accumulator_.accumulate(linear_x);
   linear_y_accumulator_.accumulate(linear_y);
   angular_accumulator_.accumulate(angular);

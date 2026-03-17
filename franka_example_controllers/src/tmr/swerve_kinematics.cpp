@@ -24,8 +24,9 @@ SwerveKinematics::SwerveKinematics(const std::array<Eigen::Vector2d, 2>& wheel_p
   }
 
   for (const auto& pos : wheel_positions) {
-    if (pos.isZero(1e-3))
+    if (pos.isZero(1e-3)) {
       throw std::invalid_argument("Wheel position cannot be zero");
+    }
   }
 }
 

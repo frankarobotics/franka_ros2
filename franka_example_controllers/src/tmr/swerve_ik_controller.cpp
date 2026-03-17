@@ -14,6 +14,7 @@
 
 #include <controller_interface/helpers.hpp>
 #include <franka_example_controllers/tmr/swerve_ik_controller.hpp>
+#include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
 
 #include <algorithm>
 
@@ -22,7 +23,6 @@
 namespace franka_example_controllers {
 
 controller_interface::CallbackReturn SwerveIKController::on_init() {
-
   prefix_ = auto_declare<std::string>("prefix", "");
 
   const std::string wheel_1_link_name = auto_declare("wheel_1_link_name", "argo_drive_front_link");
@@ -30,10 +30,14 @@ controller_interface::CallbackReturn SwerveIKController::on_init() {
   const std::string base_link_name = auto_declare("base_link_name", "base_link");
 
   const std::string robot_description = get_robot_description();
-  const SE3 wheel_position_1 = get_se3_from_description(robot_description, base_link_name, wheel_1_link_name);
-  const SE3 wheel_position_2 = get_se3_from_description(robot_description, base_link_name, wheel_2_link_name);
-  double wheel_radius = get_wheel_radius_from_description(robot_description, wheel_1_link_name);
-  std::array<Eigen::Vector2d, 2> wheel_positions{ wheel_position_1.p.head<2>(), wheel_position_2.p.head<2>() };
+  const SE3 wheel_position_1 =
+      get_se3_from_description(robot_description, base_link_name, wheel_1_link_name);
+  const SE3 wheel_position_2 =
+      get_se3_from_description(robot_description, base_link_name, wheel_2_link_name);
+  const double wheel_radius =
+      get_wheel_radius_from_description(robot_description, wheel_1_link_name);
+  const std::array<Eigen::Vector2d, 2> wheel_positions{wheel_position_1.p.head<2>(),
+                                                       wheel_position_2.p.head<2>()};
 
   swerve_kinematics_.emplace(SwerveKinematics(wheel_positions, wheel_radius));
   return controller_interface::CallbackReturn::SUCCESS;
@@ -61,7 +65,6 @@ controller_interface::InterfaceConfiguration SwerveIKController::state_interface
 
 controller_interface::CallbackReturn SwerveIKController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -91,10 +94,9 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
   const double vy = reference_interfaces_[1];
   const double wz = reference_interfaces_[5];
 
-
   std::array<double, 2> steering_angles{0, 0}, wheel_speeds{0, 0};
   if (!swerve_kinematics_->inverse(vx, vy, wz, steering_angles, wheel_speeds)) {
-    return controller_interface::return_type::OK; // do nothing
+    return controller_interface::return_type::OK;  // do nothing
   }
 
   for (size_t i = 0; i < 2; ++i) {
@@ -111,20 +113,20 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
   return controller_interface::return_type::OK;
 }
 
-// Matches the command interface FrankaCartesianVelocityController for chaining
 std::vector<hardware_interface::CommandInterface>
 SwerveIKController::on_export_reference_interfaces() {
   reference_interfaces_.resize(6, 0.0);
 
-  const std::array<std::string, 6> names{"vx", "vy", "vz", "wx", "wy", "wz"};
   std::vector<hardware_interface::CommandInterface> interfaces;
+  franka_semantic_components::FrankaCartesianVelocityInterface interface(false);
+  const std::vector<std::string> command_interface_names = interface.get_command_interface_names();
+  if (command_interface_names.size() != 6) {
+    throw std::invalid_argument("Exported reference interfaces must be 6 for cartesian velocity");
+  }
 
-  for (size_t i = 0; i < names.size(); ++i) {
-    interfaces.emplace_back(
-        get_node()->get_name(),
-        names[i] + "/cartesian_velocity",  // TODO link this to be the same as the
-                                           // FrankaCartesianVelocityCommandInterfaceName
-        &reference_interfaces_[i]);
+  for (size_t i = 0; i < command_interface_names.size(); ++i) {
+    interfaces.emplace_back(get_node()->get_name(), command_interface_names[i],
+                            &reference_interfaces_[i]);
   }
 
   return interfaces;
