@@ -20,7 +20,7 @@
 
 #include "urdf_utils.hpp"
 
-namespace franka_tmr {
+namespace franka_mobile {
 
 SE3 getSe3FromDescription(const std::string& robot_description,
                           const std::string& reference_frame,
@@ -59,4 +59,4 @@ double getWheelRadiusFromDescription(const std::string& robot_description,
   return cylinder->radius;
 }
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile

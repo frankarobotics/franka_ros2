@@ -24,7 +24,7 @@
 #include "rcppmath/rolling_mean_accumulator.hpp"
 #endif
 
-namespace franka_tmr {
+namespace franka_mobile {
 
 /**
  * @brief Tracks the pose and velocity of a holonomic (omnidirectional) platform.
@@ -137,4 +137,4 @@ class Odometry {
   RollingMeanAccumulator angular_accumulator_;
 };
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile

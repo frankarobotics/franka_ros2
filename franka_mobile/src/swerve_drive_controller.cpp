@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <franka_tmr/swerve_drive_controller.hpp>
+#include <franka_mobile/swerve_drive_controller.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
 
 #include <cassert>
@@ -23,7 +23,7 @@
 #include <Eigen/Dense>
 #include "urdf_utils.hpp"
 
-namespace franka_tmr {
+namespace franka_mobile {
 
 controller_interface::InterfaceConfiguration
 SwerveDriveController::command_interface_configuration() const {
@@ -313,7 +313,8 @@ controller_interface::CallbackReturn SwerveDriveController::on_deactivate(
   return CallbackReturn::SUCCESS;
 }
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile
 #include "pluginlib/class_list_macros.hpp"
 // NOLINTNEXTLINE
-PLUGINLIB_EXPORT_CLASS(franka_tmr::SwerveDriveController, controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(franka_mobile::SwerveDriveController,
+                       controller_interface::ControllerInterface)

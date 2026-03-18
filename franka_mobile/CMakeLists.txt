@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(franka_tmr)
+project(franka_mobile)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -23,7 +23,7 @@ find_package(realtime_tools REQUIRED)
 find_package(urdf REQUIRED)
 
 pluginlib_export_plugin_description_file(
-    controller_interface franka_tmr_controllers.xml
+    controller_interface controllers.xml
 )
 
 generate_parameter_library(swerve_drive_controller_parameters
@@ -47,7 +47,7 @@ target_include_directories(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME} 
-  swerve_drive_controller_parameters
+ swerve_drive_controller_parameters
 )
 
 ament_target_dependencies(
@@ -87,6 +87,6 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_export_libraries(franka_tmr)
+ament_export_libraries(franka_mobile)
 
 ament_package()

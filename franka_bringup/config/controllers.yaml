@@ -100,7 +100,7 @@
         type: franka_example_controllers/MobileFr3DuoJointImpedanceExampleController
       
       swerve_drive_controller:
-        type: franka_tmr/SwerveDriveController
+        type: franka_mobile/SwerveDriveController
 
 
 /**:

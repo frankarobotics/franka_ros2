@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #include <controller_interface/helpers.hpp>
+#include <franka_mobile/swerve_ik_controller.hpp>
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
-#include <franka_tmr/swerve_ik_controller.hpp>
 
 #include <algorithm>
 
 #include "urdf_utils.hpp"
 
-namespace franka_tmr {
+namespace franka_mobile {
 
 controller_interface::CallbackReturn SwerveIKController::on_init() {
   prefix_ = auto_declare<std::string>("prefix", "");
@@ -138,8 +138,8 @@ controller_interface::return_type SwerveIKController::update_reference_from_subs
   return controller_interface::return_type::OK;
 }
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile
 
 #include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(franka_tmr::SwerveIKController,
+PLUGINLIB_EXPORT_CLASS(franka_mobile::SwerveIKController,
                        controller_interface::ChainableControllerInterface)

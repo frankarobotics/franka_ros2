@@ -18,8 +18,8 @@
 
 #include <controller_interface/controller_interface.hpp>
 #include <diff_drive_controller/speed_limiter.hpp>
+#include <franka_mobile/swerve_drive_controller_parameters.hpp>
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
-#include <franka_tmr/swerve_drive_controller_parameters.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -31,8 +31,7 @@
 #include "odometry.hpp"
 #include "swerve_kinematics.hpp"
 
-
-namespace franka_tmr {
+namespace franka_mobile {
 
 class SwerveDriveController : public controller_interface::ControllerInterface {
  public:
@@ -100,4 +99,4 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   swerve_drive_controller::Params params_;
 };
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile

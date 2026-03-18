@@ -16,7 +16,7 @@
 
 #include <Eigen/Core>
 
-namespace franka_tmr {
+namespace franka_mobile {
 
 /**
  * @brief Kinematics solver for a two-wheel swerve drive platform.
@@ -114,4 +114,4 @@ class SwerveKinematics {
   double wheel_radius_;
 };
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile

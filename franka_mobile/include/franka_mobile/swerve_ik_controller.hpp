@@ -24,7 +24,7 @@
 #include <controller_interface/chainable_controller_interface.hpp>
 #include "swerve_kinematics.hpp"
 
-namespace franka_tmr {
+namespace franka_mobile {
 
 /**
  * SwerveIK is a simple chainable controller that performs IK for TMR. Currently only used for
@@ -68,4 +68,4 @@ class SwerveIKController : public controller_interface::ChainableControllerInter
   std::string prefix_;
 };
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile

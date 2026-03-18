@@ -17,7 +17,7 @@
 #include <Eigen/Eigen>
 #include <string>
 
-namespace franka_tmr {
+namespace franka_mobile {
 
 struct SE3 {
   Eigen::Vector3d p;
@@ -35,4 +35,4 @@ SE3 getSe3FromDescription(const std::string& robot_description,
 double getWheelRadiusFromDescription(const std::string& robot_description,
                                      const std::string& link_name);
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile

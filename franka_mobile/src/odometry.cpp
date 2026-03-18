@@ -14,9 +14,9 @@
 
 #include <cmath>
 
-#include <franka_tmr/odometry.hpp>
+#include <franka_mobile/odometry.hpp>
 
-namespace franka_tmr {
+namespace franka_mobile {
 
 Odometry::Odometry(size_t velocity_rolling_window_size)
     : velocity_rolling_window_size_(velocity_rolling_window_size),
@@ -89,4 +89,4 @@ void Odometry::resetAccumulators() {
   angular_accumulator_ = RollingMeanAccumulator(velocity_rolling_window_size_);
 }
 
-}  // namespace franka_tmr
+}  // namespace franka_mobile
