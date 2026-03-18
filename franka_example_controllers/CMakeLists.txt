@@ -61,16 +61,15 @@ add_library(
         src/tmr/swerve_ik_controller.cpp
         src/tmr/swerve_drive_controller.cpp
 )
-target_include_directories(
-        ${PROJECT_NAME}
-        PUBLIC
+
+target_include_directories( ${PROJECT_NAME}
+    SYSTEM PUBLIC
+        ${CMAKE_CURRENT_BINARY_DIR}/include
+    PUBLIC
         include
         ${EIGEN3_INCLUDE_DIRS}
 )
-target_link_libraries(
-    ${PROJECT_NAME}
-    swerve_drive_controller_parameters
-)
+
 
 ament_target_dependencies(
         ${PROJECT_NAME}

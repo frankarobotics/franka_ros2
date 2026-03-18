@@ -118,7 +118,7 @@ class Odometry {
   void resetAccumulators();
 
   // Current timestamp:
-  rclcpp::Time timestamp_;
+  rclcpp::Time timestamp_{0};
 
   // Current pose:
   double x_{0.0};        //   [m]

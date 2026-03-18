@@ -19,14 +19,7 @@
 namespace franka_example_controllers {
 
 Odometry::Odometry(size_t velocity_rolling_window_size)
-    : timestamp_(0.0),
-      x_(0.0),
-      y_(0.0),
-      heading_(0.0),
-      linear_x_(0.0),
-      linear_y_(0.0),
-      angular_(0.0),
-      velocity_rolling_window_size_(velocity_rolling_window_size),
+    : velocity_rolling_window_size_(velocity_rolling_window_size),
       linear_x_accumulator_(velocity_rolling_window_size),
       linear_y_accumulator_(velocity_rolling_window_size),
       angular_accumulator_(velocity_rolling_window_size) {}
