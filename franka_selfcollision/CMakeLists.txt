@@ -70,8 +70,9 @@ target_link_libraries(mobile_self_collision_node
 
 ament_target_dependencies(mobile_self_collision_node
     ament_index_cpp
-    franka_msgs
     rclcpp
+    sensor_msgs
+    std_msgs
 )
 
 
