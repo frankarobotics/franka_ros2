@@ -32,6 +32,9 @@ controller_manager:
     swerve_drive_controller:
       type: franka_mobile/SwerveDriveController
 
+    full_body_controller:
+      type: mobile_fr3_duo_joint_trajectory_controller/MobileFR3DuoJointTrajectoryController
+
 joint_position_example_controller:
   ros__parameters:
     gazebo: true
@@ -149,3 +152,44 @@ fr3_duo_joint_impedance_example_controller:
         - 1.0
         - 1.0
         - 0.5
+
+full_body_controller:
+  ros__parameters:
+    update_rate: 1000
+    cartesian_velocity_interface_prefix: swerve_ik_controller/
+    joints:
+      - planar_x
+      - planar_y
+      - planar_theta
+      - left_fr3v2_joint1
+      - left_fr3v2_joint2
+      - left_fr3v2_joint3
+      - left_fr3v2_joint4
+      - left_fr3v2_joint5
+      - left_fr3v2_joint6
+      - left_fr3v2_joint7
+      - right_fr3v2_joint1
+      - right_fr3v2_joint2
+      - right_fr3v2_joint3
+      - right_fr3v2_joint4
+      - right_fr3v2_joint5
+      - right_fr3v2_joint6
+      - right_fr3v2_joint7
+    robot_types: ['tmrv0_2', 'fr3v2', 'fr3v2']
+    robot_prefixes: ['', 'left', 'right']
+    k_gains:
+      - 24.0
+      - 24.0
+      - 24.0
+      - 24.0
+      - 10.0
+      - 6.0
+      - 2.0
+    d_gains:
+      - 2.0
+      - 2.0
+      - 2.0
+      - 1.0
+      - 1.0
+      - 1.0
+      - 0.5
