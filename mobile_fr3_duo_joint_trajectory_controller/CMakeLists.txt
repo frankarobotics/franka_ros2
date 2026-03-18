@@ -24,6 +24,7 @@ find_package(trajectory_msgs REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(generate_parameter_library REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(franka_semantic_components REQUIRED)
 
 find_package(ament_cmake REQUIRED)
 
@@ -58,6 +59,7 @@ ament_target_dependencies(
         control_msgs
         controller_interface
         trajectory_msgs
+        franka_semantic_components
 )
 
 pluginlib_export_plugin_description_file(controller_interface mobile_fr3_duo_joint_trajectory_controller.xml)

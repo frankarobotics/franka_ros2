@@ -21,8 +21,10 @@
 
 #include <Eigen/Eigen>
 
+#include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
 #include "control_msgs/action/follow_joint_trajectory.hpp"
 #include "controller_interface/controller_interface.hpp"
+#include "mobile_fr3_duo_joint_trajectory_controller/mobile_fr3_duo_joint_trajectory_controller_parameters.hpp"
 #include "mobile_fr3_duo_joint_trajectory_controller/trajectory.hpp"
 #include "rclcpp/duration.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -32,8 +34,6 @@
 #include "realtime_tools/realtime_buffer.hpp"
 #include "realtime_tools/realtime_server_goal_handle.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
-
-#include "mobile_fr3_duo_joint_trajectory_controller/mobile_fr3_duo_joint_trajectory_controller_parameters.hpp"
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
@@ -125,6 +125,8 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
   std::vector<std::string> robot_prefixes_;
   std::string robot_description_;
 
+  std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>
+      franka_cartesian_velocity_;
   std::array<Vector7d, kArms> q_;
   std::array<Vector7d, kArms> initial_q_;
   std::array<Vector7d, kArms> dq_;

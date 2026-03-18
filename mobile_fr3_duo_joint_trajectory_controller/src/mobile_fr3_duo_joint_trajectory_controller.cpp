@@ -43,6 +43,7 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_init() {
     auto_declare<std::vector<double>>("d_gains", {});
     auto_declare<std::vector<std::string>>("robot_prefixes", {});
     auto_declare<std::vector<std::string>>("robot_types", {});
+    auto_declare<std::string>("cartesian_velocity_interface_prefix", "");
   } catch (...) {
     return CallbackReturn::ERROR;
   }
@@ -56,8 +57,7 @@ MobileFR3DuoJointTrajectoryController::command_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
-  config.names = {"vx/cartesian_velocity", "vy/cartesian_velocity", "vz/cartesian_velocity",
-                  "wx/cartesian_velocity", "wy/cartesian_velocity", "wz/cartesian_velocity"};
+  config.names = franka_cartesian_velocity_->get_command_interface_names();
 
   for (size_t index = 0; index < arm_prefixes_.size(); ++index) {
     for (size_t i = 1; i <= kArmCommandInterfaces; ++i) {
@@ -216,6 +216,11 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_configure(const rclcpp_
   auto d = get_node()->get_parameter("d_gains").as_double_array();
   robot_prefixes_ = get_node()->get_parameter("robot_prefixes").as_string_array();
   robot_types_ = get_node()->get_parameter("robot_types").as_string_array();
+  const std::string cartesian_velocity_interface_prefix =
+      get_node()->get_parameter("cartesian_velocity_interface_prefix").as_string();
+  franka_cartesian_velocity_ =
+      std::make_unique<franka_semantic_components::FrankaCartesianVelocityInterface>(
+          cartesian_velocity_interface_prefix, false);
 
   auto arm_prefixes_begin = robot_prefixes_.begin() + 1;
   arm_prefixes_ = std::vector<std::string>(arm_prefixes_begin, arm_prefixes_begin + 2);
@@ -259,6 +264,8 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_activate(const rclcpp_l
   dq_.fill(Vector7d::Zero());
   initial_q_.fill(Vector7d::Zero());
   dq_filtered_.fill(Vector7d::Zero());
+
+  franka_cartesian_velocity_->assign_loaned_command_interfaces(command_interfaces_);
 
   updateState(state_current_);
   initial_q_ = q_;
@@ -461,15 +468,12 @@ void MobileFR3DuoJointTrajectoryController::commandArmPosition(const Vector7d& q
 
 void MobileFR3DuoJointTrajectoryController::commandMobileBaseVelocity(
     const std::array<double, 3>& planar_base_velocities) {
-  std::array<double, kBaseCommandInterfaces> values = {
-      planar_base_velocities[0], planar_base_velocities[1], 0.0, 0.0, 0.0,
-      planar_base_velocities[2]};
-  std::array<std::string, kBaseCommandInterfaces> labels = {"vx", "vy", "vz", "wx", "wy", "wz"};
-  for (size_t i = 0; i < kBaseCommandInterfaces; ++i) {
-    if (!command_interfaces_[i].set_value(values[i])) {
-      RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
-                           "Failed to set %s velocity", labels[i].c_str());
-    }
+  const Eigen::Vector3d linear{planar_base_velocities[0], planar_base_velocities[1], 0.0};
+  const Eigen::Vector3d angular{0.0, 0.0, planar_base_velocities[2]};
+
+  if (!franka_cartesian_velocity_->setCommand(linear, angular)) {
+    RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
+                         "Failed to set tmr velocity");
   }
 }
 

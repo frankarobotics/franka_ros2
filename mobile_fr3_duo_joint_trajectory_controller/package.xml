@@ -27,6 +27,8 @@
   <depend>realtime_tools</depend>
   <depend>trajectory_msgs</depend>
   <depend>generate_parameter_library</depend>
+  <depend>franka_semantic_components</depend>
+  <depend>franka_example_controllers</depend>
 
   <export>
       <build_type>ament_cmake</build_type>
