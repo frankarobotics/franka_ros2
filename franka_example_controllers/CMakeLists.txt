@@ -30,10 +30,6 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_msgs REQUIRED)
-find_package(diff_drive_controller REQUIRED)
-find_package(generate_parameter_library REQUIRED)
 
 add_library(
         ${PROJECT_NAME}
@@ -79,6 +75,9 @@ ament_target_dependencies(
         rclcpp_lifecycle
         std_srvs
 )
+
+pluginlib_export_plugin_description_file(
+        controller_interface franka_example_controllers.xml)
 
 install(
         TARGETS
