@@ -18,13 +18,13 @@
 
 #include <urdf/model.h>
 
-#include "utils.hpp"
+#include "urdf_utils.hpp"
 
-namespace franka_example_controllers {
+namespace franka_tmr {
 
-SE3 get_se3_from_description(const std::string& robot_description,
-                             const std::string& reference_frame,
-                             const std::string& target_frame) {
+SE3 getSe3FromDescription(const std::string& robot_description,
+                          const std::string& reference_frame,
+                          const std::string& target_frame) {
   KDL::Tree tree;
   kdl_parser::treeFromString(robot_description, tree);
 
@@ -45,8 +45,8 @@ SE3 get_se3_from_description(const std::string& robot_description,
   return result;
 }
 
-double get_wheel_radius_from_description(const std::string& robot_description,
-                                         const std::string& link_name) {
+double getWheelRadiusFromDescription(const std::string& robot_description,
+                                     const std::string& link_name) {
   urdf::Model urdf_model;
   urdf_model.initString(robot_description);
 
@@ -59,4 +59,4 @@ double get_wheel_radius_from_description(const std::string& robot_description,
   return cylinder->radius;
 }
 
-}  // namespace franka_example_controllers
+}  // namespace franka_tmr

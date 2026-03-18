@@ -17,7 +17,7 @@
 #include <Eigen/Eigen>
 #include <string>
 
-namespace franka_example_controllers {
+namespace franka_tmr {
 
 struct SE3 {
   Eigen::Vector3d p;
@@ -26,13 +26,13 @@ struct SE3 {
 
 // Retrieves the SE3 of the target frame in the reference frame from the robot description xml
 // string
-SE3 get_se3_from_description(const std::string& robot_description,
-                             const std::string& reference_frame,
-                             const std::string& target_frame);
+SE3 getSe3FromDescription(const std::string& robot_description,
+                          const std::string& reference_frame,
+                          const std::string& target_frame);
 
 // Retrieves the radius of the cylinder tag in the selected link_name from
 // the robot description xml string
-double get_wheel_radius_from_description(const std::string& robot_description,
-                                         const std::string& link_name);
+double getWheelRadiusFromDescription(const std::string& robot_description,
+                                     const std::string& link_name);
 
-}  // namespace franka_example_controllers
+}  // namespace franka_tmr

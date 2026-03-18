@@ -30,9 +30,9 @@
 #include "odometry.hpp"
 #include "swerve_kinematics.hpp"
 
-#include <franka_example_controllers/swerve_drive_controller_parameters.hpp>
+#include <franka_tmr/swerve_drive_controller_parameters.hpp>
 
-namespace franka_example_controllers {
+namespace franka_tmr {
 
 /**
  * The cartesian velocity example controller
@@ -104,4 +104,4 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   swerve_drive_controller::Params params_;
 };
 
-}  // namespace franka_example_controllers
+}  // namespace franka_tmr

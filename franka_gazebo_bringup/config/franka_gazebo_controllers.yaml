@@ -24,10 +24,10 @@ controller_manager:
       type: franka_example_controllers/MobileCartesianVelocityExampleController
 
     swerve_ik_controller:
-      type: franka_example_controllers/SwerveIKController
+      type: franka_tmr/SwerveIKController
     
     swerve_drive_controller:
-      type: franka_example_controllers/SwerveDriveController
+      type: franka_tmr/SwerveDriveController
 
 joint_position_example_controller:
   ros__parameters:

@@ -55,16 +55,9 @@ add_library(
         src/fr3/model_example_controller.cpp
         src/motion_generator.cpp
         src/fr3/move_to_start_example_controller.cpp
-        src/tmr/swerve_kinematics.cpp
-        src/tmr/utils.cpp
-        src/tmr/odometry.cpp
-        src/tmr/swerve_ik_controller.cpp
-        src/tmr/swerve_drive_controller.cpp
 )
 
 target_include_directories( ${PROJECT_NAME}
-    SYSTEM PUBLIC
-        ${CMAKE_CURRENT_BINARY_DIR}/include
     PUBLIC
         include
         ${EIGEN3_INCLUDE_DIRS}
@@ -85,17 +78,6 @@ ament_target_dependencies(
         rclcpp
         rclcpp_lifecycle
         std_srvs
-        tf2_msgs
-        diff_drive_controller
-        generate_parameter_library
-)
-
-pluginlib_export_plugin_description_file(
-    controller_interface franka_example_controllers.xml
-)
-
-generate_parameter_library(swerve_drive_controller_parameters
-  src/tmr/swerve_drive_controller_parameters.yaml
 )
 
 install(

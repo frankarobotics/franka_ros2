@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include <Eigen/Dense>
-#include <franka_example_controllers/tmr/swerve_kinematics.hpp>
+#include <franka_tmr/swerve_kinematics.hpp>
 
-namespace franka_example_controllers {
+namespace franka_tmr {
 
 SwerveKinematics::SwerveKinematics(const std::array<Eigen::Vector2d, 2>& wheel_positions,
                                    double wheel_radius)
@@ -113,4 +113,4 @@ bool SwerveKinematics::inverse(double vx,
   return true;
 }
 
-}  // namespace franka_example_controllers
+}  // namespace franka_tmr

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <franka_example_controllers/tmr/swerve_drive_controller.hpp>
+#include <franka_tmr/swerve_drive_controller.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
 
 #include <cassert>
@@ -21,9 +21,9 @@
 #include <string>
 
 #include <Eigen/Dense>
-#include "utils.hpp"
+#include "urdf_utils.hpp"
 
-namespace franka_example_controllers {
+namespace franka_tmr {
 
 controller_interface::InterfaceConfiguration
 SwerveDriveController::command_interface_configuration() const {
@@ -208,13 +208,13 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
   // get fixed params from robot descriptions
   const std::string robot_description = get_robot_description();
   SE3 front_wheel =
-      get_se3_from_description(robot_description, base_link_frame_id_, argo_drive_front_link_name);
+      getSe3FromDescription(robot_description, base_link_frame_id_, argo_drive_front_link_name);
   SE3 back_wheel =
-      get_se3_from_description(robot_description, base_link_frame_id_, argo_drive_rear_link_name);
+      getSe3FromDescription(robot_description, base_link_frame_id_, argo_drive_rear_link_name);
 
   std::array<Eigen::Vector2d, 2> wheel_positions{front_wheel.p.head<2>(), back_wheel.p.head<2>()};
   double wheel_radius =
-      get_wheel_radius_from_description(robot_description, argo_drive_front_link_name);
+      getWheelRadiusFromDescription(robot_description, argo_drive_front_link_name);
 
   auto logger = get_node()->get_logger();
   RCLCPP_INFO(logger, "Wheel radius: %f", wheel_radius);
@@ -313,8 +313,7 @@ controller_interface::CallbackReturn SwerveDriveController::on_deactivate(
   return CallbackReturn::SUCCESS;
 }
 
-}  // namespace franka_example_controllers
+}  // namespace franka_tmr
 #include "pluginlib/class_list_macros.hpp"
 // NOLINTNEXTLINE
-PLUGINLIB_EXPORT_CLASS(franka_example_controllers::SwerveDriveController,
-                       controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(franka_tmr::SwerveDriveController, controller_interface::ControllerInterface)

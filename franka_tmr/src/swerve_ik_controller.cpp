@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #include <controller_interface/helpers.hpp>
-#include <franka_example_controllers/tmr/swerve_ik_controller.hpp>
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
+#include <franka_tmr/swerve_ik_controller.hpp>
 
 #include <algorithm>
 
-#include "utils.hpp"
+#include "urdf_utils.hpp"
 
-namespace franka_example_controllers {
+namespace franka_tmr {
 
 controller_interface::CallbackReturn SwerveIKController::on_init() {
   prefix_ = auto_declare<std::string>("prefix", "");
@@ -31,11 +31,10 @@ controller_interface::CallbackReturn SwerveIKController::on_init() {
 
   const std::string robot_description = get_robot_description();
   const SE3 wheel_position_1 =
-      get_se3_from_description(robot_description, base_link_name, wheel_1_link_name);
+      getSe3FromDescription(robot_description, base_link_name, wheel_1_link_name);
   const SE3 wheel_position_2 =
-      get_se3_from_description(robot_description, base_link_name, wheel_2_link_name);
-  const double wheel_radius =
-      get_wheel_radius_from_description(robot_description, wheel_1_link_name);
+      getSe3FromDescription(robot_description, base_link_name, wheel_2_link_name);
+  const double wheel_radius = getWheelRadiusFromDescription(robot_description, wheel_1_link_name);
   const std::array<Eigen::Vector2d, 2> wheel_positions{wheel_position_1.p.head<2>(),
                                                        wheel_position_2.p.head<2>()};
 
@@ -139,8 +138,8 @@ controller_interface::return_type SwerveIKController::update_reference_from_subs
   return controller_interface::return_type::OK;
 }
 
-}  // namespace franka_example_controllers
+}  // namespace franka_tmr
 
 #include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(franka_example_controllers::SwerveIKController,
+PLUGINLIB_EXPORT_CLASS(franka_tmr::SwerveIKController,
                        controller_interface::ChainableControllerInterface)

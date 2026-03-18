@@ -95,19 +95,5 @@
             The self collision FR3 duo example controller moves the robot arms from a start position into a collision configuration and back.
         </description>
     </class>
-    <class name="franka_example_controllers/SwerveIKController"
-        type="franka_example_controllers::SwerveIKController"
-        base_class_type="controller_interface::ChainableControllerInterface">
-        <description>
-            The swerve IK controller for TMR. Currently used only for gazebo simulation.
-        </description>
-    </class>
-    <class name="franka_example_controllers/SwerveDriveController"
-        type="franka_example_controllers::SwerveDriveController"
-        base_class_type="controller_interface::ControllerInterface">
-        <description>
-            The mobile cartesian velocity example controller forwards cartesian velocity commands to the mobile robot.
-        </description>
-    </class>
 
 </library>
