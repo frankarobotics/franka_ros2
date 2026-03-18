@@ -255,17 +255,17 @@ controller_interface::CallbackReturn SwerveDriveController::on_configure(
   }
 
   // rate limiting
-  linear_x_limiter_ = std::make_unique<SpeedLimiter>(
+  linear_x_limiter_ = std::make_unique<diff_drive_controller::SpeedLimiter>(
       params_.linear.x.has_velocity_limits, params_.linear.x.has_acceleration_limits,
       params_.linear.x.has_jerk_limits, params_.linear.x.min_velocity,
       params_.linear.x.max_velocity, params_.linear.x.min_acceleration,
       params_.linear.x.max_acceleration, params_.linear.x.min_jerk, params_.linear.x.max_jerk);
-  linear_y_limiter_ = std::make_unique<SpeedLimiter>(
+  linear_y_limiter_ = std::make_unique<diff_drive_controller::SpeedLimiter>(
       params_.linear.y.has_velocity_limits, params_.linear.y.has_acceleration_limits,
       params_.linear.y.has_jerk_limits, params_.linear.y.min_velocity,
       params_.linear.y.max_velocity, params_.linear.y.min_acceleration,
       params_.linear.y.max_acceleration, params_.linear.y.min_jerk, params_.linear.y.max_jerk);
-  angular_z_limiter_ = std::make_unique<SpeedLimiter>(
+  angular_z_limiter_ = std::make_unique<diff_drive_controller::SpeedLimiter>(
       params_.angular.z.has_velocity_limits, params_.angular.z.has_acceleration_limits,
       params_.angular.z.has_jerk_limits, params_.angular.z.min_velocity,
       params_.angular.z.max_velocity, params_.angular.z.min_acceleration,

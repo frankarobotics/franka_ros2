@@ -12,6 +12,15 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>franka_semantic_components</depend>
+  <depend>tf2</depend>
+  <depend>tf2_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>diff_drive_controller</depend>
+  <depend>generate_parameter_library</depend>
+  <depend>realtime_tools</depend>
+  <depend>kdl_parser</depend>
+  <depend>urdf</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

@@ -19,6 +19,7 @@
 #include <controller_interface/controller_interface.hpp>
 #include <diff_drive_controller/speed_limiter.hpp>
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
+#include <franka_tmr/swerve_drive_controller_parameters.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -30,13 +31,9 @@
 #include "odometry.hpp"
 #include "swerve_kinematics.hpp"
 
-#include <franka_tmr/swerve_drive_controller_parameters.hpp>
 
 namespace franka_tmr {
 
-/**
- * The cartesian velocity example controller
- */
 class SwerveDriveController : public controller_interface::ControllerInterface {
  public:
   [[nodiscard]] controller_interface::InterfaceConfiguration command_interface_configuration()
@@ -95,10 +92,9 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
   std::unique_ptr<SwerveKinematics> swerve_kinematics_;
 
   // rate limiting
-  using SpeedLimiter = ::diff_drive_controller::SpeedLimiter;
-  std::unique_ptr<SpeedLimiter> linear_x_limiter_;
-  std::unique_ptr<SpeedLimiter> linear_y_limiter_;
-  std::unique_ptr<SpeedLimiter> angular_z_limiter_;
+  std::unique_ptr<diff_drive_controller::SpeedLimiter> linear_x_limiter_;
+  std::unique_ptr<diff_drive_controller::SpeedLimiter> linear_y_limiter_;
+  std::unique_ptr<diff_drive_controller::SpeedLimiter> angular_z_limiter_;
 
   std::shared_ptr<swerve_drive_controller::ParamListener> param_listener_;
   swerve_drive_controller::Params params_;
