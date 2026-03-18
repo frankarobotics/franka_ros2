@@ -15,6 +15,7 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <exception>
 #include <rclcpp/parameter_client.hpp>
+#include <set>
 #include <sstream>
 
 #include "franka_selfcollision/self_collision_node.hpp"
@@ -23,6 +24,34 @@ using namespace std::chrono_literals;
 
 namespace franka_selfcollision {
 
+// Only joints relevant to arm self-collision are tracked.
+// Base, caster, rocker, and TMR drivetrain joints are excluded —
+// they are kept at their neutral configuration permanently.
+static const std::set<std::string> kTrackedJoints = {
+    "franka_spine_vertical_joint", "left_fr3v2_joint1",  "left_fr3v2_joint2",  "left_fr3v2_joint3",
+    "left_fr3v2_joint4",           "left_fr3v2_joint5",  "left_fr3v2_joint6",  "left_fr3v2_joint7",
+    "right_fr3v2_joint1",          "right_fr3v2_joint2", "right_fr3v2_joint3", "right_fr3v2_joint4",
+    "right_fr3v2_joint5",          "right_fr3v2_joint6", "right_fr3v2_joint7",
+};
+
+// Geometry-level filter passed to SelfCollisionChecker — keeps only collision
+// pairs where both geometries belong to tracked links (arm + spine).
+// Avoids false positives from base/caster/TMR links absent in the SRDF.
+static bool isTrackedLink(const std::string& geom_name) {
+  static const std::vector<std::string> kTrackedPrefixes = {
+      "franka_spine",
+      "left_fr3v2_link",
+      "right_fr3v2_link",
+      "duo_mount_origin",
+  };
+  for (const auto& prefix : kTrackedPrefixes) {
+    if (geom_name.rfind(prefix, 0) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 CollisionMonitorNode::CollisionMonitorNode(const rclcpp::NodeOptions& options)
     : Node("self_collision_monitor", options) {
   this->declare_parameter("security_margin", 0.045);
@@ -30,7 +59,7 @@ CollisionMonitorNode::CollisionMonitorNode(const rclcpp::NodeOptions& options)
   this->declare_parameter("robot_description_semantic", "");
 
   collision_pub_ = this->create_publisher<std_msgs::msg::Bool>(
-      "fr3_duo_self_collision_node/collision_detected", 1);
+      "mobile_fr3_duo_self_collision_node/collision_detected", 1);
 }
 
 void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_description) {
@@ -49,40 +78,70 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
   RCLCPP_INFO(this->get_logger(), "Loading robot model...");
 
   try {
-    // No link_filter — the fr3 duo SRDF already handles all exclusions.
+    // Pass isTrackedLink to restrict collision checking to arm + spine geometries.
+    // The mobile URDF includes many base/drivetrain links absent from the SRDF;
+    // without this filter they would produce phantom collisions.
     collision_checker_ = std::make_shared<franka_selfcollision::SelfCollisionChecker>(
-        urdf_xml, srdf_xml, security_margin, this->get_logger(), this->get_clock());
+        urdf_xml, srdf_xml, security_margin, this->get_logger(), this->get_clock(), &isTrackedLink);
   } catch (const std::exception& e) {
     RCLCPP_ERROR(this->get_logger(), "Failed to load models: %s", e.what());
     throw;
   }
 
-  const std::vector<std::string>& model_joint_names = collision_checker_->getModelJointNames();
+  // Initialize the full configuration vector to neutral — non-tracked joints
+  // (base, casters, TMR drivetrain) will remain at this value permanently.
+  Eigen::VectorXd q0 = collision_checker_->getNeutralConfiguration();
+  current_joint_positions_.assign(q0.data(), q0.data() + q0.size());
+
+  // Build joint_map_ only for tracked joints using idx_q as the direct index
+  // into the full configuration vector. Multi-DOF joints (nq != 1, e.g.
+  // continuous wheels/steering) are intentionally skipped and stay at neutral.
   joint_map_.clear();
-  size_t index_counter = 0;
-  for (const auto& name : model_joint_names) {
-    if (name == kBaseLink)
+  for (pinocchio::JointIndex i = 1;
+       i < (pinocchio::JointIndex)collision_checker_->getModelNjoints(); ++i) {
+    const std::string& name = collision_checker_->getModelJointName(i);
+    int idx_q = collision_checker_->getModelJointIdxQ(i);
+    int nq_j = collision_checker_->getModelJointNq(i);
+
+    if (kTrackedJoints.count(name) == 0) {
+      RCLCPP_INFO(this->get_logger(), "Skipping joint [%s] (idx_q=%d, nq=%d) — not in tracked set",
+                  name.c_str(), idx_q, nq_j);
       continue;
-    joint_map_[name] = index_counter;
-    index_counter++;
+    }
+    if (nq_j != 1) {
+      RCLCPP_WARN(this->get_logger(),
+                  "Tracked joint [%s] has nq=%d (expected 1) — skipping to avoid corruption",
+                  name.c_str(), nq_j);
+      continue;
+    }
+
+    joint_map_[name] = static_cast<size_t>(idx_q);
+    RCLCPP_INFO(this->get_logger(), "Tracking joint [%s] -> idx_q=%d", name.c_str(), idx_q);
   }
 
-  current_joint_positions_.resize(joint_map_.size(), 0.0);
+  RCLCPP_INFO(this->get_logger(), "model_.nq=%zu | tracked joints=%zu",
+              collision_checker_->getModelNq(), joint_map_.size());
+
   joint_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
       "joint_states", rclcpp::SensorDataQoS(),
       [this](const sensor_msgs::msg::JointState::SharedPtr msg) {
         this->joint_state_callback(msg);
       });
+
   RCLCPP_INFO(this->get_logger(), "Self-Collision Monitor Active. (Margin: %.3f m)",
               security_margin);
 }
 
 void CollisionMonitorNode::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg) {
+  // current_joint_positions_ has size model_.nq (full configuration vector).
+  // Only tracked joints are updated here; all other entries remain at the
+  // neutral configuration set during setup, keeping non-tracked joints
+  // (base, casters, TMR drivetrain) safely at their neutral pose.
   for (size_t i = 0; i < msg->name.size(); ++i) {
     auto it = joint_map_.find(msg->name[i]);
-    if (it != joint_map_.end()) {
+    if (it != joint_map_.end() && i < msg->position.size()) {
       size_t idx = it->second;
-      if (i < msg->position.size() && idx < current_joint_positions_.size()) {
+      if (idx < current_joint_positions_.size()) {
         current_joint_positions_[idx] = msg->position[i];
       }
     }
@@ -104,11 +163,8 @@ void CollisionMonitorNode::joint_state_callback(const sensor_msgs::msg::JointSta
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
 
-  std::string package_share = ament_index_cpp::get_package_share_directory("franka_selfcollision");
-  std::string params_file = package_share + "/config/self_collision_node.yaml";
-
+  // No hardcoded params file — all parameters come from the launch file.
   rclcpp::NodeOptions options;
-  options.arguments({"--ros-args", "--params-file", params_file});
   auto node = std::make_shared<franka_selfcollision::CollisionMonitorNode>(options);
 
   auto param_client =

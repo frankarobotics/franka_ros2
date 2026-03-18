@@ -24,7 +24,8 @@ SelfCollisionChecker::SelfCollisionChecker(const std::string& urdf_xml,
                                            const std::string& srdf_xml,
                                            double security_margin,
                                            rclcpp::Logger logger,
-                                           rclcpp::Clock::SharedPtr clock)
+                                           rclcpp::Clock::SharedPtr clock,
+                                           std::function<bool(const std::string&)> link_filter)
     : logger_(logger), clock_(clock) {
   pinocchio::urdf::buildModelFromXML(urdf_xml, model_);
 
@@ -33,6 +34,23 @@ SelfCollisionChecker::SelfCollisionChecker(const std::string& urdf_xml,
 
   geom_model_.addAllCollisionPairs();
   pinocchio::srdf::removeCollisionPairsFromXML(model_, geom_model_, srdf_xml);
+
+  // If a link filter was provided, remove any collision pair where at least one
+  // geometry does not satisfy the predicate. This avoids false positives from
+  // links missing in the SRDF and reduces unnecessary computation.
+  if (link_filter) {
+    std::vector<pinocchio::CollisionPair> filtered;
+    for (const auto& cp : geom_model_.collisionPairs) {
+      const std::string& n1 = geom_model_.geometryObjects[cp.first].name;
+      const std::string& n2 = geom_model_.geometryObjects[cp.second].name;
+      if (link_filter(n1) && link_filter(n2)) {
+        filtered.push_back(cp);
+      }
+    }
+    RCLCPP_INFO(logger_, "Collision pairs: %zu total -> %zu after link filtering",
+                geom_model_.collisionPairs.size(), filtered.size());
+    geom_model_.collisionPairs = filtered;
+  }
 
   data_ = std::make_shared<pinocchio::Data>(model_);
   geom_data_ = std::make_shared<pinocchio::GeometryData>(geom_model_);

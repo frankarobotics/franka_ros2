@@ -1,4 +1,10 @@
-/**:
-    ros__parameters:
-      security_margin: 0.045
-      print_collisions: false
+# /**:
+#     ros__parameters:
+#       security_margin: 0.045
+#       print_collisions: false
+
+
+self_collision_monitor:
+  ros__parameters:
+    security_margin: 0.045
+    print_collisions: false

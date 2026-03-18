@@ -13,10 +13,10 @@ FR3_DUO:
   arm_prefixes: "['left','right']"  # Prefixes for the arms (used to identify each arm)
   robot_ips: "['172.16.16.11','172.16.16.12']"  # IP addresses of the robots
   load_gripper: "false"  # Enable Franka Gripper ("true" or "false") NOTE: Currently not supported.
-  use_fake_hardware: "false"  # Use simulated hardware ("true" or "false")
+  use_fake_hardware: "true"  # Use simulated hardware ("true" or "false")
   fake_sensor_commands: "false"  # Enable fake sensor commands for simulation
   joint_state_rate: 1000  # Publishing rate for joint states (Hz)
   namespace: ""  # Namespace for the robot (empty for no namespace)
   use_rviz: "true"  # Launch RViz if "true"
-  check_selfcollision: "false" # Run self_collision_node in the background if "true"
+  check_selfcollision: "true" # Run self_collision_node in the background if "true"
   thread_priority: 50  # Thread priority for the hardware interface

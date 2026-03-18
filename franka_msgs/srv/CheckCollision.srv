@@ -1,0 +1,6 @@
+# Request
+float64[] joint_positions
+bool print_collisions
+---
+# Response
+bool collision_detected

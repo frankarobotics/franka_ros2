@@ -31,3 +31,21 @@ Usage
 -----
 
 The self-collision node is automatically started when you launch the robot with ``check_selfcollision`` set to true. 
+
+
+
+
+
+
+
+
+
+
+
+
+FATMA
+----
+self_collision_checker.hpp/.cpp     ← unified, with optional link_filter param
+collision_monitor_node.hpp          ← one shared node header
+self_collision_node.cpp             ← fr3 duo main(), sequential joint indexing
+mobile_self_collision_node.cpp      ← mobile main(), idx_q indexing + neutral init
