@@ -96,12 +96,12 @@ class Odometry {
    */
   void resetOdometry();
 
-  double getX() const { return x_; }
-  double getY() const { return y_; }
-  double getHeading() const { return heading_; }
-  double getLinearX() const { return linear_x_; }
-  double getLinearY() const { return linear_y_; }
-  double getAngular() const { return angular_; }
+  [[nodiscard]] double getX() const { return x_; }
+  [[nodiscard]] double getY() const { return y_; }
+  [[nodiscard]] double getHeading() const { return heading_; }
+  [[nodiscard]] double getLinearX() const { return linear_x_; }
+  [[nodiscard]] double getLinearY() const { return linear_y_; }
+  [[nodiscard]] double getAngular() const { return angular_; }
 
   void setVelocityRollingWindowSize(size_t velocity_rolling_window_size);
 
@@ -121,17 +121,17 @@ class Odometry {
   rclcpp::Time timestamp_;
 
   // Current pose:
-  double x_;        //   [m]
-  double y_;        //   [m]
-  double heading_;  // [rad]
+  double x_{0.0};        //   [m]
+  double y_{0.0};        //   [m]
+  double heading_{0.0};  // [rad]
 
   // Current velocity:
-  double linear_x_;  //   [m/s]
-  double linear_y_;  //   [m/s]
-  double angular_;   // [rad/s]
+  double linear_x_{0.0};  //   [m/s]
+  double linear_y_{0.0};  //   [m/s]
+  double angular_{0.0};   // [rad/s]
 
   // Rolling mean accumulators for the linear and angular velocities:
-  size_t velocity_rolling_window_size_;
+  size_t velocity_rolling_window_size_{10};
   RollingMeanAccumulator linear_x_accumulator_;
   RollingMeanAccumulator linear_y_accumulator_;
   RollingMeanAccumulator angular_accumulator_;
