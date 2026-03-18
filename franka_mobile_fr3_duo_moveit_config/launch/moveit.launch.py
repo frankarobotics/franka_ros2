@@ -7,6 +7,7 @@ from launch.substitutions import (
     PathJoinSubstitution,
     LaunchConfiguration,
 )
+from launch.conditions import UnlessCondition
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -162,6 +163,15 @@ def get_robot_state_publisher(namespace, robot_description):
         parameters=[{"robot_description": robot_description}],
     )
 
+def get_franka_robot_state_broadcaster(use_fake_hardware, namespace):
+    return Node(
+            package='controller_manager',
+            executable='spawner',
+            namespace=namespace,
+            arguments=['franka_robot_state_broadcaster'],
+            condition=UnlessCondition(use_fake_hardware),
+            output='screen',
+        )
 
 def get_config_yaml(package_name, file_name):
     config_yaml_path = os.path.join(
@@ -337,6 +347,7 @@ def generate_nodes(context):
     robot_state_publisher = get_robot_state_publisher(
         namespace, robot_description
     )
+    franka_robot_state_broadcaster = get_franka_robot_state_broadcaster(use_fake_hardware,namespace)
 
     ros2_control_node = get_ros2_control_node(
         namespace, robot_description, package_name
@@ -408,6 +419,7 @@ def generate_nodes(context):
             ros2_control_node,
             joint_state_publisher,
             rviz_node,
+            franka_robot_state_broadcaster
         ] + controller_nodes
     
     if simulate_in_gazebo == 'true':

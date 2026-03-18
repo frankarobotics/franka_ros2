@@ -75,9 +75,6 @@ MobileFR3DuoJointTrajectoryController::state_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
-  // config.names = {"vx/cartesian_velocity", "vy/cartesian_velocity", "vz/cartesian_velocity",
-  //                 "wx/cartesian_velocity", "wy/cartesian_velocity", "wz/cartesian_velocity"};
-
   for (size_t arm_index = 0; arm_index < kArms; ++arm_index) {
     for (size_t i = 1; i <= kArmCommandInterfaces; ++i) {
       std::string prefix = arm_prefixes_[arm_index] + "_" + robot_types_[arm_index + 1] + "_joint" +
