@@ -12,7 +12,14 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-  
+
+    swerve_ik_controller:
+      type: franka_example_controllers/SwerveIKController
+
+swerve_ik_controller:
+  ros__parameters:
+    prefix: "tmrv0_2"
+
 full_body_controller:
   ros__parameters:
     update_rate: 1000

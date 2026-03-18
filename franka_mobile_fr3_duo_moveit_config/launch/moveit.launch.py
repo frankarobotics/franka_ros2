@@ -1,6 +1,7 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, Shutdown
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, OpaqueFunction, Shutdown, RegisterEventHandler
+from launch.event_handlers import OnProcessExit
 from launch.substitutions import (
     LaunchConfiguration,
     PathJoinSubstitution,
@@ -8,23 +9,73 @@ from launch.substitutions import (
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 import xacro
 from ament_index_python.packages import get_package_share_directory
-
 import yaml
-
 import json
 
+def set_gz_sim_resource_path(context):
+    description_share = os.path.dirname(get_package_share_directory('franka_description'))
+    os.environ['GZ_SIM_RESOURCE_PATH'] = description_share
+    return []
 
-def get_robot_descriptions(robot_name, package_name, use_fake_hardware):
+def get_gz_world(context):
+    pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
+    gz_args = '-r'
 
-    robot_description_file_path = os.path.join(
-        get_package_share_directory("franka_description"),
-        "robots",
-        f"{robot_name}",
-        f"{robot_name}.urdf.xacro",
+    world_path = 'empty.sdf'
+
+    return [IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
+        launch_arguments={'gz_args': f'{world_path} {gz_args}'}.items(),
+    )]
+
+def get_bridge():
+
+    bridge_args = ['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock']
+    remappings = []
+
+    return Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=bridge_args,
+        remappings=remappings,
+        output='screen'
     )
+
+def gazebo_nodes():
+    set_gz_sim_resource_path_action = OpaqueFunction(
+        function=set_gz_sim_resource_path)
+    gazebo_world = OpaqueFunction(function=get_gz_world)
+    bridge = get_bridge()
+
+    return [
+        set_gz_sim_resource_path_action,
+        gazebo_world,
+        bridge,
+    ]
+
+
+def get_robot_descriptions(robot_name, package_name, use_fake_hardware, simulate_in_gazebo):
+
+    print(f"{simulate_in_gazebo=}")
+    print(f"{use_fake_hardware=}")
+    if simulate_in_gazebo == 'true':
+        robot_description_file_path = os.path.join(
+            get_package_share_directory('franka_gazebo_bringup'),
+            'urdf',
+            f'{robot_name}.gazebo.urdf.xacro'
+        )
+    else:
+        robot_description_file_path = os.path.join(
+            get_package_share_directory("franka_description"),
+            "robots",
+            f"{robot_name}",
+            f"{robot_name}.urdf.xacro",
+        )
 
     robot_description_semantic_file_path = os.path.join(
         get_package_share_directory(package_name),
@@ -42,6 +93,7 @@ def get_robot_descriptions(robot_name, package_name, use_fake_hardware):
             "ee_id": "None",
             "use_fake_hardware": use_fake_hardware,
             "ros2_control": "true",
+            'gazebo_effort': simulate_in_gazebo,
             "fake_sensor_commands": "false",
             'is_async': 'true',
             'thread_priority': '97',
@@ -183,18 +235,40 @@ def get_move_group_node(
     )
 
 
-def get_controller_nodes(package_name):
-    controller_names = [
-        "full_body_controller",
-        "joint_state_broadcaster",
-    ]
-    controller_nodes = []
-    for controller in controller_names:
-        controller_nodes.append(
-            Node(
+def get_controller_nodes(package_name, simulate_in_gazebo, namespace):
+    if simulate_in_gazebo == 'true':
+        cartesian_velocity_interface_prefix = 'swerve_ik_controller/'
+    else:
+        cartesian_velocity_interface_prefix = ''
+
+    full_body_controller_node = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["full_body_controller", '--controller-manager-timeout', '120',
+                   '--service-call-timeout', '60'],
+        parameters=[
+            PathJoinSubstitution(
+                [
+                    FindPackageShare(package_name),
+                    "config",
+                    "mobile_fr3_duo_controllers.yaml",
+                ]
+            ),
+            {
+                "full_body_controller": {
+                    "ros__parameters": {
+                        "cartesian_velocity_interface_prefix": cartesian_velocity_interface_prefix,
+                    }
+                }
+            },
+        ],
+        output="screen",
+    )
+
+    joint_state_broadcaster_node = Node(
                 package="controller_manager",
                 executable="spawner",
-                arguments=[controller, '--controller-manager-timeout', '30'],
+                arguments=["joint_state_broadcaster", '--controller-manager-timeout', '30'],
                 parameters=[
                     PathJoinSubstitution(
                         [
@@ -206,12 +280,46 @@ def get_controller_nodes(package_name):
                 ],
                 output="screen",
             )
+
+    if simulate_in_gazebo == 'true':
+        # chain the ik controller to simulate TMR ik
+        swerve_ik_controller = Node(
+            package="controller_manager",
+            executable="spawner",
+            arguments=["swerve_ik_controller"],
         )
+        spawn = Node(
+            package='ros_gz_sim',
+            executable='create',
+            namespace=namespace,
+            arguments=['-topic', '/robot_description',
+                    '-x', '0', '-y', '0', '-z', '0.05'],
+            output='screen',
+        )
+
+        controller_nodes = [spawn,RegisterEventHandler(event_handler=OnProcessExit(target_action=spawn,on_exit=[joint_state_broadcaster_node],)),
+                RegisterEventHandler(
+                    event_handler=OnProcessExit(
+                        target_action=spawn,
+                        on_exit=[swerve_ik_controller],
+                    )
+                ),
+                RegisterEventHandler(
+                    event_handler=OnProcessExit(
+                        target_action=swerve_ik_controller,
+                        on_exit=[full_body_controller_node],
+                    )
+                ),
+        ]
+    else:
+        controller_nodes = [joint_state_broadcaster_node, full_body_controller_node]
+
     return controller_nodes
 
 
 def generate_nodes(context):
     use_fake_hardware = LaunchConfiguration("use_fake_hardware").perform(context)
+    simulate_in_gazebo = LaunchConfiguration("simulate_in_gazebo").perform(context)
 
     robot_type = "mobile_fr3_duo"
     hardware_version = "v0_2"
@@ -222,7 +330,7 @@ def generate_nodes(context):
     namespace = LaunchConfiguration('namespace', default='')
 
     robot_description, robot_description_semantic = get_robot_descriptions(
-        robot_name, package_name, use_fake_hardware
+        robot_name, package_name, use_fake_hardware, simulate_in_gazebo
     )
 
     joint_state_publisher = get_joint_state_publisher(namespace)
@@ -292,24 +400,34 @@ def generate_nodes(context):
         moveit_defaults,
     )
 
-    controller_nodes = get_controller_nodes(package_name)
-    return ([
+    controller_nodes = get_controller_nodes(package_name, simulate_in_gazebo, namespace)
+
+    nodes = [
             robot_state_publisher,
             move_group_node,
             ros2_control_node,
             joint_state_publisher,
             rviz_node,
-        ]
-        + controller_nodes)
+        ] + controller_nodes
+    
+    if simulate_in_gazebo == 'true':
+        nodes += gazebo_nodes()
+
+    return nodes
 
 def generate_launch_description():
     return LaunchDescription(
         [
-            DeclareLaunchArgument(
-                "use_fake_hardware",
-                default_value='false',
-                description='Fakes the hardware if true. If false, the real hardware is expected to be connected.',
-            ),
+                DeclareLaunchArgument(
+                    "use_fake_hardware",
+                    default_value='false',
+                    description='Fakes the hardware if true. If false, the real hardware is expected to be connected.',
+                ),
+                DeclareLaunchArgument(
+                    "simulate_in_gazebo",
+                    default_value='false',
+                    description='Simulates the robot in Gazebo if true. ',
+                ),
             OpaqueFunction(function=generate_nodes)
         ]
     )
