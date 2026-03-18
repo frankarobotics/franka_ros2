@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include <controller_interface/controller_interface.hpp>
+#include <controller_interface/chainable_controller_interface.hpp>
 #include <diff_drive_controller/speed_limiter.hpp>
 #include <franka_mobile/swerve_drive_controller_parameters.hpp>
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
@@ -33,18 +33,30 @@
 
 namespace franka_mobile {
 
-class SwerveDriveController : public controller_interface::ControllerInterface {
+class SwerveDriveController : public controller_interface::ChainableControllerInterface {
  public:
   [[nodiscard]] controller_interface::InterfaceConfiguration command_interface_configuration()
       const override;
   [[nodiscard]] controller_interface::InterfaceConfiguration state_interface_configuration()
       const override;
-  controller_interface::return_type update(const rclcpp::Time& time,
-                                           const rclcpp::Duration& period) override;
+
+  // when chained
+  controller_interface::return_type update_and_write_commands(
+      const rclcpp::Time& time,
+      const rclcpp::Duration& period) override;
+
+  // when not chained
+  controller_interface::return_type update_reference_from_subscribers(
+      const rclcpp::Time& time,
+      const rclcpp::Duration& period) override;
+
   CallbackReturn on_init() override;
   CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
   CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
   CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
+
+  bool on_set_chained_mode(bool chained) override;
+  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() override;
 
  private:
   // params
@@ -70,7 +82,6 @@ class SwerveDriveController : public controller_interface::ControllerInterface {
       franka_cartesian_velocity_;
 
   // pub/sub
-  geometry_msgs::msg::TwistStamped::SharedPtr last_cmd_vel_;
   geometry_msgs::msg::TwistStamped limited_velocity_message_;
   tf2_msgs::msg::TFMessage odom_tf_message_;
   nav_msgs::msg::Odometry odom_nav_message_;

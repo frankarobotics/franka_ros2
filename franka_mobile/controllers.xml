@@ -8,10 +8,9 @@
     </class>
     <class name="franka_mobile/SwerveDriveController"
         type="franka_mobile::SwerveDriveController"
-        base_class_type="controller_interface::ControllerInterface">
+        base_class_type="controller_interface::ChainableControllerInterface">
         <description>
             The mobile cartesian velocity example controller forwards cartesian velocity commands to the mobile robot.
         </description>
     </class>
-
 </library>

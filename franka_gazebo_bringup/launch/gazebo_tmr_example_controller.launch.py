@@ -178,6 +178,7 @@ def generate_launch_description():
         package='controller_manager',
         executable='spawner',
         arguments=[
+            'swerve_ik_controller',
             'swerve_drive_controller',
             '--controller-manager-timeout', '30',
         ],
@@ -187,13 +188,6 @@ def generate_launch_description():
             'franka_gazebo_controllers.yaml'
         ])],
         output='screen',
-    )
-
-    # For gazebo, let's chain the ik controller to simulate the tmr master controller's ik
-    swerve_ik_controller_node = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["swerve_ik_controller"],
     )
 
     return LaunchDescription([
@@ -214,12 +208,6 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster,
-                on_exit=[swerve_ik_controller_node],
-            )
-        ),
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=swerve_ik_controller_node,
                 on_exit=[mobile_cartesian_velocity_controller_node],
             )
         ),

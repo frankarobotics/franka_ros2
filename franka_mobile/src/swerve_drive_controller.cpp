@@ -43,19 +43,51 @@ controller_interface::InterfaceConfiguration SwerveDriveController::state_interf
   return config;
 }
 
-controller_interface::return_type SwerveDriveController::update(const rclcpp::Time& time,
-                                                                const rclcpp::Duration& period) {
-  auto logger = get_node()->get_logger();
+std::vector<hardware_interface::CommandInterface>
+SwerveDriveController::on_export_reference_interfaces() {
+  reference_interfaces_.resize(6, 0.0);
 
-  const auto age_of_last_command = (time - last_cmd_vel_->header.stamp).seconds();
-
-  double command_linear_x = 0.0, command_linear_y = 0.0, command_angular_z = 0.0;
-  if (age_of_last_command < cmd_vel_timeout_) {
-    command_linear_x = last_cmd_vel_->twist.linear.x;
-    command_linear_y = last_cmd_vel_->twist.linear.y;
-    command_angular_z = last_cmd_vel_->twist.angular.z;
+  std::vector<hardware_interface::CommandInterface> interfaces;
+  franka_semantic_components::FrankaCartesianVelocityInterface interface(false);
+  const std::vector<std::string> command_interface_names = interface.get_command_interface_names();
+  if (command_interface_names.size() != 6) {
+    throw std::invalid_argument("Exported reference interfaces must be 6 for cartesian velocity");
   }
 
+  for (size_t i = 0; i < command_interface_names.size(); ++i) {
+    interfaces.emplace_back(get_node()->get_name(), command_interface_names[i],
+                            &reference_interfaces_[i]);
+  }
+
+  return interfaces;
+}
+
+controller_interface::return_type SwerveDriveController::update_reference_from_subscribers(
+    const rclcpp::Time& time,
+
+    const rclcpp::Duration& /*period*/) {
+  const auto age_of_last_command = (time - received_velocity_msg_.get().header.stamp).seconds();
+  double command_linear_x = 0.0, command_linear_y = 0.0, command_angular_z = 0.0;
+  if (age_of_last_command < cmd_vel_timeout_) {
+    command_linear_x = received_velocity_msg_.get().twist.linear.x;
+    command_linear_y = received_velocity_msg_.get().twist.linear.y;
+    command_angular_z = received_velocity_msg_.get().twist.angular.z;
+  }
+
+  reference_interfaces_[0] = command_linear_x;
+  reference_interfaces_[1] = command_linear_y;
+  reference_interfaces_[5] = command_angular_z;
+  return controller_interface::return_type::OK;
+}
+
+controller_interface::return_type SwerveDriveController::update_and_write_commands(
+    const rclcpp::Time& time,
+    const rclcpp::Duration& period) {
+  double command_linear_x = reference_interfaces_[0];
+  double command_linear_y = reference_interfaces_[1];
+  double command_angular_z = reference_interfaces_[5];
+
+  auto logger = get_node()->get_logger();
   if (!std::isfinite(command_linear_x) || !std::isfinite(command_linear_y) ||
       !std::isfinite(command_angular_z)) {
     // NaNs occur on initialization when the reference interfaces are not yet set
@@ -84,7 +116,7 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
   tf2::Quaternion orientation;
   orientation.setRPY(0.0, 0.0, odometry_.getHeading());
 
-  bool should_publish = false;
+  bool should_publish = true;
   const rclcpp::Duration publish_period = rclcpp::Duration::from_seconds(1 / publish_rate_);
 
   try {
@@ -152,7 +184,7 @@ controller_interface::return_type SwerveDriveController::update(const rclcpp::Ti
   if (publish_limited_velocity_ && realtime_cmd_vel_out_publisher_) {
     limited_velocity_message_.header.stamp = time;
     // limited vel is in the same frame as the original one
-    limited_velocity_message_.header.frame_id = last_cmd_vel_->header.frame_id;
+    limited_velocity_message_.header.frame_id = received_velocity_msg_.get().header.frame_id;
     limited_velocity_message_.twist.linear.x = command_linear_x;
     limited_velocity_message_.twist.linear.y = command_linear_y;
     limited_velocity_message_.twist.linear.z = 0.0;
@@ -228,6 +260,19 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
   return CallbackReturn::SUCCESS;
 }
 
+bool SwerveDriveController::on_set_chained_mode(bool chained) {
+  if (chained) {
+    cmd_vel_sub_.reset();
+  } else {
+    cmd_vel_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
+        "~/cmd_vel", 100, [this](const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+          received_velocity_msg_ = *msg;
+          last_cmd_time_ = 0;
+        });
+  }
+  return true;
+}
+
 controller_interface::CallbackReturn SwerveDriveController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   const auto odom_velocity_rolling_window_size =
@@ -271,12 +316,6 @@ controller_interface::CallbackReturn SwerveDriveController::on_configure(
       params_.angular.z.max_velocity, params_.angular.z.min_acceleration,
       params_.angular.z.max_acceleration, params_.angular.z.min_jerk, params_.angular.z.max_jerk);
 
-  // cmd_vel pub/sub
-  cmd_vel_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
-      "~/cmd_vel", 100, [this](const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
-        last_cmd_vel_ = msg;
-        last_cmd_time_ = 0;
-      });
   cmd_vel_out_pub_ = get_node()->create_publisher<geometry_msgs::msg::TwistStamped>(
       "~/cmd_vel_out", rclcpp::SystemDefaultsQoS());
   realtime_cmd_vel_out_publisher_ =
@@ -303,7 +342,6 @@ controller_interface::CallbackReturn SwerveDriveController::on_configure(
 controller_interface::CallbackReturn SwerveDriveController::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   franka_cartesian_velocity_->assign_loaned_command_interfaces(command_interfaces_);
-  last_cmd_vel_ = std::make_shared<geometry_msgs::msg::TwistStamped>();
   return CallbackReturn::SUCCESS;
 }
 
@@ -317,4 +355,4 @@ controller_interface::CallbackReturn SwerveDriveController::on_deactivate(
 #include "pluginlib/class_list_macros.hpp"
 // NOLINTNEXTLINE
 PLUGINLIB_EXPORT_CLASS(franka_mobile::SwerveDriveController,
-                       controller_interface::ControllerInterface)
+                       controller_interface::ChainableControllerInterface)

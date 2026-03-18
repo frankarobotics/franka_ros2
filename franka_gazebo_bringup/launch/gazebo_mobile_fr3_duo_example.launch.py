@@ -79,14 +79,17 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
 def set_gz_sim_resource_path(context, with_sensors):
     with_sensors_val = context.perform_substitution(with_sensors).lower()
     if with_sensors_val == 'true':
-        sensors_share = os.path.dirname(get_package_share_directory('franka_mobile_sensors'))
-        description_share = os.path.dirname(get_package_share_directory('franka_description'))
+        sensors_share = os.path.dirname(
+            get_package_share_directory('franka_mobile_sensors'))
+        description_share = os.path.dirname(
+            get_package_share_directory('franka_description'))
         olv_module_descriptions_share = os.path.dirname(
             get_package_share_directory('olv_module_descriptions'))
         os.environ['GZ_SIM_RESOURCE_PATH'] = f"{sensors_share}:{
             description_share}:{olv_module_descriptions_share}"
     else:
-        description_share = os.path.dirname(get_package_share_directory('franka_description'))
+        description_share = os.path.dirname(
+            get_package_share_directory('franka_description'))
         os.environ['GZ_SIM_RESOURCE_PATH'] = description_share
     return []
 
@@ -140,13 +143,17 @@ def get_bridge(context, with_sensors):
         ])
         remappings.extend([
             ('/camera_front/image_raw', '/camera_front/color/image_raw'),
-            ('/camera_front/image_raw/camera_info', '/camera_front/color/camera_info'),
+            ('/camera_front/image_raw/camera_info',
+             '/camera_front/color/camera_info'),
             ('/camera_rear/image_raw', '/camera_rear/color/image_raw'),
-            ('/camera_rear/image_raw/camera_info', '/camera_rear/color/camera_info'),
+            ('/camera_rear/image_raw/camera_info',
+             '/camera_rear/color/camera_info'),
             ('/camera_left/image_raw', '/camera_left/color/image_raw'),
-            ('/camera_left/image_raw/camera_info', '/camera_left/color/camera_info'),
+            ('/camera_left/image_raw/camera_info',
+             '/camera_left/color/camera_info'),
             ('/camera_right/image_raw', '/camera_right/color/image_raw'),
-            ('/camera_right/image_raw/camera_info', '/camera_right/color/camera_info'),
+            ('/camera_right/image_raw/camera_info',
+             '/camera_right/color/camera_info'),
         ])
 
     return [Node(
@@ -212,7 +219,8 @@ def generate_launch_description():
 
     set_gz_sim_resource_path_action = OpaqueFunction(
         function=set_gz_sim_resource_path, args=[with_sensors])
-    gazebo_world = OpaqueFunction(function=get_gz_world, args=[with_sensors, world, gz_args])
+    gazebo_world = OpaqueFunction(function=get_gz_world, args=[
+                                  with_sensors, world, gz_args])
     bridge = OpaqueFunction(function=get_bridge, args=[with_sensors])
 
     spawn = Node(
@@ -227,11 +235,11 @@ def generate_launch_description():
     rviz_file = os.path.join(get_package_share_directory('franka_description'), 'rviz',
                              'visualize_franka.rviz')
     rviz_node = Node(package='rviz2',
-                executable='rviz2',
-                name='rviz2',
-                namespace=namespace,
-                arguments=['--display-config', rviz_file, '-f', 'base_link'],
-                condition=IfCondition(rviz))
+                     executable='rviz2',
+                     name='rviz2',
+                     namespace=namespace,
+                     arguments=['--display-config', rviz_file, '-f', 'world'],
+                     condition=IfCondition(rviz))
 
     load_joint_state_broadcaster = Node(
         package='controller_manager',
@@ -245,7 +253,10 @@ def generate_launch_description():
     mobile_fr3_duo_controller = Node(
         package='controller_manager',
         executable='spawner',
-        arguments=['mobile_fr3_duo_joint_impedance_example_controller',
+        arguments=[
+            'swerve_ik_controller',
+            'swerve_drive_controller',
+            'mobile_fr3_duo_joint_impedance_example_controller',
                    '--controller-manager-timeout', '120',
                    '--service-call-timeout', '60'],
         parameters=[PathJoinSubstitution([
@@ -254,13 +265,6 @@ def generate_launch_description():
             'franka_gazebo_controllers.yaml'
         ])],
         output='screen',
-    )
-
-    # chain the ik controller to simulate master controller's ik
-    swerve_ik_controller = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["swerve_ik_controller"],
     )
 
     return LaunchDescription([
@@ -286,12 +290,6 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=spawn,
-                on_exit=[swerve_ik_controller],
-            )
-        ),
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=swerve_ik_controller,
                 on_exit=[mobile_fr3_duo_controller],
             )
         ),
