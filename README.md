@@ -239,7 +239,7 @@ You can move the TMRv0.2 either:
 - By using a remote XBOX controller:
 
 ```bash
-ros2 launch franka_bringup mobile_teleop.launch.py controller_names:="swerve_drive_controller"
+ros2 launch franka_bringup mobile_teleop.launch.py
 ```
 
 This launch file spawns the required additional nodes for remote control.

@@ -97,7 +97,9 @@ def generate_launch_description():
     return LaunchDescription(
         [
             DeclareLaunchArgument(
-                'controller_names', description='Name of the controller to be used'
+                'controller_names',
+                default_value="swerve_drive_controller",
+                description='Name of the controller to be used',
             ),
             DeclareLaunchArgument(
                 'robot_config_file',
