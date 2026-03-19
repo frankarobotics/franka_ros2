@@ -20,7 +20,7 @@ joint_limits:
     max_acceleration: 2.5
   planar_theta:
     has_velocity_limits: true
-    max_velocity: 5.0
+    max_velocity: 1.0
     has_acceleration_limits: true
     max_acceleration: 7.5
   franka_spine_vertical_joint:
