@@ -19,6 +19,7 @@
 #include <controller_interface/chainable_controller_interface.hpp>
 #include <diff_drive_controller/speed_limiter.hpp>
 #include <franka_mobile/swerve_drive_controller_parameters.hpp>
+#include <franka_semantic_components/franka_cartesian_pose_interface.hpp>
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
@@ -29,7 +30,6 @@
 #include <tf2_msgs/msg/tf_message.hpp>
 
 #include "odometry.hpp"
-#include "swerve_kinematics.hpp"
 
 namespace franka_mobile {
 
@@ -80,6 +80,7 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
   // franka interface
   std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>
       franka_cartesian_velocity_;
+  std::unique_ptr<franka_semantic_components::FrankaCartesianPoseInterface> franka_cartesian_pose_;
 
   // pub/sub
   geometry_msgs::msg::TwistStamped limited_velocity_message_;
@@ -97,9 +98,11 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_nav_pub_;
   rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr odom_tf_pub_;
 
-  // twist integration
+  // pose integration in open loop
   Odometry odometry_;
-  std::unique_ptr<SwerveKinematics> swerve_kinematics_;
+  // twist differentiation in closed loop
+  Eigen::Vector3d p_;
+  Eigen::Quaterniond q_;
 
   // rate limiting
   std::unique_ptr<diff_drive_controller::SpeedLimiter> linear_x_limiter_;

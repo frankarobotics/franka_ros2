@@ -14,10 +14,13 @@
 
 #include <controller_interface/helpers.hpp>
 #include <franka_mobile/swerve_ik_controller.hpp>
+#include <franka_semantic_components/franka_cartesian_pose_interface.hpp>
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
 
 #include <algorithm>
 
+#include <franka_mobile/odometry.hpp>
+#include <franka_mobile/swerve_kinematics.hpp>
 #include "urdf_utils.hpp"
 
 namespace franka_mobile {
@@ -28,6 +31,7 @@ controller_interface::CallbackReturn SwerveIKController::on_init() {
   const std::string wheel_1_link_name = auto_declare("wheel_1_link_name", "argo_drive_front_link");
   const std::string wheel_2_link_name = auto_declare("wheel_2_link_name", "argo_drive_rear_link");
   const std::string base_link_name = auto_declare("base_link_name", "base_link");
+  const size_t velocity_rolling_window_size = auto_declare("velocity_rolling_window_size", 10);
 
   const std::string robot_description = get_robot_description();
   const SE3 wheel_position_1 =
@@ -37,8 +41,10 @@ controller_interface::CallbackReturn SwerveIKController::on_init() {
   const double wheel_radius = getWheelRadiusFromDescription(robot_description, wheel_1_link_name);
   const std::array<Eigen::Vector2d, 2> wheel_positions{wheel_position_1.p.head<2>(),
                                                        wheel_position_2.p.head<2>()};
+  swerve_kinematics_ = std::make_unique<SwerveKinematics>(wheel_positions, wheel_radius);
+  odometry_ = std::make_unique<Odometry>(velocity_rolling_window_size);
 
-  swerve_kinematics_.emplace(SwerveKinematics(wheel_positions, wheel_radius));
+  odometry_->init(get_node()->now());
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -55,6 +61,8 @@ controller_interface::InterfaceConfiguration SwerveIKController::command_interfa
 controller_interface::InterfaceConfiguration SwerveIKController::state_interface_configuration()
     const {
   controller_interface::InterfaceConfiguration state_interface_configuration;
+  state_interface_configuration.type =
+      controller_interface::interface_configuration_type::INDIVIDUAL;
   state_interface_configuration.names = {prefix_ + "joint_0/position", prefix_ + "joint_1/velocity",
                                          prefix_ + "joint_2/position",
                                          prefix_ + "joint_3/velocity"};
@@ -87,26 +95,53 @@ bool SwerveIKController::on_set_chained_mode(bool /*chained_mode*/) {
 }
 
 controller_interface::return_type SwerveIKController::update_and_write_commands(
-    const rclcpp::Time& /*time*/,
+    const rclcpp::Time& time,
     const rclcpp::Duration& /*period*/) {
-  const double vx = reference_interfaces_[0];
-  const double vy = reference_interfaces_[1];
-  const double wz = reference_interfaces_[5];
+  // update commands
+  {
+    const double vx = reference_interfaces_[0];
+    const double vy = reference_interfaces_[1];
+    const double wz = reference_interfaces_[5];
+    std::array<double, 2> steering_angles{0, 0}, wheel_speeds{0, 0};
+    if (!swerve_kinematics_->inverse(vx, vy, wz, steering_angles, wheel_speeds)) {
+      return controller_interface::return_type::OK;  // do nothing
+    }
 
-  std::array<double, 2> steering_angles{0, 0}, wheel_speeds{0, 0};
-  if (!swerve_kinematics_->inverse(vx, vy, wz, steering_angles, wheel_speeds)) {
-    return controller_interface::return_type::OK;  // do nothing
+    for (size_t i = 0; i < 2; ++i) {
+      if (!command_interfaces_[2 * i].set_value(steering_angles[i])) {
+        RCLCPP_WARN(get_node()->get_logger(), "Failed to set steering angle for wheel %zu: %f", i,
+                    steering_angles[i]);
+      }
+      if (!command_interfaces_[2 * i + 1].set_value(wheel_speeds[i])) {
+        RCLCPP_WARN(get_node()->get_logger(), "Failed to set wheel velocity for wheel %zu: %f", i,
+                    wheel_speeds[i]);
+      }
+    }
   }
 
-  for (size_t i = 0; i < 2; ++i) {
-    if (!command_interfaces_[2 * i].set_value(steering_angles[i])) {
-      RCLCPP_WARN(get_node()->get_logger(), "Failed to set steering angle for wheel %zu: %f", i,
-                  steering_angles[i]);
-    }
-    if (!command_interfaces_[2 * i + 1].set_value(wheel_speeds[i])) {
-      RCLCPP_WARN(get_node()->get_logger(), "Failed to set wheel velocity for wheel %zu: %f", i,
-                  wheel_speeds[i]);
-    }
+  // update states
+  {
+    const double estimate_steering_position_wheel_1 = state_interfaces_[0].get_optional().value();
+    const double estimate_drive_velocity_wheel_1 = state_interfaces_[1].get_optional().value();
+
+    const double estimate_steering_position_wheel_2 = state_interfaces_[2].get_optional().value();
+    const double estimate_drive_velocity_wheel_2 = state_interfaces_[3].get_optional().value();
+
+    const std::array<double, 2> steerings{estimate_steering_position_wheel_1,
+                                          estimate_steering_position_wheel_2};
+    const std::array<double, 2> velocities{estimate_drive_velocity_wheel_1,
+                                           estimate_drive_velocity_wheel_2};
+
+    double vx = 0, vy = 0, wz = 0;
+    swerve_kinematics_->forward(steerings, velocities, vx, vy, wz);
+    odometry_->update(vx, vy, wz, time);
+
+    const Eigen::Vector3d p{odometry_->getX(), odometry_->getY(), 0};
+    const Eigen::Quaterniond q{
+        Eigen::AngleAxisd{odometry_->getHeading(), Eigen::Vector3d::UnitZ()}};
+    const std::vector<double> values = franka_semantic_components::FrankaCartesianPoseInterface::
+        createColumnMajorTransformationMatrix(q, p);
+    std::copy(values.begin(), values.begin() + 16, state_interfaces_values_.begin());
   }
 
   return controller_interface::return_type::OK;
@@ -131,10 +166,27 @@ SwerveIKController::on_export_reference_interfaces() {
   return interfaces;
 }
 
-// NO OP, we are chaining
+std::vector<hardware_interface::StateInterface> SwerveIKController::on_export_state_interfaces() {
+  std::vector<hardware_interface::StateInterface> interfaces;
+  franka_semantic_components::FrankaCartesianPoseInterface interface(false);
+  const std::vector<std::string> state_interface_names = interface.get_state_interface_names();
+  state_interfaces_values_.resize(state_interface_names.size());
+
+  if (state_interface_names.size() != 16) {
+    throw std::invalid_argument("Exported reference interfaces must be 16 for cartesian pose");
+  }
+
+  for (size_t i = 0; i < state_interface_names.size(); ++i) {
+    interfaces.emplace_back(get_node()->get_name(), state_interface_names[i],
+                            &state_interfaces_values_[i]);
+  }
+
+  return interfaces;
+}
 controller_interface::return_type SwerveIKController::update_reference_from_subscribers(
     const rclcpp::Time& /*time*/,
     const rclcpp::Duration& /*period*/) {
+  // NO OP, we are always chaining this controller for simulation on gazebo
   return controller_interface::return_type::OK;
 }
 

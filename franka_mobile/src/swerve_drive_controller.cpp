@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <franka_mobile/swerve_drive_controller.hpp>
-#include <tf2/LinearMath/Quaternion.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -37,9 +36,7 @@ controller_interface::InterfaceConfiguration SwerveDriveController::state_interf
     const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-  config.names = {
-      state_interface_prefix_ + "joint_0/position", state_interface_prefix_ + "joint_1/velocity",
-      state_interface_prefix_ + "joint_2/position", state_interface_prefix_ + "joint_3/velocity"};
+  config.names = franka_cartesian_pose_->get_state_interface_names();
   return config;
 }
 
@@ -88,33 +85,38 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
   double command_angular_z = reference_interfaces_[5];
 
   auto logger = get_node()->get_logger();
-  if (!std::isfinite(command_linear_x) || !std::isfinite(command_linear_y) ||
-      !std::isfinite(command_angular_z)) {
-    // NaNs occur on initialization when the reference interfaces are not yet set
-    return controller_interface::return_type::OK;
-  }
-
+  double x = 0, y = 0, yaw = 0, vx = 0, vy = 0, wz = 0;
   if (odom_open_loop_) {  // update odometry from command interface
-    odometry_.update(command_linear_x, command_linear_y, command_angular_z, time);
-  } else {  // update odometry from state interface
-    const double estimate_steering_position_wheel_1 = state_interfaces_[0].get_optional().value();
-    const double estimate_drive_velocity_wheel_1 = state_interfaces_[1].get_optional().value();
-
-    const double estimate_steering_position_wheel_2 = state_interfaces_[2].get_optional().value();
-    const double estimate_drive_velocity_wheel_2 = state_interfaces_[3].get_optional().value();
-
-    const std::array<double, 2> steerings{estimate_steering_position_wheel_1,
-                                          estimate_steering_position_wheel_2};
-    const std::array<double, 2> velocities{estimate_drive_velocity_wheel_1,
-                                           estimate_drive_velocity_wheel_2};
-
-    double vx = 0, vy = 0, wz = 0;
-    swerve_kinematics_->forward(steerings, velocities, vx, vy, wz);
-    odometry_.update(vx, vy, wz, time);
+    if (std::isfinite(command_linear_x) && std::isfinite(command_linear_y) &&
+        std::isfinite(command_angular_z)) {
+      odometry_.update(command_linear_x, command_linear_y, command_angular_z, time);
+      x = odometry_.getX();
+      y = odometry_.getY();
+      vx = odometry_.getLinearX();
+      vy = odometry_.getLinearY();
+      wz = odometry_.getAngular();
+      yaw = odometry_.getHeading();
+    }
+  } else {
+    // update twist by differentiating the cartesian pose from the state interface
+    // warning: noisy at 1khz!!
+    const auto [q, p] = franka_cartesian_pose_->getCurrentOrientationAndTranslation();
+    const double dt = period.seconds();
+    const Eigen::Vector3d dp = (p - p_) / dt;
+    const Eigen::Quaterniond dq = q_.conjugate() * q;
+    const Eigen::Vector3d w = 2.0 * dq.vec() / dt;
+    x = p.x();
+    y = p.y();
+    vx = dp.x();
+    vy = dp.y();
+    wz = w.z();
+    yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
+                     1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
+    p_ = p;
+    q_ = q;
   }
 
-  tf2::Quaternion orientation;
-  orientation.setRPY(0.0, 0.0, odometry_.getHeading());
+  const Eigen::Quaterniond orientation{Eigen::AngleAxisd{yaw, Eigen::Vector3d::UnitZ()}};
 
   bool should_publish = true;
   const rclcpp::Duration publish_period = rclcpp::Duration::from_seconds(1 / publish_rate_);
@@ -134,15 +136,15 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
     if (enable_odom_nav_msg_ && realtime_odom_nav_publisher_) {
       odom_nav_message_.header.stamp = time;
       odom_nav_message_.header.frame_id = odom_frame_id_;
-      odom_nav_message_.pose.pose.position.x = odometry_.getX();
-      odom_nav_message_.pose.pose.position.y = odometry_.getY();
+      odom_nav_message_.pose.pose.position.x = x;
+      odom_nav_message_.pose.pose.position.y = y;
       odom_nav_message_.pose.pose.orientation.x = orientation.x();
       odom_nav_message_.pose.pose.orientation.y = orientation.y();
       odom_nav_message_.pose.pose.orientation.z = orientation.z();
       odom_nav_message_.pose.pose.orientation.w = orientation.w();
-      odom_nav_message_.twist.twist.linear.x = odometry_.getLinearX();
-      odom_nav_message_.twist.twist.linear.y = odometry_.getLinearY();
-      odom_nav_message_.twist.twist.angular.z = odometry_.getAngular();
+      odom_nav_message_.twist.twist.linear.x = vx;
+      odom_nav_message_.twist.twist.linear.y = vy;
+      odom_nav_message_.twist.twist.angular.z = wz;
 
       realtime_odom_nav_publisher_->try_publish(odom_nav_message_);
     }
@@ -152,8 +154,8 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
       transform.header.stamp = time;
       transform.header.frame_id = tf_frame_id_;
       transform.child_frame_id = base_link_frame_id_;
-      transform.transform.translation.x = odometry_.getX();
-      transform.transform.translation.y = odometry_.getY();
+      transform.transform.translation.x = x;
+      transform.transform.translation.y = y;
       transform.transform.rotation.x = orientation.x();
       transform.transform.rotation.y = orientation.y();
       transform.transform.rotation.z = orientation.z();
@@ -215,12 +217,16 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
 
   previous_two_commands_.push({0, 0, 0});
   previous_two_commands_.push({0, 0, 0});
+  q_.setIdentity();
 
   command_interface_prefix_ = auto_declare<std::string>("command_interface_prefix", "");
   state_interface_prefix_ = auto_declare<std::string>("state_interface_prefix", "");
   franka_cartesian_velocity_ =
       std::make_unique<franka_semantic_components::FrankaCartesianVelocityInterface>(
           command_interface_prefix_, false);
+  franka_cartesian_pose_ =
+      std::make_unique<franka_semantic_components::FrankaCartesianPoseInterface>(
+          state_interface_prefix_, false);
 
   tf_frame_id_ = auto_declare("tf_frame_id", "world");
   odom_frame_id_ = auto_declare("odom_frame_id", "base_link");
@@ -253,7 +259,6 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
   RCLCPP_INFO(logger, "Wheel 1 x: %f, y: %f", wheel_positions[0].x(), wheel_positions[0].y());
   RCLCPP_INFO(logger, "Wheel 2 x: %f, y: %f", wheel_positions[1].x(), wheel_positions[1].y());
 
-  swerve_kinematics_ = std::make_unique<SwerveKinematics>(wheel_positions, wheel_radius);
   odom_tf_message_.transforms.resize(1);
 
   odometry_.init(get_node()->now());
@@ -342,12 +347,14 @@ controller_interface::CallbackReturn SwerveDriveController::on_configure(
 controller_interface::CallbackReturn SwerveDriveController::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   franka_cartesian_velocity_->assign_loaned_command_interfaces(command_interfaces_);
+  franka_cartesian_pose_->assign_loaned_state_interfaces(state_interfaces_);
   return CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn SwerveDriveController::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   franka_cartesian_velocity_->release_interfaces();
+  franka_cartesian_pose_->release_interfaces();
   return CallbackReturn::SUCCESS;
 }
 
