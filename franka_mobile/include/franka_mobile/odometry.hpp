@@ -113,8 +113,7 @@ class Odometry {
   using RollingMeanAccumulator = rcppmath::RollingMeanAccumulator<double>;
 #endif
 
-  void integrateRungeKutta2(double linear_x, double linear_y, double angular);
-  void integrateExact(double linear_x, double linear_y, double angular);
+  void integrate(double linear_x, double linear_y, double angular);
   void resetAccumulators();
 
   // Current timestamp:

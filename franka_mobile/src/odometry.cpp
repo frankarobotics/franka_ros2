@@ -42,7 +42,7 @@ void Odometry::update(double linear_x, double linear_y, double angular, const rc
   /// Integrate odometry:
   const double dt = time.seconds() - timestamp_.seconds();
   timestamp_ = time;
-  integrateExact(linear_x * dt, linear_y * dt, angular * dt);
+  integrate(linear_x * dt, linear_y * dt, angular * dt);
 }
 
 void Odometry::resetOdometry() {
@@ -53,11 +53,10 @@ void Odometry::resetOdometry() {
 
 void Odometry::setVelocityRollingWindowSize(size_t velocity_rolling_window_size) {
   velocity_rolling_window_size_ = velocity_rolling_window_size;
-
   resetAccumulators();
 }
 
-void Odometry::integrateRungeKutta2(double linear_x, double linear_y, double angular) {
+void Odometry::integrate(double linear_x, double linear_y, double angular) {
   const double direction = heading_ + angular * 0.5;
   const double cos_d = std::cos(direction);
   const double sin_d = std::sin(direction);
@@ -65,22 +64,6 @@ void Odometry::integrateRungeKutta2(double linear_x, double linear_y, double ang
   x_ += linear_x * cos_d - linear_y * sin_d;
   y_ += linear_x * sin_d + linear_y * cos_d;
   heading_ += angular;
-}
-
-void Odometry::integrateExact(double linear_x, double linear_y, double angular) {
-  if (fabs(angular) < 1e-6) {
-    integrateRungeKutta2(linear_x, linear_y, angular);
-  } else {
-    // TODO revise exact integration
-    /// Exact integration (should solve problems when angular is zero):
-    const double heading_old = heading_;
-    const double linear = std::hypot(linear_x, linear_y);
-    const double strafe_angle = std::atan2(linear_y, linear_x);
-    const double r = linear / angular;
-    heading_ += angular;
-    x_ += r * (std::sin(heading_ + strafe_angle) - std::sin(heading_old + strafe_angle));
-    y_ += -r * (std::cos(heading_ + strafe_angle) - std::cos(heading_old + strafe_angle));
-  }
 }
 
 void Odometry::resetAccumulators() {

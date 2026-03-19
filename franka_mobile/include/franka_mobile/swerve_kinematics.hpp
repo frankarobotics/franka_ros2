@@ -65,6 +65,27 @@ class SwerveKinematics {
   /**
    * @brief Compute body-frame velocity from wheel states (forward kinematics).
    *
+   * Averages the wheel velocities
+   *
+   * @param[in]  steering_angles  Current steering angle of each wheel [rad],
+   *                              measured from the robot X axis (forward).
+   * @param[in]  wheel_speeds     Current rotational speed of each wheel [rad/s].
+   *                              Positive is forward along the wheel's heading direction.
+   * @param[out] vx               Resulting body-frame linear velocity along X [m/s].
+   * @param[out] vy               Resulting body-frame linear velocity along Y [m/s].
+   * @param[out] wz               Resulting body-frame angular velocity around Z [rad/s].
+   *
+   * @return true on success, false if the solve failed
+   */
+  bool forward(const std::array<double, 2>& steering_angles,
+               const std::array<double, 2>& wheel_speeds,
+               double& vx,
+               double& vy,
+               double& wz) const;
+
+  /**
+   * @brief Compute body-frame velocity from wheel states (forward kinematics).
+   *
    * Solves the overdetermined system of wheel velocity constraints in a least-squares
    * sense to recover the best-fit rigid body velocity.
    *
@@ -78,7 +99,7 @@ class SwerveKinematics {
    *
    * @return true on success, false if the solve failed (e.g. singular configuration).
    */
-  bool forward(const std::array<double, 2>& steering_angles,
+  bool forwardQr(const std::array<double, 2>& steering_angles,
                const std::array<double, 2>& wheel_speeds,
                double& vx,
                double& vy,

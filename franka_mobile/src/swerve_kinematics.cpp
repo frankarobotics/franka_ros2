@@ -36,6 +36,32 @@ bool SwerveKinematics::forward(const std::array<double, 2>& steering_angles,
                                double& vx,
                                double& vy,
                                double& wz) const {
+  const auto wheel_velocity = [&](size_t i) -> Eigen::Vector2d {
+    return wheel_speeds[i] * wheel_radius_ *
+           Eigen::Vector2d{std::cos(steering_angles[i]), std::sin(steering_angles[i])};
+  };
+
+  const Eigen::Vector2d v0 = wheel_velocity(0);
+  const Eigen::Vector2d v1 = wheel_velocity(1);
+
+  const Eigen::Vector2d mean_velocity = (v0 + v1) / 2.0;
+  vx = mean_velocity.x();
+  vy = mean_velocity.y();
+
+  const auto cross2d = [](const Eigen::Vector2d& v, const Eigen::Vector2d& r) {
+    return v.y() * r.x() - v.x() * r.y();
+  };
+
+  const double norm_sq = wheel_positions_[0].squaredNorm() + wheel_positions_[1].squaredNorm();
+  wz = (cross2d(v0, wheel_positions_[0]) + cross2d(v1, wheel_positions_[1])) / norm_sq;
+  return true;
+}
+
+bool SwerveKinematics::forwardQr(const std::array<double, 2>& steering_angles,
+                                 const std::array<double, 2>& wheel_speeds,
+                                 double& vx,
+                                 double& vy,
+                                 double& wz) const {
   // Each wheel velocity vector in world frame
   // v_wheel = [v*cos(θ), v*sin(θ)]
   // Body velocity constraint per wheel:
