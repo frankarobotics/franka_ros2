@@ -1,17 +1,6 @@
 franka_bringup
 ==============
 
-.. note::
-
- ``franka_ros2`` is not supported on Windows.
-
-The `franka_ros2 repo <https://github.com/frankarobotics/franka_ros2>`_ contains a ROS 2 integration of
-`libfranka <https://frankarobotics.github.io/libfranka/>`_.
-
-.. caution::
-    franka_ros2 is in rapid development. Anticipate breaking changes. Report bugs on
-    `GitHub <https://github.com/frankarobotics/franka_ros2/issues>`_.
-
 Installation
 ------------
 
@@ -145,10 +134,10 @@ using the ``mobile_fr3_duo.launch.py`` launch file with the ``mobile_fr3_duo.con
 .. important::
 
     The Mobile FR3 Duo setup combines:
-    
+
     * **Dual FR3 arms**: Controlled via joint impedance using the torque (effort) command interface
     * **Mobile base**: Controlled via cartesian velocity using GPIO interfaces
-    
+
     Like the FR3 Duo, this setup currently only supports the **torque (effort) command interface** for the arms.
 
 Configuration
@@ -157,17 +146,17 @@ Configuration
 The mobile dual-arm configuration is defined in ``franka_bringup/config/mobile_fr3_duo.config.yaml``. The key parameters are:
 
 * ``robot_types``: Types of all robot components as a string list (e.g., ``"['tmrv0_2','fr3','fr3']"``)
-  
+
   * First entry: Mobile base type (``tmrv0_2``)
   * Remaining entries: Arm types (``fr3``)
 
 * ``arm_prefixes``: Prefixes for all robot components (e.g., ``"['','left','right']"``)
-  
+
   * First entry: Empty string ``''`` for mobile base (no prefix)
   * Remaining entries: Unique prefixes for each arm
 
 * ``robot_ips``: IP addresses of all robots as a string list (e.g., ``"['172.16.0.1','172.16.0.5','172.16.0.6']"``)
-  
+
   * First entry: Mobile base IP address
   * Remaining entries: Arm IP addresses
 
@@ -197,7 +186,7 @@ The mobile dual-arm system has the following kinematic structure:
 
 .. code-block:: text
 
-    base → base_link (TMRv0.2) → franka_spine → franka_spine_support (prismatic) 
+    base → base_link (TMRv0.2) → franka_spine → franka_spine_support (prismatic)
          → mount_link → left/right FR3 arms
 
 The Franka spine includes a **prismatic joint** for vertical adjustment (0-0.85m range).

@@ -6,12 +6,12 @@ This package contains the configuration for MoveIt2.
 Move Group
 ----------
 
-There is one move group called ``(robot_type)_arm``, where ``(robot_type)`` is the arm type specified by the user. 
-The TCP placement varies depending on the end-effector configuration. If the Franka Hand is set, the TCP is located 
-in the center between the fingertips and the TCP-frame-axes are in parallel with the gripper frame. 
+There is one move group called ``(robot_type)_arm``, where ``(robot_type)`` is the arm type specified by the user.
+The TCP placement varies depending on the end-effector configuration. If the Franka Hand is set, the TCP is located
+in the center between the fingertips and the TCP-frame-axes are in parallel with the gripper frame.
 Otherwise, the TCP is located at the robot flange.
 
-.. figure:: ../../docs/assets/move-groups.png
+.. figure:: ../../docs/assets/move_groups.png
     :align: center
     :figclass: align-center
 
@@ -33,7 +33,7 @@ If you do not have a robot you can still test your setup by running on a dummy h
 Wait until you can see the green ``You can start planning now!`` message from MoveIt inside the
 terminal. Then turn off the ``PlanningScene`` and turn it on again. After that turn on the ``MotionPlanning``.
 
-You can use the arguments ``load_gripper`` to activate or deactivate the end-effector and ``ee_id`` to set 
+You can use the arguments ``load_gripper`` to activate or deactivate the end-effector and ``ee_id`` to set
 which end-effector you want to use. By default, the Franka Hand is activated.
 
 Configuration Files

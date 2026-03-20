@@ -1,110 +1,43 @@
-.. _ros2_compatibility:
-Franka ROS2 Compatibility
------------------------------------
+.. _ros2-compatibility-jazzy:
 
-The tables below show tested compatibility between Franka ROS2 versions, Franka Description versions, libfranka versions and Ubuntu versions. All versions use ``>=`` and ``<`` where applicable to indicate tested ranges.
+Compatibility: franka_ros2
+--------------------------
 
-Compatibility Matrix for Jazzy:
+The tables below show tested compatibility between Franka ROS2 versions, Franka Description versions,
+libfranka versions and Ubuntu versions. All versions use ``>=`` and ``<`` where applicable to indicate tested ranges.
+
+.. table-start-jazzy
+
+**Important note:** ROS 2 Jazzy is based on Ubuntu 24.04 and we strongly recommend using franka_ros2 Jazzy with
+Ubuntu 24.04.
 
 .. list-table::
    :header-rows: 1
-   :widths: 25 25 25 25
+   :widths: 25 25 25
    :stub-columns: 0
 
-   * - Franka ROS2 Version
-     - libfranka Version
-     - Franka Description Version
-     - Ubuntu Version
+   * - franka_ros2 Version
+     - libfranka Versions
+     - franka_description Versions
 
-   * - v3.2.2
-     - >= 0.20.4
-     - >= 2.6.0
-     - 24.04
+   * - v3.2.2 and above
+     - 0.20.4 and above
+     - 2.6.0 and above
 
-   * - v3.2.0
-     - >= 0.19.0
-     - >= 2.3.0
-     - 24.04
+   * - v3.2.0 to v3.2.1
+     - 0.19.0 and above
+     - 2.3.0 and above
 
-   * - v3.1.1
-     - >= 0.18.0
-     - >= 2.0.0
-     - 24.04
-
-   * - v3.1.0
-     - >= 0.18.0
-     - >= 2.0.0
-     - 24.04
+   * - v3.1.0 to v3.1.1
+     - 0.18.0 to 0.18.x
+     - 2.0.0 and above
 
    * - v3.0.0
-     - >= 0.15.0
-     - >= 2.0.0
-     - 24.04
+     - 0.15.0 to 0.17.x
+     - 2.0.0 and above
 
-   * - v2.0.2
-     - >= 0.15.0 < 0.18.0
-     - >= 1.0.0 < 2.0.0
-     - 24.04 
+   * - v2.0.2 to v2.x.x
+     - 0.15.0 to 0.17.x
+     - 1.0.0 to 1.x.x
 
-
-Compatibility Matrix for Humble:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 25 25 25 25
-   :stub-columns: 0
-
-   * - Franka ROS2 Version
-     - libfranka Version
-     - Franka Description Version
-     - Ubuntu Version
-
-   * - v2.2.0
-     - >= 0.19.0
-     - >= 1.3.0 < 2.0.0
-     - 22.04 
-
-   * - v2.0.2
-     - >= 0.15.0 < 0.18.0
-     - >= 1.0.0 < 2.0.0
-     - 22.04
-
-   * - v2.0.1
-     - >= 0.15.0 < 0.18.0
-     - >= 1.0.0 < 2.0.0
-     - 22.04
-
-   * - v2.0.0
-     - >= 0.15.0 < 0.18.0
-     - >= 0.5.0 < 1.0.0
-     - 22.04
-
-   * - v1.0.2
-     - >= 0.15.0 < 0.18.0
-     - >= 0.5.0 < 1.0.0
-     - 22.04
-
-   * - v1.0.1
-     - >= 0.15.0 < 0.18.0
-     - >= 0.5.0 < 1.0.0
-     - 22.04
-
-   * - v1.0.0
-     - >= 0.15.0 < 0.18.0
-     - >= 0.3.0 < 0.5.0
-     - 22.04
-
-   * - v0.1.15
-     - >= 0.14.1 < 0.15.0
-     - >= 5.7.0 < 5.7.2
-     - 22.04
-
-   * - v0.1.8 < v0.1.15
-     - >= 0.13.3 < 0.14.1
-     - >= 0.5.0
-     - 22.04
-
-   * - v0.1.0 < v0.1.8
-     - >= 0.10.0 < 0.13.3
-     - >= 5.2.0 < 5.5.0
-     - 22.04
+.. table-end-jazzy
