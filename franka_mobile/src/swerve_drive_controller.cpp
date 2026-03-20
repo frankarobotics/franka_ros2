@@ -24,6 +24,9 @@
 
 namespace franka_mobile {
 
+using franka_semantic_components::FrankaCartesianVelocityInterface;
+using franka_semantic_components::FrankaCartesianPoseInterface;
+
 controller_interface::InterfaceConfiguration
 SwerveDriveController::command_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
@@ -45,7 +48,7 @@ SwerveDriveController::on_export_reference_interfaces() {
   reference_interfaces_.resize(6, 0.0);
 
   std::vector<hardware_interface::CommandInterface> interfaces;
-  franka_semantic_components::FrankaCartesianVelocityInterface interface(false);
+  FrankaCartesianVelocityInterface interface(false);
   const std::vector<std::string> command_interface_names = interface.get_command_interface_names();
   if (command_interface_names.size() != 6) {
     throw std::invalid_argument("Exported reference interfaces must be 6 for cartesian velocity");
@@ -71,18 +74,18 @@ controller_interface::return_type SwerveDriveController::update_reference_from_s
     command_angular_z = received_velocity_msg_.get().twist.angular.z;
   }
 
-  reference_interfaces_[0] = command_linear_x;
-  reference_interfaces_[1] = command_linear_y;
-  reference_interfaces_[5] = command_angular_z;
+  reference_interfaces_[FrankaCartesianVelocityInterface::VX] = command_linear_x;
+  reference_interfaces_[FrankaCartesianVelocityInterface::VY] = command_linear_y;
+  reference_interfaces_[FrankaCartesianVelocityInterface::WZ] = command_angular_z;
   return controller_interface::return_type::OK;
 }
 
 controller_interface::return_type SwerveDriveController::update_and_write_commands(
     const rclcpp::Time& time,
     const rclcpp::Duration& period) {
-  double command_linear_x = reference_interfaces_[0];
-  double command_linear_y = reference_interfaces_[1];
-  double command_angular_z = reference_interfaces_[5];
+  double command_linear_x = reference_interfaces_[FrankaCartesianVelocityInterface::VX];
+  double command_linear_y = reference_interfaces_[FrankaCartesianVelocityInterface::VY];
+  double command_angular_z = reference_interfaces_[FrankaCartesianVelocityInterface::WZ];
 
   auto logger = get_node()->get_logger();
   double x = 0, y = 0, yaw = 0, vx = 0, vy = 0, wz = 0;
@@ -118,7 +121,7 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
 
   const Eigen::Quaterniond orientation{Eigen::AngleAxisd{yaw, Eigen::Vector3d::UnitZ()}};
 
-  bool should_publish = true;
+  bool should_publish = false;
   const rclcpp::Duration publish_period = rclcpp::Duration::from_seconds(1 / publish_rate_);
 
   try {
@@ -222,10 +225,10 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
   command_interface_prefix_ = auto_declare<std::string>("command_interface_prefix", "");
   state_interface_prefix_ = auto_declare<std::string>("state_interface_prefix", "");
   franka_cartesian_velocity_ =
-      std::make_unique<franka_semantic_components::FrankaCartesianVelocityInterface>(
+      std::make_unique<FrankaCartesianVelocityInterface>(
           command_interface_prefix_, false);
   franka_cartesian_pose_ =
-      std::make_unique<franka_semantic_components::FrankaCartesianPoseInterface>(
+      std::make_unique<FrankaCartesianPoseInterface>(
           state_interface_prefix_, false);
 
   tf_frame_id_ = auto_declare("tf_frame_id", "world");

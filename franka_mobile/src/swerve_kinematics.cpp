@@ -31,11 +31,11 @@ SwerveKinematics::SwerveKinematics(const std::array<Eigen::Vector2d, 2>& wheel_p
   }
 }
 
-bool SwerveKinematics::forward(const std::array<double, 2>& steering_angles,
-                               const std::array<double, 2>& wheel_speeds,
-                               double& vx,
-                               double& vy,
-                               double& wz) const {
+bool SwerveKinematics::forwardKinematics(const std::array<double, 2>& steering_angles,
+                                         const std::array<double, 2>& wheel_speeds,
+                                         double& vx,
+                                         double& vy,
+                                         double& wz) const {
   const auto wheel_velocity = [&](size_t i) -> Eigen::Vector2d {
     return wheel_speeds[i] * wheel_radius_ *
            Eigen::Vector2d{std::cos(steering_angles[i]), std::sin(steering_angles[i])};
@@ -57,11 +57,11 @@ bool SwerveKinematics::forward(const std::array<double, 2>& steering_angles,
   return true;
 }
 
-bool SwerveKinematics::forwardQr(const std::array<double, 2>& steering_angles,
-                                 const std::array<double, 2>& wheel_speeds,
-                                 double& vx,
-                                 double& vy,
-                                 double& wz) const {
+bool SwerveKinematics::forwardKinematicsQr(const std::array<double, 2>& steering_angles,
+                                           const std::array<double, 2>& wheel_speeds,
+                                           double& vx,
+                                           double& vy,
+                                           double& wz) const {
   // Each wheel velocity vector in world frame
   // v_wheel = [v*cos(θ), v*sin(θ)]
   // Body velocity constraint per wheel:
@@ -101,11 +101,11 @@ bool SwerveKinematics::forwardQr(const std::array<double, 2>& steering_angles,
   return true;
 }
 
-bool SwerveKinematics::inverse(double vx,
-                               double vy,
-                               double wz,
-                               std::array<double, 2>& steering_angles,
-                               std::array<double, 2>& wheel_speeds) {
+bool SwerveKinematics::inverseKinematics(double vx,
+                                         double vy,
+                                         double wz,
+                                         std::array<double, 2>& steering_angles,
+                                         std::array<double, 2>& wheel_speeds) {
   if (!std::isfinite(vx) || !std::isfinite(vy) || !std::isfinite(wz)) {
     return false;
   }

@@ -27,7 +27,7 @@ pluginlib_export_plugin_description_file(
 )
 
 generate_parameter_library(swerve_drive_controller_parameters
-  src/swerve_drive_controller_parameters.yaml
+  config/swerve_drive_controller_parameters.yaml
 )
 
 add_library(${PROJECT_NAME} SHARED

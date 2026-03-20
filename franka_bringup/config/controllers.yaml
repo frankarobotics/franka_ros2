@@ -240,38 +240,38 @@
 /**:
   swerve_drive_controller:
     ros__parameters:
-      state_interface_prefix: "tmrv0_2_"
       wheel_1_link_name: argo_drive_front_link
       wheel_2_link_name: argo_drive_rear_link
+      tf_frame_id: base
 
       linear:
         x:
           has_velocity_limits    : true
-          max_velocity           : 0.50  # m/s
-          min_velocity           : -0.50 # m/s
+          max_velocity           : 0.1  # m/s
+          min_velocity           : -0.1 # m/s
           has_acceleration_limits: true
-          max_acceleration       : 1.0  # m/s^2
-          min_acceleration       : -1.0 # m/s^2
+          max_acceleration       : 0.1  # m/s^2
+          min_acceleration       : -0.1 # m/s^2
           has_jerk_limits        : false
           max_jerk               : 10.0  # m/s^3
           min_jerk               : -10.0  # m/s^3
         y:
           has_velocity_limits    : true
-          max_velocity           : 0.5  # m/s
-          min_velocity           : -0.5 # m/s
+          max_velocity           : 0.1  # m/s
+          min_velocity           : -0.1 # m/s
           has_acceleration_limits: true
-          max_acceleration       : 1.0  # m/s^2
-          min_acceleration       : -1.0 # m/s^2
+          max_acceleration       : 0.1  # m/s^2
+          min_acceleration       : -0.1 # m/s^2
           has_jerk_limits        : false
           max_jerk               : 10.0  # m/s^3
           min_jerk               : -10.0  # m/s^3
       angular:
         z:
           has_velocity_limits    : true
-          max_velocity           : 1.7  # rad/s
+          max_velocity           : 0.1  # rad/s
           has_acceleration_limits: true
-          max_acceleration       : 1.0  # rad/s^2
-          min_acceleration       : -1.0  # rad/s^2
+          max_acceleration       : 0.1  # rad/s^2
+          min_acceleration       : -0.1  # rad/s^2
           has_jerk_limits        : false
           max_jerk               : 10.0  # rad/s^3
           min_jerk               : -10.0  # rad/s^3

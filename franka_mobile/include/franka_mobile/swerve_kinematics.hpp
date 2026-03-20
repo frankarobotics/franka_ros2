@@ -77,11 +77,11 @@ class SwerveKinematics {
    *
    * @return true on success, false if the solve failed
    */
-  bool forward(const std::array<double, 2>& steering_angles,
-               const std::array<double, 2>& wheel_speeds,
-               double& vx,
-               double& vy,
-               double& wz) const;
+  bool forwardKinematics(const std::array<double, 2>& steering_angles,
+                         const std::array<double, 2>& wheel_speeds,
+                         double& vx,
+                         double& vy,
+                         double& wz) const;
 
   /**
    * @brief Compute body-frame velocity from wheel states (forward kinematics).
@@ -99,11 +99,11 @@ class SwerveKinematics {
    *
    * @return true on success, false if the solve failed (e.g. singular configuration).
    */
-  bool forwardQr(const std::array<double, 2>& steering_angles,
-               const std::array<double, 2>& wheel_speeds,
-               double& vx,
-               double& vy,
-               double& wz) const;
+  bool forwardKinematicsQr(const std::array<double, 2>& steering_angles,
+                           const std::array<double, 2>& wheel_speeds,
+                           double& vx,
+                           double& vy,
+                           double& wz) const;
 
   /**
    * @brief Compute wheel commands from a desired body-frame velocity (inverse kinematics).
@@ -120,11 +120,11 @@ class SwerveKinematics {
    * @return true on success, false if no valid solution exists
    *         (e.g. kinematically infeasible command or zero-radius turn singularity).
    */
-  bool inverse(double vx,
-               double vy,
-               double wz,
-               std::array<double, 2>& steering_angles,
-               std::array<double, 2>& wheel_speeds);
+  bool inverseKinematics(double vx,
+                         double vy,
+                         double wz,
+                         std::array<double, 2>& steering_angles,
+                         std::array<double, 2>& wheel_speeds);
 
  private:
   std::array<double, 2> steering_angles_,

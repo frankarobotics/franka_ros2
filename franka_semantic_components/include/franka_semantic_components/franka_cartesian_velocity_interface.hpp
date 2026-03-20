@@ -36,6 +36,8 @@ namespace franka_semantic_components {
  */
 class FrankaCartesianVelocityInterface : public FrankaSemanticComponentInterface {
  public:
+  enum { VX, VY, VZ, WX, WY, WZ };
+
   /**
    * Initializes the franka cartesian velocity interface with access to the hardware
    * interface command interfaces.

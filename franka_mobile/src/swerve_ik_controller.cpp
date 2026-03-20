@@ -25,6 +25,8 @@
 
 namespace franka_mobile {
 
+using franka_semantic_components::FrankaCartesianVelocityInterface;
+
 controller_interface::CallbackReturn SwerveIKController::on_init() {
   prefix_ = auto_declare<std::string>("prefix", "");
 
@@ -99,11 +101,11 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
     const rclcpp::Duration& /*period*/) {
   // update commands
   {
-    const double vx = reference_interfaces_[0];
-    const double vy = reference_interfaces_[1];
-    const double wz = reference_interfaces_[5];
+    const double vx = reference_interfaces_[FrankaCartesianVelocityInterface::VX];
+    const double vy = reference_interfaces_[FrankaCartesianVelocityInterface::VY];
+    const double wz = reference_interfaces_[FrankaCartesianVelocityInterface::WZ];
     std::array<double, 2> steering_angles{0, 0}, wheel_speeds{0, 0};
-    if (!swerve_kinematics_->inverse(vx, vy, wz, steering_angles, wheel_speeds)) {
+    if (!swerve_kinematics_->inverseKinematics(vx, vy, wz, steering_angles, wheel_speeds)) {
       return controller_interface::return_type::OK;  // do nothing
     }
 
@@ -133,7 +135,7 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
                                            estimate_drive_velocity_wheel_2};
 
     double vx = 0, vy = 0, wz = 0;
-    swerve_kinematics_->forward(steerings, velocities, vx, vy, wz);
+    swerve_kinematics_->forwardKinematics(steerings, velocities, vx, vy, wz);
     odometry_->update(vx, vy, wz, time);
 
     const Eigen::Vector3d p{odometry_->getX(), odometry_->getY(), 0};

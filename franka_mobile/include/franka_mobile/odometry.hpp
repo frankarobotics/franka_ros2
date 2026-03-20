@@ -33,12 +33,6 @@ namespace franka_mobile {
  * of the robot's 2D pose (x, y, heading) in the odometry frame. Velocities are
  * smoothed using rolling mean accumulators to reduce noise.
  *
- * Two integration methods are available internally:
- * - **Runge-Kutta 2**: more accurate for curved trajectories, used when angular
- *   velocity is non-negligible.
- * - **Exact integration**: closed-form solution for constant-curvature arcs,
- *   used when angular velocity is below a threshold.
- *
  * Example usage:
  * @code
  * Odometry odom(10);  // 10-sample rolling window for velocity smoothing
