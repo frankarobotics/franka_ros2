@@ -1,17 +1,6 @@
 franka_bringup
 ==============
 
-.. note::
-
- ``franka_ros2`` is not supported on Windows.
-
-The `franka_ros2 repo <https://github.com/frankarobotics/franka_ros2>`_ contains a ROS 2 integration of
-`libfranka <https://frankarobotics.github.io/libfranka/>`_.
-
-.. caution::
-    franka_ros2 is in rapid development. Anticipate breaking changes. Report bugs on
-    `GitHub <https://github.com/frankarobotics/franka_ros2/issues>`_.
-
 Installation
 ------------
 
