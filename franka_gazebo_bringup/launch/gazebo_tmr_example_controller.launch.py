@@ -159,16 +159,6 @@ def generate_launch_description():
                                 rviz_file, '-f', 'world'],
                      condition=IfCondition(rviz))
 
-    joint_state_broadcaster = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=[
-            'joint_state_broadcaster',
-            '--controller-manager-timeout', '30',
-        ],
-        output='screen'
-    )
-
     # Start of the control chain, a simple circular reference
     circle_reference_node = ExecuteProcess(
         cmd=['python3', '-c', cmd_vel_node], output='screen')
@@ -178,6 +168,7 @@ def generate_launch_description():
         package='controller_manager',
         executable='spawner',
         arguments=[
+            'joint_state_broadcaster',
             'swerve_ik_controller',
             'swerve_drive_controller',
             '--controller-manager-timeout', '30',
@@ -202,12 +193,6 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=spawn,
-                on_exit=[joint_state_broadcaster],
-            )
-        ),
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=joint_state_broadcaster,
                 on_exit=[mobile_cartesian_velocity_controller_node],
             )
         ),

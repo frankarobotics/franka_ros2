@@ -241,19 +241,11 @@ def generate_launch_description():
                      arguments=['--display-config', rviz_file, '-f', 'world'],
                      condition=IfCondition(rviz))
 
-    load_joint_state_broadcaster = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['joint_state_broadcaster',
-                   '--controller-manager-timeout', '120',
-                   '--service-call-timeout', '60'],
-        output='screen',
-    )
-
     mobile_fr3_duo_controller = Node(
         package='controller_manager',
         executable='spawner',
         arguments=[
+            'joint_state_broadcaster',
             'swerve_ik_controller',
             'swerve_drive_controller',
             'mobile_fr3_duo_joint_impedance_example_controller',
@@ -281,12 +273,6 @@ def generate_launch_description():
         rviz_node,
         spawn,
         bridge,
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=spawn,
-                on_exit=[load_joint_state_broadcaster],
-            )
-        ),
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=spawn,
