@@ -19,8 +19,14 @@ import xml.dom.minidom
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchContext, LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler
-from launch.event_handlers import OnProcessExit
+from launch.actions import (
+    DeclareLaunchArgument, 
+    IncludeLaunchDescription, 
+    ExecuteProcess, 
+    OpaqueFunction, 
+    RegisterEventHandler
+)
+from launch.event_handlers import OnProcessExit, OnShutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch.conditions import IfCondition
@@ -279,4 +285,15 @@ def generate_launch_description():
                 on_exit=[mobile_fr3_duo_controller],
             )
         ),
+        RegisterEventHandler(
+            OnShutdown(
+                on_shutdown=[
+                    ExecuteProcess(
+                        cmd=[
+                            'bash', '-c', 'pkill -SIGINT -f "gz sim"; sleep 2; pkill -SIGKILL -f "gz sim" 2>/dev/null; true'],
+                        name='gz_sim_graceful_shutdown',
+                    )
+                ]
+            )
+        )
     ])

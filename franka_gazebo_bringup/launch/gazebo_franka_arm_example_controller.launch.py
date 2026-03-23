@@ -181,7 +181,7 @@ def generate_launch_description():
                      executable='rviz2',
                      name='rviz2',
                      namespace=namespace,
-                     arguments=['--display-config', rviz_file, '-f', 'base_link'],
+                     arguments=['--display-config', rviz_file, '-f', 'world'],
                      condition=IfCondition(rviz))
 
     launch_controller = OpaqueFunction(
@@ -212,7 +212,8 @@ def generate_launch_description():
             OnShutdown(
                 on_shutdown=[
                     ExecuteProcess(
-                        cmd=['pkill', '-SIGINT', '-f', 'gz sim'],
+                        cmd=[
+                            'bash', '-c', 'pkill -SIGINT -f "gz sim"; sleep 2; pkill -SIGKILL -f "gz sim" 2>/dev/null; true'],
                         name='gz_sim_graceful_shutdown',
                     )
                 ]
