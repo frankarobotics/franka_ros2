@@ -1,3 +1,5 @@
+.. _franka_ros2_humble:
+
 franka_ros2: **Humble**
 =======================
 

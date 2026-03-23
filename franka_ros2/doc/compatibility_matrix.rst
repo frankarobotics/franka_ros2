@@ -17,39 +17,51 @@ with Ubuntu 22.04.
    :stub-columns: 0
 
    * - franka_ros2 Version
-     - libfranka Versions
-     - franka_description Versions
+     - libfranka Version
+     - franka_description Version
 
-   * - v2.2.0 and above
-     - 0.19.0 and above
-     - 1.3.0 to 1.x.x
+   * - >=v2.3.0
+     - >=0.20.4
+     - >=1.6.1
 
-   * - v2.0.1 to v2.0.2
-     - 0.15.0 to 0.17.x
-     - 1.0.0 to 1.x.x
+   * - >=v2.2.0
+     - >=0.19.0
+     - >=1.2.0
 
-   * - v2.0.0
-     - 0.15.0 to 0.17.x
-     - 0.5.0 to 0.x.x
+   * - >=v2.1.0
+     - >=0.18.0
+     - >=1.2.0
 
-   * - v1.0.0 to v1.0.2
-     - 0.15.0 to 0.17.x
-     - 0.5.0 to 0.x.x
+   * - >=v2.0.1
+     - >=0.15.0
+     - >=1.0.0
 
-   * - v1.0.0
-     - 0.15.0 to 0.17.x
-     - 0.3.0 to 0.4.x
+   * - >=v1.0.1
+     - >=0.15.0
+     - >=0.5.0
 
-   * - v0.1.15
-     - 0.14.1 to 0.14.x
-     - 5.7.0 to 5.7.1
+   * - >=v1.0.0
+     - >=0.15.0
+     - >=0.3.0
 
-   * - v0.1.8 to v0.1.14
-     - 0.13.3 to 0.14.0
-     - 0.5.0 and above
+   * - >=v0.1.15
+     - >=0.13.2
+     - >=0.3.0
 
-   * - v0.1.0 to v0.1.7
-     - 0.10.0 to 0.13.2
-     - 5.2.0 to 5.4.x
+   * - >=v0.1.14
+     - >=0.13.2
+     - >=0.2.0
+
+   * - >=v0.1.11
+     - >=0.13.2
+     - No franka_description
+
+   * - >=v0.1.8
+     - >=0.13.0
+     - No franka_description
+
+   * - >=v0.1.0
+     - >=0.10.0
+     - No franka_description
 
 .. table-end-humble
