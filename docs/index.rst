@@ -1,3 +1,5 @@
+.. _franka_ros2_jazzy:
+
 franka_ros2: **Jazzy**
 ======================
 
@@ -13,9 +15,10 @@ Documentation for franka_ros2 Jazzy.
    ../franka_gazebo_bringup/doc/index
    ../franka_gripper/doc/index
    ../franka_hardware/doc/index
+   ../franka_mobile/doc/index
    ../franka_mobile_sensors/doc/index
    ../franka_msgs/doc/index
    ../franka_robot_state_broadcaster/doc/index
    ../franka_selfcollision/doc/index
    ../franka_semantic_components/doc/index
-   ../franka_selfcollision/doc/index
+   ../franka_spine/index

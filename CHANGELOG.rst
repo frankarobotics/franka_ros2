@@ -9,9 +9,11 @@ UNRELEASED
 * chore: refactored mFR3duo example controller to be gazebo independent by chaining `swerve_ik_controller`
 * chore: removed vendored controller_manager
 * feat: Added `franka_mobile` package with `swerve_drive_controller` (tf and odom support) and `swerve_ik_controller` for gazebo sim.
+* docu: Maintenance work on documentation
 
 v3.2.2 (2026-03-03)
 -------------------
+Requires libfranka >= 0.20.4 and franka_description >= 2.6.0 requires ROS 2 Jazzy
 
 * feat: update to franka_description 2.6.0
 
