@@ -64,11 +64,9 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
   CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
   CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
 
- protected:
+ private:
   trajectory_msgs::msg::JointTrajectoryPoint state_current_;
   trajectory_msgs::msg::JointTrajectoryPoint command_next_;
-  //   trajectory_msgs::msg::JointTrajectoryPoint state_desired_;
-  //   trajectory_msgs::msg::JointTrajectoryPoint state_error_;
 
   std::shared_ptr<mobile_fr3_duo_joint_trajectory_controller::ParamListener> param_listener_;
   mobile_fr3_duo_joint_trajectory_controller::Params params_;
@@ -104,12 +102,8 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
       const std::shared_ptr<trajectory_msgs::msg::JointTrajectory>& traj_msg);
 
   bool has_active_trajectory() const;
-
-  std::shared_ptr<trajectory_msgs::msg::JointTrajectory> set_hold_position();
-
-  std::shared_ptr<trajectory_msgs::msg::JointTrajectory> set_success_trajectory_point();
-
-  std::atomic<bool> rt_is_holding_{false};
+  bool validate_trajectory_msg(const trajectory_msgs::msg::JointTrajectory& trajectory) const;
+  void preempt_active_goal();
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<trajectory_msgs::msg::JointTrajectory>>
       new_trajectory_msg_;
@@ -117,7 +111,6 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
   std::shared_ptr<Trajectory> current_trajectory_ = nullptr;
   std::shared_ptr<trajectory_msgs::msg::JointTrajectory> hold_position_msg_ptr_ = nullptr;
 
- private:
   std::vector<std::string> joint_names_;
   // Dual arm parameters
   std::vector<std::string> robot_types_;
@@ -138,7 +131,7 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
 
   void updateState(trajectory_msgs::msg::JointTrajectoryPoint& state);
   void commandArmPosition(const Vector7d& q_goal, size_t arm_index);
-  void commandMobileBaseVelocity(const std::array<double, 3>& planar_base_velocities);
+  void commandMobileBaseVelocity(const std::array<double, 3>& planar_base_velocities, double theta);
   size_t get_first_joint_index(const std::vector<std::string>& joint_names,
                                const std::string& prefix) const;
   Vector7d get_slice_of_trajectory_positions_arm(
@@ -146,9 +139,8 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
       size_t start_index) const;
   std::array<double, 3> get_slice_of_trajectory_velocities_base(
       const trajectory_msgs::msg::JointTrajectoryPoint& command,
-      size_t start_index) const;
-
-  bool has_printed_ = false;
+      size_t start_index,
+      double& theta) const;
 };
 
 }  // namespace mobile_fr3_duo_joint_trajectory_controller

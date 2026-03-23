@@ -99,7 +99,8 @@ controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
 
   if (current_trajectory_msg != *new_external_msg &&
       (rt_has_pending_goal_ && !active_goal) == false) {
-    // fill_partial_goal(*new_external_msg);
+    // TODO (wink_ma): make reading and writing easier by message joint order to the local joint
+    // order
     // sort_to_local_joint_order(*new_external_msg);
 
     current_trajectory_->update(*new_external_msg);
@@ -114,97 +115,74 @@ controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
   updateState(state_current_);
   state_current_.time_from_start.sec = 0;
   state_current_.time_from_start.nanosec = 0;
-  // read_state_from_state_interfaces(state_current_);
 
-  if (has_active_trajectory()) {
-    bool first_sample = false;
-    if (!current_trajectory_->is_sampled_already()) {
-      first_sample = true;
-      // TODO (wink_ma): remove this joints_angle_wraparound
-      std::vector<bool> joints_angle_wraparound(17, false);
-      current_trajectory_->set_point_before_trajectory_msg(time, state_current_,
-                                                           joints_angle_wraparound);
-      traj_time_ = time;
-    } else {
-      traj_time_ += period;
-    }
-
-    TrajectoryPointConstIter start_segment_itr, end_segment_itr;
-
-    const bool valid_point =
-        current_trajectory_->sample(traj_time_ + update_period_, interpolation_method_,
-                                    command_next_, start_segment_itr, end_segment_itr, false);
-
-    state_current_.time_from_start = time - current_trajectory_->time_from_start();
-
-    if (valid_point) {
-      const rclcpp::Time traj_start = current_trajectory_->time_from_start();
-      // this is the time instance
-      // - started with the first segment: when the first point will be reached (in the future)
-      // - later: when the point of the current segment was reached
-      const rclcpp::Time segment_time_from_start = traj_start + start_segment_itr->time_from_start;
-      // time_difference is
-      // - negative until first point is reached
-      // - counting from zero to time_from_start of next point
-      double time_difference = traj_time_.seconds() - segment_time_from_start.seconds();
-      bool tolerance_violated_while_moving = false;
-      bool outside_goal_tolerance = false;
-      bool within_goal_time = true;
-      const bool before_last_point = end_segment_itr != current_trajectory_->end();
-
-      // TODO (wink_ma): check these in separate functions
-      // bool should_abort_due_to_timeout = !before_last_point && !rt_is_holding_ &&
-      //                                    cmd_timeout_ > 0.0 && time_difference > cmd_timeout_;
-      tolerance_violated_while_moving = false;
-      within_goal_time = true;
-
-      bool should_pass_commands_to_command_interfaces =
-          !tolerance_violated_while_moving && within_goal_time;
-
-      // This could be much simpler if our own command_interfaces_ already had the same
-      // structure as the next_command
-      if (should_pass_commands_to_command_interfaces) {
-        std::array<std::string, kArms> arm_prefixes = {"left", "right"};
-        std::array<size_t, kArms> first_joint_indices = {0, 0};
-
-        for (size_t arm_index = 0; arm_index < kArms; ++arm_index) {
-          first_joint_indices[arm_index] =
-              get_first_joint_index(joint_names_, arm_prefixes[arm_index]);
-          Vector7d q =
-              get_slice_of_trajectory_positions_arm(command_next_, first_joint_indices[arm_index]);
-          commandArmPosition(q, arm_index);
-        }
-        size_t first_joint_index = get_first_joint_index(joint_names_, "planar");
-        std::array<double, 3> planar_base_velocities =
-            get_slice_of_trajectory_velocities_base(command_next_, first_joint_index);
-
-        commandMobileBaseVelocity(planar_base_velocities);
-        RCLCPP_INFO_THROTTLE(logger, clock, 1000, "Commanded planar_base_velocities = [%f,%f,%f]",
-                             planar_base_velocities[0], planar_base_velocities[1],
-                             planar_base_velocities[2]);
-      }
-      if (active_goal) {
-        // check goal tolerance
-        if (!before_last_point) {
-          if (!outside_goal_tolerance) {
-            auto result = std::make_shared<FollowJTrajAction::Result>();
-            result->set__error_code(FollowJTrajAction::Result::SUCCESSFUL);
-            result->set__error_string("Goal successfully reached!");
-            active_goal->setSucceeded(result);
-            // TODO(matthew-reynolds): Need a lock-free write here
-            // See https://github.com/ros-controls/ros2_controllers/issues/168
-            rt_active_goal_.writeFromNonRT(RealtimeGoalHandlePtr());
-            rt_has_pending_goal_ = false;
-
-            RCLCPP_INFO(logger, "Goal reached, success!");
-
-            // new_trajectory_msg_.reset();
-            // new_trajectory_msg_.initRT(set_success_trajectory_point());
-          }
-        }
-      }
-    }
+  if (!has_active_trajectory()) {
+    return controller_interface::return_type::OK;
   }
+
+  if (!current_trajectory_->is_sampled_already()) {
+    current_trajectory_->set_point_before_trajectory_msg(time, state_current_);
+    traj_time_ = time;
+  } else {
+    traj_time_ += period;
+  }
+
+  TrajectoryPointConstIter start_segment_itr, end_segment_itr;
+
+  const bool is_valid_point =
+      current_trajectory_->sample(traj_time_ + update_period_, interpolation_method_, command_next_,
+                                  start_segment_itr, end_segment_itr, false);
+  if (!is_valid_point) {
+    RCLCPP_ERROR(logger, "Sampling current trajectory returned invalid point!");
+    return controller_interface::return_type::ERROR;
+  }
+
+  state_current_.time_from_start = time - current_trajectory_->time_from_start();
+
+  const rclcpp::Time traj_start = current_trajectory_->time_from_start();
+  const rclcpp::Time segment_time_from_start = traj_start + start_segment_itr->time_from_start;
+
+  // TODO (wink_ma): reorder to local joint order first and then just iterate over complete command
+  // interface list
+  std::array<std::string, kArms> arm_prefixes = {"left", "right"};
+  std::array<size_t, kArms> first_joint_indices = {0, 0};
+
+  for (size_t arm_index = 0; arm_index < kArms; ++arm_index) {
+    first_joint_indices[arm_index] = get_first_joint_index(joint_names_, arm_prefixes[arm_index]);
+    Vector7d q =
+        get_slice_of_trajectory_positions_arm(command_next_, first_joint_indices[arm_index]);
+    commandArmPosition(q, arm_index);
+  }
+
+  size_t first_joint_index = get_first_joint_index(joint_names_, "planar");
+  // TODO (wink_ma): get theta from robot state rather than planned trajectory
+  double theta = 0.0;
+  std::array<double, 3> planar_base_velocities =
+      get_slice_of_trajectory_velocities_base(command_next_, first_joint_index, theta);
+  commandMobileBaseVelocity(planar_base_velocities, theta);
+
+  if (rt_has_pending_goal_) {
+    RCLCPP_INFO_THROTTLE(logger, clock, 1000, "Commanded planar_base_velocities = [%f,%f,%f]",
+                         planar_base_velocities[0], planar_base_velocities[1],
+                         planar_base_velocities[2]);
+  }
+
+  const bool before_last_point = end_segment_itr != current_trajectory_->end();
+  const bool goal_reached_successfully = active_goal && !before_last_point;
+
+  if (goal_reached_successfully) {
+    auto result = std::make_shared<FollowJTrajAction::Result>();
+    result->set__error_code(FollowJTrajAction::Result::SUCCESSFUL);
+    result->set__error_string("Goal successfully reached!");
+    active_goal->setSucceeded(result);
+    // TODO(matthew-reynolds): Need a lock-free write here
+    // See https://github.com/ros-controls/ros2_controllers/issues/168
+    rt_active_goal_.writeFromNonRT(RealtimeGoalHandlePtr());
+    rt_has_pending_goal_ = false;
+
+    RCLCPP_INFO(logger, "Goal reached, success!");
+  }
+
   return controller_interface::return_type::OK;
 }
 
@@ -222,8 +200,9 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_configure(const rclcpp_
   auto arm_prefixes_begin = robot_prefixes_.begin() + 1;
   arm_prefixes_ = std::vector<std::string>(arm_prefixes_begin, arm_prefixes_begin + 2);
 
-  if (k.size() != 7 || d.size() != 7) {
-    RCLCPP_FATAL(get_node()->get_logger(), "k_gains and d_gains must be size 7");
+  if (k.size() != kArmCommandInterfaces || d.size() != kArmCommandInterfaces) {
+    RCLCPP_FATAL(get_node()->get_logger(), "k_gains and d_gains must be size %zu",
+                 kArmCommandInterfaces);
     return CallbackReturn::FAILURE;
   }
 
@@ -268,9 +247,6 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_activate(const rclcpp_l
   initial_q_ = q_;
   elapsed_time_ = 0.0;
 
-  // add_new_trajectory_msg(set_hold_position());
-  // rt_is_holding_ = true;
-
   RCLCPP_INFO(logger, "Successfully activated MobileFR3DuoJointTrajectoryController.");
 
   return CallbackReturn::SUCCESS;
@@ -286,16 +262,15 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_deactivate(
 rclcpp_action::GoalResponse MobileFR3DuoJointTrajectoryController::goal_received_callback(
     const rclcpp_action::GoalUUID&,
     std::shared_ptr<const FollowJTrajAction::Goal> goal) {
-  // Precondition: Running controller
   if (get_lifecycle_id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
     RCLCPP_ERROR(get_node()->get_logger(),
                  "Can't accept new action goals. Controller is not running.");
     return rclcpp_action::GoalResponse::REJECT;
   }
 
-  // if (!validate_trajectory_msg(goal->trajectory)) {
-  //   return rclcpp_action::GoalResponse::REJECT;
-  // }
+  if (!validate_trajectory_msg(goal->trajectory)) {
+    return rclcpp_action::GoalResponse::REJECT;
+  }
 
   RCLCPP_INFO(get_node()->get_logger(), "Accepted new action goal");
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -303,20 +278,16 @@ rclcpp_action::GoalResponse MobileFR3DuoJointTrajectoryController::goal_received
 
 rclcpp_action::CancelResponse MobileFR3DuoJointTrajectoryController::goal_cancelled_callback(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<FollowJTrajAction>> goal_handle) {
-  // Check that cancel request refers to currently active goal (if any)
   const auto active_goal = *rt_active_goal_.readFromNonRT();
-  if (active_goal && active_goal->gh_ == goal_handle) {
+
+  const bool cancel_request_refers_to_active_goal = active_goal && active_goal->gh_ == goal_handle;
+  if (cancel_request_refers_to_active_goal) {
     RCLCPP_INFO(get_node()->get_logger(),
                 "Canceling active action goal because cancel callback received.");
 
-    // Mark the current goal as canceled
     rt_has_pending_goal_ = false;
-    auto action_res = std::make_shared<FollowJTrajAction::Result>();
-    active_goal->setCanceled(action_res);
+    active_goal->setCanceled(std::make_shared<FollowJTrajAction::Result>());
     rt_active_goal_.writeFromNonRT(RealtimeGoalHandlePtr());
-
-    // TODO (wink_ma):Enter hold current position mode
-    // add_new_trajectory_msg(set_hold_position());
   }
   RCLCPP_INFO(get_node()->get_logger(), "Accepting request to cancel goal");
 
@@ -325,31 +296,20 @@ rclcpp_action::CancelResponse MobileFR3DuoJointTrajectoryController::goal_cancel
 
 void MobileFR3DuoJointTrajectoryController::goal_accepted_callback(
     std::shared_ptr<rclcpp_action::ServerGoalHandle<FollowJTrajAction>> goal_handle) {
-  // Update tolerances if specified in the goal
   auto logger = this->get_node()->get_logger();
 
-  // mark a pending goal
   rt_has_pending_goal_ = true;
 
-  // Update new trajectory
-
-  // TODO (wink_ma):
-  // preempt_active_goal();
+  preempt_active_goal();
   auto traj_msg =
       std::make_shared<trajectory_msgs::msg::JointTrajectory>(goal_handle->get_goal()->trajectory);
 
   add_new_trajectory_msg(traj_msg);
-  rt_is_holding_ = false;
 
-  // Update the active goal
   RealtimeGoalHandlePtr rt_goal = std::make_shared<RealtimeGoalHandle>(goal_handle);
   rt_goal->preallocated_feedback_->joint_names = params_.joints;
   rt_goal->execute();
   rt_active_goal_.writeFromNonRT(rt_goal);
-
-  // TODO (wink_ma):
-  // active_tolerances_.writeFromNonRT(get_segment_tolerances(
-  //     logger, default_tolerances_, *(goal_handle->get_goal()), params_.joints));
 
   // Set smartpointer to expire for create_wall_timer to delete previous entry from timer list
   goal_handle_timer_.reset();
@@ -358,7 +318,12 @@ void MobileFR3DuoJointTrajectoryController::goal_accepted_callback(
   goal_handle_timer_ =
       get_node()->create_wall_timer(action_monitor_period_.to_chrono<std::chrono::nanoseconds>(),
                                     std::bind(&RealtimeGoalHandle::runNonRealtime, rt_goal));
-  RCLCPP_INFO(logger, "Accepted new action goal");
+}
+
+bool MobileFR3DuoJointTrajectoryController::validate_trajectory_msg(
+    const trajectory_msgs::msg::JointTrajectory& trajectory) const {
+  // TODO (wink_ma): check for missing joints, empty trajectory points, non-zero end velocity
+  return true;
 }
 
 bool MobileFR3DuoJointTrajectoryController::has_active_trajectory() const {
@@ -369,47 +334,21 @@ void MobileFR3DuoJointTrajectoryController::add_new_trajectory_msg(
     const std::shared_ptr<trajectory_msgs::msg::JointTrajectory>& traj_msg) {
   new_trajectory_msg_.writeFromNonRT(traj_msg);
 }
-
-std::shared_ptr<trajectory_msgs::msg::JointTrajectory>
-MobileFR3DuoJointTrajectoryController::set_hold_position() {
-  // Command to stay at current position
-
-  hold_position_msg_ptr_->points[0].positions = state_current_.positions;
-
-  // set flag, otherwise tolerances will be checked with holding position too
-  rt_is_holding_ = true;
-
-  return hold_position_msg_ptr_;
-}
-
-std::shared_ptr<trajectory_msgs::msg::JointTrajectory>
-MobileFR3DuoJointTrajectoryController::set_success_trajectory_point() {
-  // set last command to be repeated at success, no matter if it has nonzero velocity or
-  // acceleration
-  hold_position_msg_ptr_->points[0] = current_trajectory_->get_trajectory_msg()->points.back();
-  hold_position_msg_ptr_->points[0].time_from_start = rclcpp::Duration(0, 0);
-
-  // set flag, otherwise tolerances will be checked with success_trajectory_point too
-  rt_is_holding_ = true;
-
-  return hold_position_msg_ptr_;
+void MobileFR3DuoJointTrajectoryController::preempt_active_goal() {
+  const auto active_goal = *rt_active_goal_.readFromNonRT();
+  if (active_goal) {
+    auto result = std::make_shared<FollowJTrajAction::Result>();
+    result->set__error_code(FollowJTrajAction::Result::INVALID_GOAL);
+    result->set__error_string("Current goal cancelled due to new incoming action.");
+    active_goal->setCanceled(result);
+    rt_active_goal_.writeFromNonRT(RealtimeGoalHandlePtr());
+  }
 }
 
 void MobileFR3DuoJointTrajectoryController::updateState(
     trajectory_msgs::msg::JointTrajectoryPoint& state) {
   auto logger = get_node()->get_logger();
   auto clock = *get_node()->get_clock();
-
-  // auto velocity_x = state_interfaces_[0].get_optional();
-  // auto velocity_y = state_interfaces_[1].get_optional();
-  // auto angular_velocity_z = state_interfaces_[5].get_optional();
-
-  std::array<double, 3> planar_velocity = {0.0, 0.0, 0.0};
-  // if (velocity_x && velocity_y && angular_velocity_z) {
-  //   planar_velocity = {velocity_x.value(), velocity_y.value(), angular_velocity_z.value()};
-  // } else {
-  //   RCLCPP_WARN_THROTTLE(logger, clock, 1000, "Missing state for mobile base velocities");
-  // }
 
   for (size_t arm_index = 0; arm_index < kArms; ++arm_index) {
     for (size_t i = 0; i < kArmCommandInterfaces; ++i) {
@@ -435,6 +374,9 @@ void MobileFR3DuoJointTrajectoryController::updateState(
 
   state.positions.resize(joint_names_.size(), 0.0);
   state.velocities.resize(joint_names_.size(), 0.0);
+
+  // TODO (wink_ma): better ideas than always setting to 0.0?
+  std::array<double, 3> planar_velocity = {0.0, 0.0, 0.0};
   for (size_t i = 0; i < planar_velocity.size(); ++i) {
     state.velocities[i + first_planar_joint_index] = planar_velocity[i];
   }
@@ -464,8 +406,18 @@ void MobileFR3DuoJointTrajectoryController::commandArmPosition(const Vector7d& q
 }
 
 void MobileFR3DuoJointTrajectoryController::commandMobileBaseVelocity(
-    const std::array<double, 3>& planar_base_velocities) {
-  const Eigen::Vector3d linear{planar_base_velocities[0], planar_base_velocities[1], 0.0};
+    const std::array<double, 3>& planar_base_velocities,
+    double theta) {
+  double vx_world = planar_base_velocities[0];
+  double vy_world = planar_base_velocities[1];
+
+  // TODO (wink_ma): make eigen matrix multiplication for this
+  double c = std::cos(theta);
+  double s = std::sin(theta);
+  double vx_local = c * vx_world + s * vy_world;
+  double vy_local = -s * vx_world + c * vy_world;
+
+  const Eigen::Vector3d linear{vx_local, vy_local, 0.0};
   const Eigen::Vector3d angular{0.0, 0.0, planar_base_velocities[2]};
 
   if (!franka_cartesian_velocity_->setCommand(linear, angular)) {
@@ -508,7 +460,8 @@ Vector7d MobileFR3DuoJointTrajectoryController::get_slice_of_trajectory_position
 std::array<double, 3>
 MobileFR3DuoJointTrajectoryController::get_slice_of_trajectory_velocities_base(
     const trajectory_msgs::msg::JointTrajectoryPoint& command,
-    size_t start_index) const {
+    size_t start_index,
+    double& theta) const {
   std::array<double, 3> slice = {0.0, 0.0, 0.0};
   double w_z = command.velocities[start_index];
   double v_x = command.velocities[start_index + 1];
@@ -516,6 +469,9 @@ MobileFR3DuoJointTrajectoryController::get_slice_of_trajectory_velocities_base(
   slice[0] = v_x;
   slice[1] = v_y;
   slice[2] = w_z;
+
+  theta = command.positions[start_index];
+
   return slice;
 }
 

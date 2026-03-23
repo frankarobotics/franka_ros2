@@ -48,8 +48,7 @@ Trajectory::Trajectory(const rclcpp::Time& current_time,
 
 void Trajectory::set_point_before_trajectory_msg(
     const rclcpp::Time& current_time,
-    const trajectory_msgs::msg::JointTrajectoryPoint& current_point,
-    const std::vector<bool>& joints_angle_wraparound) {
+    const trajectory_msgs::msg::JointTrajectoryPoint& current_point) {
   time_before_traj_msg_ = current_time;
   state_before_traj_msg_ = current_point;
 
@@ -63,29 +62,6 @@ void Trajectory::set_point_before_trajectory_msg(
   if (current_point.accelerations.empty() && !trajectory_msg_->points[0].accelerations.empty()) {
     state_before_traj_msg_.accelerations.resize(trajectory_msg_->points[0].accelerations.size(),
                                                 0.0);
-  }
-
-  // Compute offsets due to wrapping joints
-  wraparound_joint(state_before_traj_msg_.positions, trajectory_msg_->points[0].positions,
-                   joints_angle_wraparound);
-}
-
-void wraparound_joint(std::vector<double>& current_position,
-                      const std::vector<double> next_position,
-                      const std::vector<bool>& joints_angle_wraparound) {
-  double dist;
-  // joints_angle_wraparound is even empty, or has the same size as the number of joints
-  for (size_t i = 0; i < joints_angle_wraparound.size(); i++) {
-    if (joints_angle_wraparound[i]) {
-      dist = shortest_angular_distance(current_position[i], next_position[i]);
-
-      // Deal with singularity at M_PI shortest distance
-      if (std::abs(std::abs(dist) - M_PI) < 1e-9) {
-        dist = next_position[i] > current_position[i] ? std::abs(dist) : -std::abs(dist);
-      }
-
-      current_position[i] = next_position[i] - dist;
-    }
   }
 }
 
