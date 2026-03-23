@@ -32,7 +32,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetJointStiffness.srv"
   "srv/SetStiffnessFrame.srv"
   "srv/SetLoad.srv"
-  "srv/CheckCollision.srv"
   DEPENDENCIES std_msgs geometry_msgs sensor_msgs builtin_interfaces
 )
 

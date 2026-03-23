@@ -9,10 +9,10 @@ mobile_fr3_duo_robot:
   robot_ips: "['172.16.16.10', '172.16.16.11', '172.16.16.12']"
   robot_prefixes: "['', 'left', 'right']"
   load_gripper: false
-  use_fake_hardware: True
+  use_fake_hardware: false
   fake_sensor_commands: false
   namespace: ''
   joint_state_rate: 30
   thread_priority: 50
   use_rviz: true
-  check_selfcollision: true # Run self_collision_node in the background if "true"
+  check_selfcollision: false # Run self_collision_node in the background if "true"

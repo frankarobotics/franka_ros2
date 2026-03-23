@@ -189,31 +189,6 @@ and if a collision is detected they immediately retreat back to the start positi
 
     You must set ``check_selfcollision: true`` in ``fr3_duo.config.yaml`` before running this command.
 
-Self Collision Mobile FR3 Duo Example
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This example is designed for the Mobile FR3 Duo setup. It demonstrates the same collision avoidance
-sequence as the FR3 Duo example — both arms move from a start configuration toward a colliding
-configuration, and immediately retreat upon detection. The spine joint is held in place throughout
-via a PD controller. Base and drivetrain joints are not controlled.
-
-The controller subscribes to the mobile self-collision node topic
-``/mobile_fr3_duo_self_collision_node/collision_detected`` and reacts to it in real time.
-
-.. code-block:: shell
-
-    ros2 launch franka_bringup mobile_fr3_duo.launch.py \
-        controller_name:=mobile_fr3_duo_self_collision_example_controller
-
-.. important::
-
-    You must start the mobile self-collision node before activating this controller. The controller
-    will fail to activate if no publisher is detected on the collision topic.
-
-.. important::
-
-    Use ``controller_name`` (singular) for ``mobile_fr3_duo.launch.py``, not ``controller_names`` (plural).
-
 Mobile Cartesian Velocity Example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

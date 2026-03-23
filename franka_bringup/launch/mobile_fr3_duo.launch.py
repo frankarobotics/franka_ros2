@@ -124,11 +124,7 @@ def generate_robot_nodes(context):
     thread_priority_str = str(config.get('thread_priority', 50))
     use_rviz = str(config.get('use_rviz', 'true')).lower() == 'true'
     check_selfcollision = str(config.get('check_selfcollision', 'false')).lower() == 'true'
-    
-
-    # controllers_yaml = LaunchConfiguration('controllers_yaml').perform(context)
-
-
+    controllers_yaml = LaunchConfiguration('controllers_yaml').perform(context)
 
 
     # Parse string list representations into actual Python lists for
@@ -188,10 +184,10 @@ def generate_robot_nodes(context):
         }
     ).toprettyxml(indent='  ')
 
-    # joint_state_publisher_sources = [
-    #     'franka/joint_states',
-    #     'franka_gripper/joint_states',
-    # ]
+    joint_state_publisher_sources = [
+        'franka/joint_states',
+        'franka_gripper/joint_states',
+    ]
 
     nodes = [
         Node(
@@ -203,44 +199,40 @@ def generate_robot_nodes(context):
             parameters=[{'robot_description': robot_description} , {"robot_description_semantic": robot_description_semantic}],
 
         ),
-        # Node(
-        #     package='controller_manager',
-        #     executable='ros2_control_node',
-        #     namespace=namespace,
-        #     parameters=[
-        #         controllers_yaml,
-        #         {'robot_description': robot_description},
-        #         {'robot_types': robot_types_list},
-        #         {'robot_prefixes': robot_prefixes_list},
-        #     ],
-        #     remappings=[('joint_states', 'franka/joint_states')],
-        #     output={
-        #         'stdout': 'screen',
-        #         'stderr': 'screen',
-        #     },
-        #     on_exit=Shutdown(),
-        # ),
-        # Node(
-        #     package='joint_state_publisher',
-        #     executable='joint_state_publisher',
-        #     name='joint_state_publisher',
-        #     namespace=namespace,
-        #     parameters=[
-        #         {
-        #             'source_list': joint_state_publisher_sources,
-        #             'rate': joint_state_rate,
-        #         }
-        #     ],
-        # ),
         Node(
-            # package='controller_manager',
-            # executable='spawner',
+            package='controller_manager',
+            executable='ros2_control_node',
             namespace=namespace,
-            package='joint_state_publisher_gui',
-            executable='joint_state_publisher_gui',
-            name='joint_state_publisher_gui',
-
-            # arguments=['joint_state_broadcaster'],
+            parameters=[
+                controllers_yaml,
+                {'robot_description': robot_description},
+                {'robot_types': robot_types_list},
+                {'robot_prefixes': robot_prefixes_list},
+            ],
+            remappings=[('joint_states', 'franka/joint_states')],
+            output={
+                'stdout': 'screen',
+                'stderr': 'screen',
+            },
+            on_exit=Shutdown(),
+        ),
+        Node(
+            package='joint_state_publisher',
+            executable='joint_state_publisher',
+            name='joint_state_publisher',
+            namespace=namespace,
+            parameters=[
+                {
+                    'source_list': joint_state_publisher_sources,
+                    'rate': joint_state_rate,
+                }
+            ],
+        ),
+        Node(
+            package='controller_manager',
+            executable='spawner',
+            namespace=namespace,
+            arguments=['joint_state_broadcaster'],
             output='screen',
         ),
         # NOTE: franka_robot_state_broadcaster is NOT launched for mobile duo setups
@@ -248,12 +240,12 @@ def generate_robot_nodes(context):
     ]
 
     # Spawn controller
-    # controller_name = LaunchConfiguration('controller_name').perform(context)
-    # if not controller_name:
-    #     print(
-    #         'Error: No controller name provided. Please provide a controller name.'
-    #     )
-    #     sys.exit(1)
+    controller_name = LaunchConfiguration('controller_name').perform(context)
+    if not controller_name:
+        print(
+            'Error: No controller name provided. Please provide a controller name.'
+        )
+        sys.exit(1)
 
     if CONTROLLER_EXAMPLE in controller_name:
         # Spawn the example as ros2_control controller
@@ -292,21 +284,21 @@ def generate_robot_nodes(context):
     if use_rviz:
         nodes.append(
                 Node(
-                    package='rviz2',
-                    executable='rviz2',
-                    name='rviz2',
-                    arguments=[
-                        '--display-config',
-                        PathJoinSubstitution(
-                            [
-                                FindPackageShare('franka_description'),
-                                'rviz',
-                                'visualize_franka.rviz',
-                            ]
-                        ),
-                    ],
-                    output='screen',
-                )
+                package='rviz2',
+                executable='rviz2',
+                name='rviz2',
+                arguments=[
+                    '--display-config',
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare('franka_description'),
+                            'rviz',
+                            'visualize_franka.rviz',
+                        ]
+                    ),
+                ],
+                output='screen',
+            )
         )
     if check_selfcollision :
         nodes.append(
@@ -336,19 +328,19 @@ def generate_launch_description():
             description='Config file name (looked up in franka_bringup/config/) or full path. '
             'If provided, robot_ips, robot_types, and robot_prefixes will be read from this file.',
         ),
-        # DeclareLaunchArgument(
-        #     'controllers_yaml',
-        #     default_value=PathJoinSubstitution(
-        #         [FindPackageShare('franka_bringup'),
-        #          'config', 'controllers.yaml']
-        #     ),
-        #     description='Override the default controllers.yaml file',
-        # ),
-        # DeclareLaunchArgument(
-        #     'controller_name',
-        #     description='Controller name to spawn (required). '
-        #                 'Only one controller is supported for mobile duo setups.',
-        # ),
+        DeclareLaunchArgument(
+            'controllers_yaml',
+            default_value=PathJoinSubstitution(
+                [FindPackageShare('franka_bringup'),
+                 'config', 'controllers.yaml']
+            ),
+            description='Override the default controllers.yaml file',
+        ),
+        DeclareLaunchArgument(
+            'controller_name',
+            description='Controller name to spawn (required). '
+                        'Only one controller is supported for mobile duo setups.',
+        ),
     ]
 
     return LaunchDescription(
