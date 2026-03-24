@@ -152,11 +152,11 @@ class FrankaCartesianPoseInterface
    * @param translation translation represented in Vector3d format [x,y,z]
    * @return std::vector<double> column major transformation matrix [4x4]
    */
-  static std::vector<double> createColumnMajorTransformationMatrix(const Eigen::Quaterniond& quaternion,
-                                                            const Eigen::Vector3d& translation);
+  static std::vector<double> createColumnMajorTransformationMatrix(
+      const Eigen::Quaterniond& quaternion,
+      const Eigen::Vector3d& translation);
 
  private:
-
   const std::array<std::string, 2> hw_elbow_names_{"joint_3_position", "joint_4_sign"};
   const std::array<std::string, 2> elbow_state_names_{"joint_3_position", "joint_4_sign"};
 

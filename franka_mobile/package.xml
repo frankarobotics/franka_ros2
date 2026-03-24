@@ -5,7 +5,7 @@
   <version>3.2.2</version>
   <description>franka tmr package</description>
   <maintainer email="support@franka.de">user</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache 2.0</license>
 
   <depend>controller_interface</depend>
   <depend>pluginlib</depend>
