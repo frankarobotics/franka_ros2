@@ -24,8 +24,15 @@ import launch_ros.substitutions
 import launch_testing
 import launch_testing.actions
 import rclpy
+import subprocess
 
 TEST_DURATION = 5.0  # sec
+
+def ensure_gz_sim_not_running():
+    # Kill any remaining Gazebo processes
+    # See https://github.com/ros2/launch/issues/545 for details
+    shell_cmd = ['pkill', '-9', '-f', '^gz sim']
+    subprocess.run(shell_cmd, check=False)
 
 def generate_test_description():
     """Generate the test launch descriptions."""
@@ -76,6 +83,7 @@ class TestExampleController(unittest.TestCase):
     def tearDownClass(cls):
         """Shutdown the ROS context."""
         rclpy.shutdown()
+        ensure_gz_sim_not_running()
 
     def test_has_no_error(self, proc_output):
         """Check if any error messages have been logged."""

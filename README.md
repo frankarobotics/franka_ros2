@@ -232,12 +232,14 @@ ros2 launch franka_bringup mobile_fr3_duo.launch.py \
 
 ### Move the TMRv0.2
 
+Be sure to configure your robot ip in `franka_bringup/config/tmr.config.yaml` and optionally change robot namespace.
+
 You can move the TMRv0.2 either:
 
 - By using a remote XBOX controller:
 
 ```bash
-ros2 launch franka_bringup mobile_teleop.launch.py controller_names:="mobile_cartesian_velocity_example_controller"
+ros2 launch franka_bringup mobile_teleop.launch.py
 ```
 
 This launch file spawns the required additional nodes for remote control.
@@ -246,13 +248,12 @@ This launch file spawns the required additional nodes for remote control.
 
 Launch on one terminal:
 ```bash
-ros2 launch franka_bringup example.launch.py controller_names:="mobile_cartesian_velocity_example_controller"
+ros2 launch franka_bringup example.launch.py controller_names:="swerve_drive_controller" robot_config_file:="tmr.config.yaml"
 ```
 On another terminal launch:
 ```bash
-`ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p stamped:=true --remap /cmd_vel:=/${NS}/mobile_cartesian_velocity_controller/cmd_vel`
+`ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p stamped:=true --remap /cmd_vel:=/swerve_drive_controller/cmd_vel`
 ```
-Replace ${NS} with the corresponding namespace.
 
 ### Run Gazebo examples with ROS 2
 

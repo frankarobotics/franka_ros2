@@ -26,9 +26,10 @@ if(BUILD_TESTING)
     set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
     add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
   endfunction()
-  add_ros_isolated_launch_test(test/test_gazebo_franka_arm_example_controller.py)
-  add_ros_isolated_launch_test(test/test_gazebo_tmr_example_controller.py)
-  add_ros_isolated_launch_test(test/test_gazebo_mobile_fr3_duo_example_controller.py)
+  # TODO add these back when gz sim issue is properly solved on ci
+  # add_ros_isolated_launch_test(test/test_gazebo_franka_arm_example_controller.py)
+  # add_ros_isolated_launch_test(test/test_gazebo_tmr_example_controller.py)
+  # add_ros_isolated_launch_test(test/test_gazebo_mobile_fr3_duo_example_controller.py)
 endif()
 
 ament_package()

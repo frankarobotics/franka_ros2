@@ -32,6 +32,29 @@ from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+cmd_vel_node = """
+import rclpy
+from rclpy.node import Node 
+from geometry_msgs.msg import TwistStamped
+
+class StampedCmdVelPub(Node):
+    def __init__(self):
+        super().__init__('stamped_cmd_vel_pub')
+        self.pub = self.create_publisher(TwistStamped, '/swerve_drive_controller/cmd_vel', 10)
+        self.create_timer(0.01, self.cb)  # 100 Hz
+
+    def cb(self):
+        msg = TwistStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()  
+        msg.header.frame_id = 'base_link'
+        msg.twist.linear.x = 0.1
+        msg.twist.angular.z = 0.1
+        self.pub.publish(msg)
+
+rclpy.init()
+rclpy.spin(StampedCmdVelPub())
+"""
+
 
 def get_robot_description(context: LaunchContext):
 
@@ -132,36 +155,22 @@ def generate_launch_description():
                      executable='rviz2',
                      name='rviz2',
                      namespace=namespace,
-                     arguments=['--display-config', rviz_file, '-f', 'base_link'],
+                     arguments=['--display-config',
+                                rviz_file, '-f', 'world'],
                      condition=IfCondition(rviz))
-
-    joint_state_broadcaster = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=[
-            'joint_state_broadcaster',
-            '--controller-manager-timeout', '30',
-        ],
-        output='screen'
-    )
 
     # Start of the control chain, a simple circular reference
     circle_reference_node = ExecuteProcess(
-        cmd=['ros2', 'topic', 'pub',
-            '/mobile_cartesian_velocity_controller/cmd_vel',
-            'geometry_msgs/msg/TwistStamped',
-            '{header: {frame_id: base_link}, twist: {linear: {x: 0.1}, angular: {z: 0.1}}}',
-            '--rate', '10'
-        ],
-    )
+        cmd=['python3', '-c', cmd_vel_node], output='screen')
 
-
-    # Let's use the cartesian velocity example controller 
+    # Let's use the cartesian velocity example controller
     mobile_cartesian_velocity_controller_node = Node(
         package='controller_manager',
         executable='spawner',
         arguments=[
-            'mobile_cartesian_velocity_controller',
+            'joint_state_broadcaster',
+            'swerve_ik_controller',
+            'swerve_drive_controller',
             '--controller-manager-timeout', '30',
         ],
         parameters=[PathJoinSubstitution([
@@ -170,13 +179,6 @@ def generate_launch_description():
             'franka_gazebo_controllers.yaml'
         ])],
         output='screen',
-    )
-
-    # For gazebo, let's chain the ik controller to simulate the tmr master controller's ik
-    swerve_ik_controller_node = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["swerve_ik_controller"],
     )
 
     return LaunchDescription([
@@ -191,30 +193,8 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=spawn,
-                on_exit=[joint_state_broadcaster],
-            )
-        ),
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=joint_state_broadcaster,
-                on_exit=[swerve_ik_controller_node], 
-            )
-        ),
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=swerve_ik_controller_node,
-                on_exit=[mobile_cartesian_velocity_controller_node], 
+                on_exit=[mobile_cartesian_velocity_controller_node],
             )
         ),
         circle_reference_node,
-        RegisterEventHandler(
-            OnShutdown(
-                on_shutdown=[
-                    ExecuteProcess(
-                        cmd=['pkill', '-SIGINT', '-f', 'gz sim'],
-                        name='gz_sim_graceful_shutdown',
-                    )
-                ]
-            )
-        )
     ])

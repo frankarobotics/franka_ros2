@@ -230,6 +230,7 @@ def generate_robot_nodes(context):
                 executable='spawner',
                 namespace=namespace,
                 arguments=[
+                    'swerve_drive_controller',
                     controller_name,
                     '--controller-manager-timeout',
                     '30'],

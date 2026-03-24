@@ -98,6 +98,9 @@
       
       mobile_fr3_duo_joint_impedance_example_controller:
         type: franka_example_controllers/MobileFr3DuoJointImpedanceExampleController
+      
+      swerve_drive_controller:
+        type: franka_mobile/SwerveDriveController
 
 
 /**:
@@ -215,6 +218,7 @@
 /**:
   mobile_fr3_duo_joint_impedance_example_controller:
     ros__parameters:
+      cartesian_velocity_interface_prefix: swerve_drive_controller/ # let's chain to the swerve_drive_controller !
       update_rate: 1000
       k_gains:
         - 24.0
@@ -232,3 +236,43 @@
         - 1.0
         - 1.0
         - 0.5
+
+
+/**:
+  swerve_drive_controller:
+    ros__parameters:
+      wheel_1_link_name: argo_drive_front_link
+      wheel_2_link_name: argo_drive_rear_link
+      tf_frame_id: base
+
+      linear:
+        x:
+          has_velocity_limits    : true
+          max_velocity           : 0.1  # m/s
+          min_velocity           : -0.1 # m/s
+          has_acceleration_limits: true
+          max_acceleration       : 0.1  # m/s^2
+          min_acceleration       : -0.1 # m/s^2
+          has_jerk_limits        : false
+          max_jerk               : 10.0  # m/s^3
+          min_jerk               : -10.0  # m/s^3
+        y:
+          has_velocity_limits    : true
+          max_velocity           : 0.1  # m/s
+          min_velocity           : -0.1 # m/s
+          has_acceleration_limits: true
+          max_acceleration       : 0.1  # m/s^2
+          min_acceleration       : -0.1 # m/s^2
+          has_jerk_limits        : false
+          max_jerk               : 10.0  # m/s^3
+          min_jerk               : -10.0  # m/s^3
+      angular:
+        z:
+          has_velocity_limits    : true
+          max_velocity           : 0.1  # rad/s
+          has_acceleration_limits: true
+          max_acceleration       : 0.1  # rad/s^2
+          min_acceleration       : -0.1  # rad/s^2
+          has_jerk_limits        : false
+          max_jerk               : 10.0  # rad/s^3
+          min_jerk               : -10.0  # rad/s^3
