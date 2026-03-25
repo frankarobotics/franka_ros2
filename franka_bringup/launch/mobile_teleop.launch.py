@@ -15,13 +15,10 @@
 import os
 
 from ament_index_python.packages import get_package_share_directory
-
 import franka_bringup.launch_utils as launch_utils
-
 import launch
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            OpaqueFunction)
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -83,9 +80,7 @@ def generate_robot_nodes(context):
                 remappings=[
                     (
                         '/' + namespace + '/cmd_vel',
-                        '/'
-                        + namespace
-                        + '/mobile_cartesian_velocity_controller/cmd_vel',
+                        '/' + namespace + '/swerve_drive_controller/cmd_vel',
                     )
                 ],
             ),
@@ -98,7 +93,7 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(
                 'controller_names',
-                default_value="swerve_drive_controller",
+                default_value='swerve_drive_controller',
                 description='Name of the controller to be used',
             ),
             DeclareLaunchArgument(
