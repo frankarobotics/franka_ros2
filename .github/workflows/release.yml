@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get tag name
+        id: tag
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          # Extract the section for this tag from CHANGELOG.rst
+          # Matches from the version header until the next version header
+          CHANGELOG=$(awk -v tag="$TAG" '
+            BEGIN { found=0; content="" }
+            /^v[0-9]+\.[0-9]+\.[0-9]+/ {
+              if (found) exit
+              if (index($0, tag)) { found=1; next }
+            }
+            found && /^[-]+$/ { next }
+            found { content = content $0 "\n" }
+            END { print content }
+          ' CHANGELOG.rst)
+
+          # Write to file to preserve newlines
+          echo "$CHANGELOG" > /tmp/changelog_body.md
+          echo "Extracted changelog for $TAG:"
+          cat /tmp/changelog_body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: franka_ros2 ${{ steps.tag.outputs.tag }}
+          body_path: /tmp/changelog_body.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
