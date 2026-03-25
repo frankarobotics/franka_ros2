@@ -5,6 +5,7 @@ UNRELEASED
 ----------
 
 * chore: refactored cartesian velocity example controller to be gazebo independent by chaining `swerve_ik_controller`
+* docu: Maintenance work on documentation
 
 v2.3.0 (2026-03-10)
 -------------------
@@ -14,7 +15,7 @@ Requires libfranka >= 0.20.4 and franka_description >= 1.6.1 requires ROS 2 Humb
 * feat: franka_mobile_sensors: add visualization of sensors in rviz
 * feat: integration_launch_testing: test example controllers using example.launch.py
 * fix: gripper_example_controller also works without namespace
-* fix: corrected logs in franka_hardware 
+* fix: corrected logs in franka_hardware
 * fix: gravity_compensation_example_controller, move_to_start_example_controller, joint_impedance_example_controller work with parametrized robot_type
 * fix: joint_impedance_with_ik_example_controller checked for 'robot_id' instead of 'robot_type' argument
 * fix: added missing dependency to rclcpp_action in franka_hardware package.xml

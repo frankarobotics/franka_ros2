@@ -22,7 +22,7 @@ This controller moves the robot to its home configuration.
 
     ros2 launch franka_bringup example.launch.py controller_names:=move_to_start_example_controller
 
-.. _gravity_example:
+.. _gravity_example_humble:
 
 Gravity Compensation
 ^^^^^^^^^^^^^^^^^^^^
@@ -133,9 +133,9 @@ This example uses the CartesianElbow interface to send periodic elbow commands t
     ros2 launch franka_bringup example.launch.py controller_names:=elbow_example_controller
 
 Mobile Cartesian Velocity Example
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This controller subscribes to a topic that publishes cartesian velocities and forwards them to the 
+This controller subscribes to a topic that publishes cartesian velocities and forwards them to the
 robot after going through a rate limiter.
 
 .. code-block:: shell
@@ -144,7 +144,7 @@ robot after going through a rate limiter.
 
 
 Writing Custom Controllers
----------------------------
+--------------------------
 
 Compared to ``franka_ros`` we currently offer a reduced set of controller interfaces:
 
@@ -163,7 +163,7 @@ Compared to ``franka_ros`` we currently offer a reduced set of controller interf
     They are stored in the state_interface as double pointers and casted back to their original objects inside the franka_semantic_component class.
 
     Example of using franka_model can be found in the franka_example_controllers package:
-    `model_example_controller <https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_example_controllers/src/model_example_controller.cpp>`_.
+    `model_example_controller <https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_example_controllers/src/fr3/model_example_controller.cpp>`_.
 
 
 You can base your own controller on one of the example controllers in this package. To compute kinematic

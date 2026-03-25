@@ -1,17 +1,6 @@
 franka_bringup
 ==============
 
-.. note::
-
- ``franka_ros2`` is not supported on Windows.
-
-The `franka_ros2 repo <https://github.com/frankarobotics/franka_ros2>`_ contains a ROS 2 integration of
-`libfranka <https://frankarobotics.github.io/libfranka/>`_.
-
-.. caution::
-    franka_ros2 is in rapid development. Anticipate breaking changes. Report bugs on
-    `GitHub <https://github.com/frankarobotics/franka_ros2/issues>`_.
-
 Installation
 ------------
 
@@ -25,7 +14,7 @@ can be used to start the robot without any controllers.
 
 When you start the robot with::
 
-    ros2 launch franka_bringup franka.launch.py robot_type:=fr3 robot_ip:=<fci-ip> use_rviz:=true
+    ros2 launch franka_bringup franka.launch.py robot_type:=fr3 robot_ip:=<fci-ip>
 
 There is no controller running apart from the ``joint_state_broadcaster``. However, a connection with the robot is still
 established and the current robot pose is visualized in RViz. In this mode the robot can be guided when the user stop
@@ -87,7 +76,7 @@ Then, to run the ``move_to_start_example_controller``, use the following command
 
 .. code-block:: shell
 
-    ros2 launch franka_bringup example.launch.py controller_name:=move_to_start_example_controller
+    ros2 launch franka_bringup example.launch.py controller_names:=move_to_start_example_controller
 
 Non-realtime robot parameter setting
 ------------------------------------
@@ -132,9 +121,9 @@ Here is a minimal example:
 
 .. code-block:: shell
 
-    ros2 service call /service_server/set_joint_stif
-    fness franka_msgs/srv/SetJointStiffness "{joint_stiffness: [1000.0, 1000.0, 10
-    00.0, 1000.0, 1000.0, 1000.0, 1000.0]}"
+    ros2 service call /service_server/set_joint_stiffness \
+      franka_msgs/srv/SetJointStiffness \
+      "{joint_stiffness: [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]}"
 
 .. important::
 
