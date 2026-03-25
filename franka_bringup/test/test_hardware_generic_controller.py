@@ -37,7 +37,6 @@ import launch_testing
 import launch_testing.actions
 import rclpy
 
-
 test_parameters = [
     {
         'name': 'joint_position_example_controller',
@@ -90,10 +89,7 @@ def generate_test_description(test_parameter):
     # If NEEDS_MOVE_TO_START is true, spawn in inactive mode so we can run move_to_start first
     # The test code will then activate this controller after move_to_start completes
     spawner_args = [controller_name, '--controller-manager-timeout', '30']
-    if (
-        needs_move_to_start
-        and controller_name != 'move_to_start_example_controller'
-    ):
+    if needs_move_to_start and controller_name != 'move_to_start_example_controller':
         spawner_args.append('--inactive')
 
     controller_spawner = Node(
@@ -170,12 +166,10 @@ class TestGenericController(unittest.TestCase):
                 f'Running {MOVE_TO_START_CONTROLLER} to move robot to start position '
                 f'before testing {controller_name}...'
             )
-            move_to_start_success = (
-                run_move_to_start_and_switch_to_target_controller(
-                    self.link_node,
-                    target_controller=controller_name,
-                    wait_duration_sec=30.0,
-                )
+            move_to_start_success = run_move_to_start_and_switch_to_target_controller(
+                self.link_node,
+                target_controller=controller_name,
+                wait_duration_sec=30.0,
             )
             self.assertTrue(
                 move_to_start_success,
