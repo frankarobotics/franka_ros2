@@ -24,8 +24,8 @@
 
 namespace franka_mobile {
 
-using franka_semantic_components::FrankaCartesianVelocityInterface;
 using franka_semantic_components::FrankaCartesianPoseInterface;
+using franka_semantic_components::FrankaCartesianVelocityInterface;
 
 controller_interface::InterfaceConfiguration
 SwerveDriveController::command_interface_configuration() const {
@@ -39,8 +39,13 @@ controller_interface::InterfaceConfiguration SwerveDriveController::state_interf
     const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
+#if RCLCPP_VERSION_MAJOR > 16
   config.names = franka_cartesian_pose_->get_state_interface_names();
+#else  // let's use the joint position/velocity state interfaces for feedback, available both on
+       // simulation and real hardware
+  config.names = {
+      state_interface_prefix_ + "joint_0/position", state_interface_prefix_ + "joint_1/velocity",
+      state_interface_prefix_ + "joint_2/position", state_interface_prefix_ + "joint_3/velocity"};
 #endif
   return config;
 }
@@ -64,31 +69,12 @@ SwerveDriveController::on_export_reference_interfaces() {
   return interfaces;
 }
 
-
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
-controller_interface::return_type SwerveDriveController::update_reference_from_subscribers(
-    const rclcpp::Time& time,
-
-    const rclcpp::Duration& /*period*/) {
-  const auto age_of_last_command = (time - received_velocity_msg_.get().header.stamp).seconds();
-  double command_linear_x = 0.0, command_linear_y = 0.0, command_angular_z = 0.0;
-  if (age_of_last_command < cmd_vel_timeout_) {
-    command_linear_x = received_velocity_msg_.get().twist.linear.x;
-    command_linear_y = received_velocity_msg_.get().twist.linear.y;
-    command_angular_z = received_velocity_msg_.get().twist.angular.z;
-  }
-
-  reference_interfaces_[FrankaCartesianVelocityInterface::VX] = command_linear_x;
-  reference_interfaces_[FrankaCartesianVelocityInterface::VY] = command_linear_y;
-  reference_interfaces_[FrankaCartesianVelocityInterface::WZ] = command_angular_z;
-  return controller_interface::return_type::OK;
-}
-#else 
 controller_interface::return_type SwerveDriveController::update_reference_from_subscribers() {
   const rclcpp::Time time = this->get_node()->now();
   geometry_msgs::msg::TwistStamped::SharedPtr msg;
   received_velocity_msg_.get(msg);
-  if (msg == nullptr) return controller_interface::return_type::OK;
+  if (msg == nullptr)
+    return controller_interface::return_type::OK;
   const auto age_of_last_command = (time - msg->header.stamp).seconds();
   double command_linear_x = 0.0, command_linear_y = 0.0, command_angular_z = 0.0;
   if (age_of_last_command < cmd_vel_timeout_) {
@@ -102,8 +88,6 @@ controller_interface::return_type SwerveDriveController::update_reference_from_s
   reference_interfaces_[FrankaCartesianVelocityInterface::WZ] = command_angular_z;
   return controller_interface::return_type::OK;
 }
-
-#endif
 
 controller_interface::return_type SwerveDriveController::update_and_write_commands(
     const rclcpp::Time& time,
@@ -128,7 +112,7 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
   } else {
     // update twist by differentiating the cartesian pose from the state interface
     // warning: noisy at 1khz!!
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
+#if RCLCPP_VERSION_MAJOR > 16  // on jazzy, we get direct feedback from the cartesian pose interface
     const auto [q, p] = franka_cartesian_pose_->getCurrentOrientationAndTranslation();
     const double dt = period.seconds();
     const Eigen::Vector3d dp = (p - p_) / dt;
@@ -143,6 +127,22 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
                      1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
     p_ = p;
     q_ = q;
+#else  // on humble, we retrieve odometry feedback via forward kinematics from joint
+       // position/velocity state interfaces, present both in simulation and real hardware
+    const double estimate_steering_position_wheel_1 = state_interfaces_[0].get_value();
+    const double estimate_drive_velocity_wheel_1 = state_interfaces_[1].get_value();
+    const double estimate_steering_position_wheel_2 = state_interfaces_[2].get_value();
+    const double estimate_drive_velocity_wheel_2 = state_interfaces_[3].get_value();
+    const std::array<double, 2> steerings{estimate_steering_position_wheel_1,
+                                          estimate_steering_position_wheel_2};
+    const std::array<double, 2> velocities{estimate_drive_velocity_wheel_1,
+                                           estimate_drive_velocity_wheel_2};
+    swerve_kinematics_->forwardKinematics(steerings, velocities, vx, vy, wz);
+    odometry_.update(vx, vy, wz, time);
+    vx = odometry_.getLinearX();
+    vy = odometry_.getLinearY();
+    wz = odometry_.getAngular();
+    yaw = odometry_.getHeading();
 #endif
   }
 
@@ -175,12 +175,7 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
       odom_nav_message_.twist.twist.linear.x = vx;
       odom_nav_message_.twist.twist.linear.y = vy;
       odom_nav_message_.twist.twist.angular.z = wz;
-
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
-      realtime_odom_nav_publisher_->try_publish(odom_nav_message_);
-#else 
       realtime_odom_nav_publisher_->tryPublish(odom_nav_message_);
-#endif
     }
 
     if (enable_odom_tf_msg_ && realtime_odom_tf_publisher_) {
@@ -194,11 +189,7 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
       transform.transform.rotation.y = orientation.y();
       transform.transform.rotation.z = orientation.z();
       transform.transform.rotation.w = orientation.w();
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
-      realtime_odom_tf_publisher_->try_publish(odom_tf_message_);
-#else
       realtime_odom_tf_publisher_->tryPublish(odom_tf_message_);
-#endif
     }
   }
 
@@ -226,19 +217,15 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
     // limited vel is in the same frame as the original one
     geometry_msgs::msg::TwistStamped::SharedPtr msg;
     received_velocity_msg_.get(msg);
-    if(msg != nullptr) {
-    limited_velocity_message_.header.frame_id = msg->header.frame_id;
-    limited_velocity_message_.twist.linear.x = command_linear_x;
-    limited_velocity_message_.twist.linear.y = command_linear_y;
-    limited_velocity_message_.twist.linear.z = 0.0;
-    limited_velocity_message_.twist.angular.x = 0.0;
-    limited_velocity_message_.twist.angular.y = 0.0;
-    limited_velocity_message_.twist.angular.z = command_angular_z;
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
-    realtime_cmd_vel_out_publisher_->try_publish(limited_velocity_message_);
-#else
-    realtime_cmd_vel_out_publisher_->tryPublish(limited_velocity_message_);
-#endif
+    if (msg != nullptr) {
+      limited_velocity_message_.header.frame_id = msg->header.frame_id;
+      limited_velocity_message_.twist.linear.x = command_linear_x;
+      limited_velocity_message_.twist.linear.y = command_linear_y;
+      limited_velocity_message_.twist.linear.z = 0.0;
+      limited_velocity_message_.twist.angular.x = 0.0;
+      limited_velocity_message_.twist.angular.y = 0.0;
+      limited_velocity_message_.twist.angular.z = command_angular_z;
+      realtime_cmd_vel_out_publisher_->tryPublish(limited_velocity_message_);
     }
   }
 
@@ -268,12 +255,10 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
   command_interface_prefix_ = auto_declare<std::string>("command_interface_prefix", "");
   state_interface_prefix_ = auto_declare<std::string>("state_interface_prefix", "");
   franka_cartesian_velocity_ =
-      std::make_unique<FrankaCartesianVelocityInterface>(
-          command_interface_prefix_, false);
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
+      std::make_unique<FrankaCartesianVelocityInterface>(command_interface_prefix_, false);
+#if RCLCPP_VERSION_MAJOR > 16
   franka_cartesian_pose_ =
-      std::make_unique<FrankaCartesianPoseInterface>(
-          state_interface_prefix_, false);
+      std::make_unique<FrankaCartesianPoseInterface>(state_interface_prefix_, false);
 #endif
 
   tf_frame_id_ = auto_declare("tf_frame_id", "world");
@@ -309,6 +294,7 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
 
   odom_tf_message_.transforms.resize(1);
 
+  swerve_kinematics_ = std::make_unique<SwerveKinematics>(wheel_positions, wheel_radius);
   odometry_.init(get_node()->now());
   return CallbackReturn::SUCCESS;
 }
@@ -395,7 +381,7 @@ controller_interface::CallbackReturn SwerveDriveController::on_configure(
 controller_interface::CallbackReturn SwerveDriveController::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   franka_cartesian_velocity_->assign_loaned_command_interfaces(command_interfaces_);
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
+#if RCLCPP_VERSION_MAJOR > 16  // for humble, this is not available
   franka_cartesian_pose_->assign_loaned_state_interfaces(state_interfaces_);
 #endif
   return CallbackReturn::SUCCESS;
@@ -404,7 +390,7 @@ controller_interface::CallbackReturn SwerveDriveController::on_activate(
 controller_interface::CallbackReturn SwerveDriveController::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   franka_cartesian_velocity_->release_interfaces();
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
+#if RCLCPP_VERSION_MAJOR > 16  // for humble, this is not available
   franka_cartesian_pose_->release_interfaces();
 #endif
   return CallbackReturn::SUCCESS;

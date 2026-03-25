@@ -17,6 +17,7 @@
 #include <string>
 #include <queue>
 
+
 #include <controller_interface/chainable_controller_interface.hpp>
 #include <diff_drive_controller/speed_limiter.hpp>
 #include <franka_mobile/swerve_drive_controller_parameters.hpp>
@@ -31,6 +32,7 @@
 #include <realtime_tools/realtime_thread_safe_box.hpp>
 #else
 #include <realtime_tools/realtime_box.hpp>
+#include <franka_mobile/swerve_kinematics.hpp>
 #endif
 #include <tf2_msgs/msg/tf_message.hpp>
 
@@ -51,14 +53,7 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
       const rclcpp::Duration& period) override;
 
   // when not chained
-
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
-  controller_interface::return_type update_reference_from_subscribers(
-      const rclcpp::Time& time,
-      const rclcpp::Duration& period) override;
-#else
   controller_interface::return_type update_reference_from_subscribers() override;
-#endif
 
   CallbackReturn on_init() override;
   CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
@@ -90,18 +85,16 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
   // franka interface
   std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>
       franka_cartesian_velocity_;
+#if RCLCPP_VERSION_MAJOR > 16
   std::unique_ptr<franka_semantic_components::FrankaCartesianPoseInterface> franka_cartesian_pose_;
+#endif
 
   // pub/sub
   geometry_msgs::msg::TwistStamped limited_velocity_message_;
   tf2_msgs::msg::TFMessage odom_tf_message_;
   nav_msgs::msg::Odometry odom_nav_message_;
 
-#if RCLCPP_VERSION_MAJOR > 16
-  realtime_tools::RealtimeThreadSafeBox<geometry_msgs::msg::TwistStamped> received_velocity_msg_;
-#else 
   realtime_tools::RealtimeBox<geometry_msgs::msg::TwistStamped::SharedPtr> received_velocity_msg_;
-#endif
   realtime_tools::RealtimePublisherSharedPtr<nav_msgs::msg::Odometry> realtime_odom_nav_publisher_;
   realtime_tools::RealtimePublisherSharedPtr<tf2_msgs::msg::TFMessage> realtime_odom_tf_publisher_;
   realtime_tools::RealtimePublisherSharedPtr<geometry_msgs::msg::TwistStamped>
@@ -122,6 +115,9 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
   std::unique_ptr<diff_drive_controller::SpeedLimiter> linear_x_limiter_;
   std::unique_ptr<diff_drive_controller::SpeedLimiter> linear_y_limiter_;
   std::unique_ptr<diff_drive_controller::SpeedLimiter> angular_z_limiter_;
+  
+  // for humble
+  std::unique_ptr<SwerveKinematics> swerve_kinematics_ = nullptr;
 
   std::shared_ptr<swerve_drive_controller::ParamListener> param_listener_;
   swerve_drive_controller::Params params_;

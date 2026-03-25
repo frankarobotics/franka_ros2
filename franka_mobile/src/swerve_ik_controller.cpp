@@ -109,33 +109,22 @@ controller_interface::return_type SwerveIKController::update_and_write_commands(
       return controller_interface::return_type::OK;  // do nothing
     }
 
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
-    for (size_t i = 0; i < 2; ++i) {
-      if (!command_interfaces_[2 * i].set_value(steering_angles[i])) {
-        RCLCPP_WARN(get_node()->get_logger(), "Failed to set steering angle for wheel %zu: %f", i,
-                    steering_angles[i]);
-      }
-      if (!command_interfaces_[2 * i + 1].set_value(wheel_speeds[i])) {
-        RCLCPP_WARN(get_node()->get_logger(), "Failed to set wheel velocity for wheel %zu: %f", i,
-                    wheel_speeds[i]);
-      }
-    }
-#else
     for (size_t i = 0; i < 2; ++i) {
       command_interfaces_[2 * i].set_value(steering_angles[i]);
       command_interfaces_[2 * i + 1].set_value(wheel_speeds[i]);
     }
-#endif
   }
 
-#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
+// in humble we cannot export state interfaces, thus we cannot update 
+// the mocked cartesian pose state interface
+#if RCLCPP_VERSION_MAJOR > 16 
   // update states
   {
-    const double estimate_steering_position_wheel_1 = state_interfaces_[0].get_optional().value();
-    const double estimate_drive_velocity_wheel_1 = state_interfaces_[1].get_optional().value();
+    const double estimate_steering_position_wheel_1 = state_interfaces_[0].get_value();
+    const double estimate_drive_velocity_wheel_1 = state_interfaces_[1].get_value();
 
-    const double estimate_steering_position_wheel_2 = state_interfaces_[2].get_optional().value();
-    const double estimate_drive_velocity_wheel_2 = state_interfaces_[3].get_optional().value();
+    const double estimate_steering_position_wheel_2 = state_interfaces_[2].get_value();
+    const double estimate_drive_velocity_wheel_2 = state_interfaces_[3].get_value();
 
     const std::array<double, 2> steerings{estimate_steering_position_wheel_1,
                                           estimate_steering_position_wheel_2};
