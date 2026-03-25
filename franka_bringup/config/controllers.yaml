@@ -83,15 +83,6 @@
 
       move_to_start_example_controller:
         type: franka_example_controllers/MoveToStartExampleController
-
-      mobile_cartesian_velocity_example_controller:
-        type: franka_example_controllers/MobileCartesianVelocityExampleController
-
-      fr3_duo_self_collision_example_controller:
-        type: franka_example_controllers/Fr3DuoSelfCollisionExampleController
-      
-      mobile_fr3_duo_joint_impedance_example_controller:
-        type: franka_example_controllers/MobileFr3DuoJointImpedanceExampleController
       
       swerve_drive_controller:
         type: franka_mobile/SwerveDriveController
@@ -165,77 +156,12 @@
         - 10.0
         - 5.0
 
-
-/**:
-  fr3_duo_joint_impedance_example_controller:
-    ros__parameters:
-      update_rate: 1000
-      k_gains:
-        - 24.0
-        - 24.0
-        - 24.0
-        - 24.0
-        - 10.0
-        - 6.0
-        - 2.0
-      d_gains:
-        - 2.0
-        - 2.0
-        - 2.0
-        - 1.0
-        - 1.0
-        - 1.0
-        - 0.5
-
-/**:
-  fr3_duo_self_collision_example_controller:
-    ros__parameters:
-      update_rate: 1000
-      k_gains:
-        - 600.0
-        - 600.0
-        - 600.0
-        - 600.0
-        - 250.0
-        - 150.0
-        - 50.0
-      d_gains:
-        - 30.0
-        - 30.0
-        - 30.0
-        - 30.0
-        - 10.0
-        - 10.0
-        - 5.0
-
-/**:
-  mobile_fr3_duo_joint_impedance_example_controller:
-    ros__parameters:
-      cartesian_velocity_interface_prefix: swerve_drive_controller/ # let's chain to the swerve_drive_controller !
-      update_rate: 1000
-      k_gains:
-        - 24.0
-        - 24.0
-        - 24.0
-        - 24.0
-        - 10.0
-        - 6.0
-        - 2.0
-      d_gains:
-        - 2.0
-        - 2.0
-        - 2.0
-        - 1.0
-        - 1.0
-        - 1.0
-        - 0.5
-
-
 /**:
   swerve_drive_controller:
     ros__parameters:
       wheel_1_link_name: argo_drive_front_link
       wheel_2_link_name: argo_drive_rear_link
+      state_interface_prefix: tmrv0_2_
       tf_frame_id: base
 
       linear:
