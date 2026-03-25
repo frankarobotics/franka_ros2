@@ -78,7 +78,7 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   void initializePositionCommands(const franka::RobotState& robot_state);
 
   // Support Franka ros2 control interface version
-  const int kSupportedControlInterfaceMajor = 0;
+  const int kSupportedControlInterfaceMajor = 1;
 
   // Initialize joint position commands in the first pass
   bool first_elbow_update_{true};
