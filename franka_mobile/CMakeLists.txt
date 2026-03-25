@@ -77,6 +77,7 @@ install(
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+  find_package(ament_cmake_gtest REQUIRED)
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files
   set(ament_cmake_copyright_FOUND TRUE)
@@ -86,6 +87,17 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   # TODO add this back when gz sim issue is properly solved on ci
   # ament_lint_auto_find_test_dependencies()
+
+  function (add_franka_mobile_test test_name source_file)
+    ament_add_gtest(${test_name} ${source_file})
+    target_include_directories(${test_name} PRIVATE include)
+    target_link_libraries(${test_name} ${PROJECT_NAME})
+    ament_target_dependencies(${test_name} rclcpp)
+  endfunction()
+
+  add_franka_mobile_test(test_odometry test/test_odometry.cpp)
+  add_franka_mobile_test(test_swerve_kinematics test/test_swerve_kinematics.cpp)
+
 endif()
 
 ament_export_libraries(franka_mobile)

@@ -19,7 +19,7 @@ namespace franka_mobile {
 
 SwerveKinematics::SwerveKinematics(const std::array<Eigen::Vector2d, 2>& wheel_positions,
                                    double wheel_radius)
-    : wheel_positions_(wheel_positions), wheel_radius_(wheel_radius) {
+    : steering_angles_({0, 0}), wheel_positions_(wheel_positions), wheel_radius_(wheel_radius) {
   if (!std::isfinite(wheel_radius) || fabs(wheel_radius) < 1e-3 || wheel_radius < 0) {
     throw std::invalid_argument("Wheel radius must be positive");
   }
