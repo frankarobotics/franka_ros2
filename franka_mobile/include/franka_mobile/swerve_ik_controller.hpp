@@ -23,8 +23,10 @@
 
 #include <controller_interface/chainable_controller_interface.hpp>
 
-namespace franka_example_controllers {
+namespace franka_mobile {
 
+class Odometry;
+class SwerveKinematics;
 /**
  * SwerveIK is a simple chainable controller that performs IK for TMR. Currently only used for
  * gazebo simulation.
@@ -56,14 +58,20 @@ class SwerveIKController : public controller_interface::ChainableControllerInter
 
  protected:
   std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() override;
-
+#if RCLCPP_VERSION_MAJOR > 16 // for humble, this is not available
+  std::vector<hardware_interface::StateInterface> on_export_state_interfaces() override;
+  controller_interface::return_type update_reference_from_subscribers(
+      const rclcpp::Time& time,
+      const rclcpp::Duration& period) override;
+#else
   controller_interface::return_type update_reference_from_subscribers() override;
+#endif
 
  private:
-  Eigen::Vector4d wheel_positions_, steering_angles_, wheel_velocities_;
-  double wheel_radius_{0.0};
+  std::unique_ptr<SwerveKinematics> swerve_kinematics_;
+  std::unique_ptr<Odometry> odometry_;
 
   std::string prefix_;
 };
 
-}  // namespace franka_example_controllers
+}  // namespace franka_mobile

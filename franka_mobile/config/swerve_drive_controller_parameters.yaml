@@ -1,0 +1,205 @@
+swerve_drive_controller:
+
+  wheel_1_link_name: {
+    type: string,
+    default_value: "wheel_1",
+    description: "The link name in the urdf for wheel 1. This frame will be used to recover parameters for the swerve kinematics",
+  }
+
+  wheel_2_link_name: {
+    type: string,
+    default_value: "wheel_2",
+    description: "The link name in the urdf for wheel 2. This frame will be used to recover parameters for the swerve kinematics",
+  }
+
+  cmd_vel_topic: {
+    type: string,
+    default_value: "/cmd_vel",
+    description: "Topic name for incoming velocity commands.",
+  }
+
+  cmd_vel_timeout: {
+    type: double,
+    default_value: 0.5,
+    description: "Timeout for cmd_vel subscription in seconds. If no message is received within this time, the controller will stop.",
+  }
+
+  odom_open_loop: {
+    type: bool,
+    default_value: false,
+    description: "If true, the odometry will be computed using the command/reference twist. If false, we will use the estimate twist from the forward kinematics coming from joint position/velocities",
+  }
+
+  base_link_frame_id: {
+    type: string,
+    default_value: "base_link",
+    description: "Robot's base frame ID for odometry and TF."
+  }
+
+  odom_frame_id: {
+    type: string,
+    default_value: "world",
+    description: "Odometry frame ID for odometry and TF."
+  }
+
+  enable_odom_tf: {
+    type: bool,
+    default_value: true,
+    description: "Enable/disable publishing of odom -> base_frame TF."
+  }
+
+  enable_odom_nav: {
+    type: bool,
+    default_value: true,
+    description: "Enable/disable publishing of odom nav message"
+  }
+
+  odom_pose_covariance_diagonal: {
+    type: double_array,
+    default_value: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001],
+    description: "Diagonal elements of the pose covariance matrix (x, y, z, roll, pitch, yaw).",
+    validation: {
+      fixed_size<>: [6]
+    }
+  }
+
+  odom_twist_covariance_diagonal: {
+    type: double_array,
+    default_value: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001],
+    description: "Diagonal elements of the twist covariance matrix (vx, vy, vz, vroll, vpitch, vyaw).",
+    validation: {
+      fixed_size<>: [6]
+    }
+  }
+
+  velocity_rolling_window_size: {
+    type: int,
+    default_value: 1,
+    description: "Size of the rolling window for averaging wheel velocities in odometry. 1 means no averaging."
+  }
+
+  enabled_speed_limits: {
+    type: bool,
+    default_value: true,
+    description: "Enable/disable limits on the commanded speed."
+  }
+
+  publish_limited_velocity: {
+    type: bool,
+    default_value: true,
+    description: "Enable/disable publishing of the limited velocity."
+  }
+
+  linear:
+    x:
+      has_velocity_limits: {
+        type: bool,
+        default_value: false,
+      }
+      has_acceleration_limits: {
+        type: bool,
+        default_value: false,
+      }
+      has_jerk_limits: {
+        type: bool,
+        default_value: false,
+      }
+      max_velocity: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_velocity: {
+        type: double,
+        default_value: .NAN,
+      }
+      max_acceleration: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_acceleration: {
+        type: double,
+        default_value: .NAN,
+      }
+      max_jerk: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_jerk: {
+        type: double,
+        default_value: .NAN,
+      }
+    y:
+      has_velocity_limits: {
+        type: bool,
+        default_value: false,
+      }
+      has_acceleration_limits: {
+        type: bool,
+        default_value: false,
+      }
+      has_jerk_limits: {
+        type: bool,
+        default_value: false,
+      }
+      max_velocity: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_velocity: {
+        type: double,
+        default_value: .NAN,
+      }
+      max_acceleration: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_acceleration: {
+        type: double,
+        default_value: .NAN,
+      }
+      max_jerk: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_jerk: {
+        type: double,
+        default_value: .NAN,
+      }
+  angular:
+    z:
+      has_velocity_limits: {
+        type: bool,
+        default_value: false,
+      }
+      has_acceleration_limits: {
+        type: bool,
+        default_value: false,
+      }
+      has_jerk_limits: {
+        type: bool,
+        default_value: false,
+      }
+      max_velocity: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_velocity: {
+        type: double,
+        default_value: .NAN,
+      }
+      max_acceleration: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_acceleration: {
+        type: double,
+        default_value: .NAN,
+      }
+      max_jerk: {
+        type: double,
+        default_value: .NAN,
+      }
+      min_jerk: {
+        type: double,
+        default_value: .NAN,
+      }

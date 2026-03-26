@@ -39,6 +39,7 @@ def load_controller(context: LaunchContext, controller_name):
         package='controller_manager',
         executable='spawner',
         arguments=[
+            'joint_state_broadcaster',
             controller_name_str,
             '--controller-manager-timeout', '30',
         ],
@@ -168,16 +169,6 @@ def generate_launch_description():
                      arguments=['--display-config', rviz_file, '-f', 'base_link'],
                      condition=IfCondition(rviz))
 
-    joint_state_broadcaster = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=[
-            'joint_state_broadcaster',
-            '--controller-manager-timeout', '30',
-        ],
-        output='screen'
-    )
-
     launch_controller = OpaqueFunction(
         function=load_controller,
         args=[controller]
@@ -198,12 +189,6 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=spawn,
-                on_exit=[joint_state_broadcaster],
-            )
-        ),
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=joint_state_broadcaster,
                 on_exit=[launch_controller],
             )
         ),

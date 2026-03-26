@@ -62,6 +62,7 @@ RUN sudo apt-get update \
         ros-humble-realtime-tools \
         ros-humble-joint-state-publisher \
         ros-humble-joint-state-broadcaster \
+        ros-humble-diff-drive-controller \
         ros-humble-moveit-ros-move-group \
         ros-humble-moveit-kinematics \
         ros-humble-moveit-planners-ompl \

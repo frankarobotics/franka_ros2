@@ -1,0 +1,20 @@
+# Configuration file for example.launch.py
+# Defines parameters for launching 0 to many (here only 1 is enabled)
+# Franka Robotics components in
+# namespaced or non-namespaced environments.
+#
+# Note: This is a launch configuration file, not a node parameter file (see: controllers.yaml).
+# Ensure all boolean values are quoted ("true" or "false") to avoid YAML parsing issues.
+# Not all parameters are currently used but are included for future compatibility.
+# Ensure each robot has a unique namespace to prevent topic conflicts.
+
+ROBOT1: # Arbitrary identifier for the first robot (a Mnemonic) 
+  robot_type: "tmrv0_2" # Reserved for future use, unique arm (i.e. robot model) identifier
+  arm_prefix: "" # Reserved for future use (e.g., robot unique prefix)
+  fake_sensor_commands: "false" # Enable fake sensor commands for simulation
+  joint_state_rate: 30 # Publishing rate for joint states (Hz)
+  load_gripper: "false" # Enable Franka Gripper ("true" or "false")
+  namespace: "" # Namespace for robot, any string (empty string allowed - meaningful names recommended)
+  robot_ip: "172.16.16.10" # Robot’s IP address or hostname
+  use_fake_hardware: "false" # Use simulated hardware ("true" or "false")
+  use_rviz: "true" # Launch RViz if "true" (single instance for all namespaces)

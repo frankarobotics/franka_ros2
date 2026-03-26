@@ -6,6 +6,7 @@ UNRELEASED
 
 * chore: refactored cartesian velocity example controller to be gazebo independent by chaining `swerve_ik_controller`
 * docu: Maintenance work on documentation
+* feat: Added `franka_mobile` package with `swerve_drive_controller` (tf and odom support) and `swerve_ik_controller` for gazebo sim.
 
 v2.3.0 (2026-03-10)
 -------------------

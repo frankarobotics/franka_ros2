@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>franka_mobile</name>
+  <version>3.2.2</version>
+  <description>franka tmr package</description>
+  <maintainer email="support@franka.de">user</maintainer>
+  <license>Apache 2.0</license>
+
+  <depend>controller_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>franka_semantic_components</depend>
+  <depend>tf2</depend>
+  <depend>tf2_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>diff_drive_controller</depend>
+  <depend>generate_parameter_library</depend>
+  <depend>realtime_tools</depend>
+  <depend>kdl_parser</depend>
+  <depend>urdf</depend>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
