@@ -54,9 +54,15 @@ if(BUILD_TESTING)
 
     if(CHECK_TIDY)
         find_package(ament_cmake_clang_tidy REQUIRED)
-        set(ament_cmake_clang_tidy_CONFIG_FILE ../../.clang-tidy)
-        ament_clang_tidy(${CMAKE_BINARY_DIR} --jobs 6)
-        set_tests_properties(clang_tidy PROPERTIES TIMEOUT 600) # override default 300s
+        # Get src directory (parent of package source tree)
+        get_filename_component(SRC_DIR "${CMAKE_SOURCE_DIR}/../.." ABSOLUTE)
+        set(FILTER_SCRIPT "${SRC_DIR}/.run_clang_tidy_filtered.sh")
+        set(CLANG_TIDY_CONFIG "${SRC_DIR}/.clang-tidy")
+        # Use wrapper script to filter compile_commands.json before clang-tidy
+        add_test(NAME clang_tidy
+            COMMAND bash "${FILTER_SCRIPT}" "${CMAKE_BINARY_DIR}" --jobs 6 --config "${CLANG_TIDY_CONFIG}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        )
     endif()
 endif()
 
