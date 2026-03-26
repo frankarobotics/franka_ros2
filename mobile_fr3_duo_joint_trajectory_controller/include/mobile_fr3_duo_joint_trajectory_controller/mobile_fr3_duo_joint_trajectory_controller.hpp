@@ -147,16 +147,8 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
   void commandArmPosition(const std::array<double, 7>& position, size_t arm_index);
   void commandMobileBaseVelocity(const std::array<double, 3>& mobile_base_velocities,
                                  const std::array<double, 3>& mobile_base_positions);
-  void sort_to_local_joint_order(
-      std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg) const;
-
-  // TODO (wink_ma) extract functions that do not have to belong to this class necessarily
   void initializeState(trajectory_msgs::msg::JointTrajectoryPoint& state,
                        const std::vector<std::string>& joint_names);
-  std::array<size_t, 7> getArmJointMap(std::vector<std::string> joint_names, std::string side);
-  std::array<size_t, 3> getMobileBaseJointMap(
-      std::vector<std::string> joint_names,
-      std::array<std::string, 3> expected_joint_names) const;
 };
 
 }  // namespace mobile_fr3_duo_joint_trajectory_controller

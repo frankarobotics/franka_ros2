@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(mobile_fr3_duo_joint_trajectory_controller)
 
 if(NOT CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
@@ -99,25 +99,24 @@ set(CPP_DIRECTORIES src include)
         ament_flake8()
         ament_pep257()
         ament_xmllint()
-        #    src/mobile_fr3_duo_joint_trajectory_controller/test/mobile_fr3_duo_trajectory_controller_test.cpp
-        
+
         find_package(ament_cmake_gmock REQUIRED)
         ament_add_gmock(${PROJECT_NAME}_test
                 test/mobile_fr3_duo_trajectory_controller_test.cpp
         )
-        
+
         target_compile_definitions(${PROJECT_NAME}_test PRIVATE
                 "TEST_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/test\"")
-        
+
         target_link_libraries(${PROJECT_NAME}_test
                 ${PROJECT_NAME}
         )
-        
+
         target_include_directories(${PROJECT_NAME}_test PRIVATE
                 include
         )
 endif()
-    
+
 ament_export_include_directories(
         include
 )

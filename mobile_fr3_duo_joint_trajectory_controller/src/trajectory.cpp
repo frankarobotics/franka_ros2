@@ -14,7 +14,6 @@
 
 #include "mobile_fr3_duo_joint_trajectory_controller/trajectory.hpp"
 
-// #include <algorithm>
 #include <cmath>
 #include <memory>
 

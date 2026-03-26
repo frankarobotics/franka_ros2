@@ -12,9 +12,6 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-
-    swerve_ik_controller:
-      type: franka_example_controllers/SwerveIKController
      
     franka_robot_state_broadcaster:
       type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
@@ -30,10 +27,6 @@ franka_robot_state_broadcaster:
     lock_update_success: true # return update OK, although lock fails (no update occurs)
     arm_prefix: ""
     robot_type: "tmrv0_2"
-
-swerve_ik_controller:
-  ros__parameters:
-    prefix: "tmrv0_2"
 
 full_body_controller:
   ros__parameters:

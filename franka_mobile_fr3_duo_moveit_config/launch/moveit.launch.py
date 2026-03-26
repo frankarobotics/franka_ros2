@@ -120,6 +120,7 @@ def get_joint_state_publisher(namespace):
                 {
                     'source_list': ['franka/joint_states'],
                     'rate': 30,
+                    'use_robot_description': False,
                 }
         ],
     )
@@ -278,7 +279,8 @@ def get_controller_nodes(package_name, simulate_in_gazebo, namespace):
     joint_state_broadcaster_node = Node(
                 package="controller_manager",
                 executable="spawner",
-                arguments=["joint_state_broadcaster", '--controller-manager-timeout', '30'],
+                arguments=["joint_state_broadcaster", '--controller-manager-timeout', '30', '--controller-ros-args',
+                '--remap joint_states:=/franka/joint_states'],
                 parameters=[
                     PathJoinSubstitution(
                         [
@@ -419,11 +421,12 @@ def generate_nodes(context):
             ros2_control_node,
             joint_state_publisher,
             rviz_node,
-            franka_robot_state_broadcaster
         ] + controller_nodes
     
     if simulate_in_gazebo == 'true':
         nodes += gazebo_nodes()
+    else:
+        nodes.append(franka_robot_state_broadcaster)
 
     return nodes
 

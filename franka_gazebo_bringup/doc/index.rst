@@ -68,14 +68,7 @@ Then you can run with the following command.
 Joint Impedance Control Example with Gazebo
 --------------------------------------------
 
-For running torque example. You must compile the `franka_ign_ros2_control` package located under `franka_gazebo_bringup`.
-You can compile `franka_ign_ros2_control` with the following command.
-
-.. code-block:: shell
-
-    colcon build --packages-select franka_ign_ros2_control
-
-Then source your workspace.
+Source your workspace.
 
 .. code-block:: shell
 

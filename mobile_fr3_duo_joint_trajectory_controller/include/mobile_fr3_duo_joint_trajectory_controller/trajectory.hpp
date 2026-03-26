@@ -160,29 +160,4 @@ class Trajectory {
   size_t last_sample_idx_ = 0;
 };
 
-/**
- * \return The map between \p t1 indices (implicitly encoded in return vector indices) to \p t2
- * indices. If \p t1 is <tt>"{C, B}"</tt> and \p t2 is <tt>"{A, B, C, D}"</tt>, the associated
- * mapping vector is <tt>"{2, 1}"</tt>. return empty vector if \p t1 is not a subset of \p t2.
- */
-template <class T>
-inline std::vector<size_t> mapping(const T& t1, const T& t2) {
-  // t1 must be a subset of t2
-  if (t1.size() > t2.size()) {
-    return std::vector<size_t>();
-  }
-
-  std::vector<size_t> mapping_vector(t1.size());  // Return value
-  for (auto t1_it = t1.begin(); t1_it != t1.end(); ++t1_it) {
-    auto t2_it = std::find(t2.begin(), t2.end(), *t1_it);
-    if (t2.end() == t2_it) {
-      return std::vector<size_t>();
-    } else {
-      const size_t t1_dist = static_cast<size_t>(std::distance(t1.begin(), t1_it));
-      const size_t t2_dist = static_cast<size_t>(std::distance(t2.begin(), t2_it));
-      mapping_vector[t1_dist] = t2_dist;
-    }
-  }
-  return mapping_vector;
-}
 }  // namespace mobile_fr3_duo_joint_trajectory_controller
