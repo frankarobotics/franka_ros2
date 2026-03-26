@@ -112,6 +112,11 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
   std::shared_ptr<trajectory_msgs::msg::JointTrajectory> hold_position_msg_ptr_ = nullptr;
 
   std::vector<std::string> joint_names_;
+  std::array<size_t, 7> left_arm_joint_map_;
+  std::array<size_t, 7> right_arm_joint_map_;
+  std::array<size_t, 3> mobile_base_joint_map_;
+  std::map<std::pair<size_t, size_t>, size_t> joint_state_map_;
+
   // Dual arm parameters
   std::vector<std::string> robot_types_;
   std::vector<std::string> arm_prefixes_;
@@ -121,26 +126,37 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
   std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>
       franka_cartesian_velocity_;
   std::array<Vector7d, kArms> q_;
-  std::array<Vector7d, kArms> initial_q_;
   std::array<Vector7d, kArms> dq_;
   std::array<Vector7d, kArms> dq_filtered_;
 
   Vector7d k_gains_;
   Vector7d d_gains_;
-  double elapsed_time_{0.0};
+
+  std::tuple<std::array<double, 7>,
+             std::array<double, 7>,
+             std::array<double, 3>,
+             std::array<double, 3>>
+  getCommandsFromJointTrajectoryPoint(
+      const trajectory_msgs::msg::JointTrajectoryPoint& point) const;
+  std::tuple<std::array<double, 7>, std::array<double, 7>> getArmJointPositionsFromPoint(
+      const std::vector<double>& point) const;
+  std::array<double, 3> getMobileBaseVelocitiesFromPoint(const std::vector<double>& point) const;
+  std::array<double, 3> getMobileBasePositionsFromPoint(const std::vector<double>& point) const;
 
   void updateState(trajectory_msgs::msg::JointTrajectoryPoint& state);
-  void commandArmPosition(const Vector7d& q_goal, size_t arm_index);
-  void commandMobileBaseVelocity(const std::array<double, 3>& planar_base_velocities, double theta);
-  size_t get_first_joint_index(const std::vector<std::string>& joint_names,
-                               const std::string& prefix) const;
-  Vector7d get_slice_of_trajectory_positions_arm(
-      const trajectory_msgs::msg::JointTrajectoryPoint& command,
-      size_t start_index) const;
-  std::array<double, 3> get_slice_of_trajectory_velocities_base(
-      const trajectory_msgs::msg::JointTrajectoryPoint& command,
-      size_t start_index,
-      double& theta) const;
+  void commandArmPosition(const std::array<double, 7>& position, size_t arm_index);
+  void commandMobileBaseVelocity(const std::array<double, 3>& mobile_base_velocities,
+                                 const std::array<double, 3>& mobile_base_positions);
+  void sort_to_local_joint_order(
+      std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg) const;
+
+  // TODO (wink_ma) extract functions that do not have to belong to this class necessarily
+  void initializeState(trajectory_msgs::msg::JointTrajectoryPoint& state,
+                       const std::vector<std::string>& joint_names);
+  std::array<size_t, 7> getArmJointMap(std::vector<std::string> joint_names, std::string side);
+  std::array<size_t, 3> getMobileBaseJointMap(
+      std::vector<std::string> joint_names,
+      std::array<std::string, 3> expected_joint_names) const;
 };
 
 }  // namespace mobile_fr3_duo_joint_trajectory_controller

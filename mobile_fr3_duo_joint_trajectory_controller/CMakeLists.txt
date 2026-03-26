@@ -35,6 +35,7 @@ generate_parameter_library(mobile_fr3_duo_joint_trajectory_controller_parameters
 add_library(${PROJECT_NAME} SHARED
   src/mobile_fr3_duo_joint_trajectory_controller.cpp
   src/trajectory.cpp
+  src/mapping.cpp
 )
 
 target_include_directories(
@@ -79,6 +80,44 @@ install(
         DESTINATION include
 )
 
+
+if(BUILD_TESTING)
+find_package(ament_cmake_clang_format REQUIRED)
+find_package(ament_cmake_copyright REQUIRED)
+find_package(ament_cmake_cppcheck REQUIRED)
+find_package(ament_cmake_flake8 REQUIRED)
+find_package(ament_cmake_lint_cmake REQUIRED)
+find_package(ament_cmake_pep257 REQUIRED)
+find_package(ament_cmake_xmllint REQUIRED)
+find_package(ros2_control_test_assets REQUIRED)
+
+set(CPP_DIRECTORIES src include)
+        ament_clang_format(CONFIG_FILE ../.clang-format ${CPP_DIRECTORIES})
+        ament_copyright(launch ${CPP_DIRECTORIES} package.xml)
+        ament_cppcheck(${CPP_DIRECTORIES})
+        ament_lint_cmake(CMakeLists.txt)
+        ament_flake8()
+        ament_pep257()
+        ament_xmllint()
+        #    src/mobile_fr3_duo_joint_trajectory_controller/test/mobile_fr3_duo_trajectory_controller_test.cpp
+        
+        find_package(ament_cmake_gmock REQUIRED)
+        ament_add_gmock(${PROJECT_NAME}_test
+                test/mobile_fr3_duo_trajectory_controller_test.cpp
+        )
+        
+        target_compile_definitions(${PROJECT_NAME}_test PRIVATE
+                "TEST_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/test\"")
+        
+        target_link_libraries(${PROJECT_NAME}_test
+                ${PROJECT_NAME}
+        )
+        
+        target_include_directories(${PROJECT_NAME}_test PRIVATE
+                include
+        )
+endif()
+    
 ament_export_include_directories(
         include
 )

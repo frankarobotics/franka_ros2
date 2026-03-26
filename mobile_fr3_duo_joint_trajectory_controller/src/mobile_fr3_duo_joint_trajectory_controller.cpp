@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <mobile_fr3_duo_joint_trajectory_controller/mobile_fr3_duo_joint_trajectory_controller.hpp>
+#include "mobile_fr3_duo_joint_trajectory_controller/mobile_fr3_duo_joint_trajectory_controller.hpp"
+#include "mobile_fr3_duo_joint_trajectory_controller/mapping.hpp"
 
 #include <cmath>
 #include <string>
@@ -75,6 +76,7 @@ MobileFR3DuoJointTrajectoryController::state_interface_configuration() const {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
+  // TODO (wink_ma ): don't use kArmCommandInterfaces here
   for (size_t arm_index = 0; arm_index < kArms; ++arm_index) {
     for (size_t i = 1; i <= kArmCommandInterfaces; ++i) {
       std::string prefix = arm_prefixes_[arm_index] + "_" + robot_types_[arm_index + 1] + "_joint" +
@@ -99,12 +101,9 @@ controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
 
   if (current_trajectory_msg != *new_external_msg &&
       (rt_has_pending_goal_ && !active_goal) == false) {
-    // TODO (wink_ma): make reading and writing easier by message joint order to the local joint
-    // order
-    // sort_to_local_joint_order(*new_external_msg);
+    sort_to_local_joint_order(*new_external_msg);
 
     current_trajectory_->update(*new_external_msg);
-    joint_names_ = current_trajectory_->get_trajectory_msg()->joint_names;
 
     RCLCPP_DEBUG(logger, "Updated current_trajectory_msg with new_external_msg.");
     for (size_t i = 0; i < joint_names_.size(); ++i) {
@@ -113,8 +112,6 @@ controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
   }
 
   updateState(state_current_);
-  state_current_.time_from_start.sec = 0;
-  state_current_.time_from_start.nanosec = 0;
 
   if (!has_active_trajectory()) {
     return controller_interface::return_type::OK;
@@ -142,29 +139,17 @@ controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
   const rclcpp::Time traj_start = current_trajectory_->time_from_start();
   const rclcpp::Time segment_time_from_start = traj_start + start_segment_itr->time_from_start;
 
-  // TODO (wink_ma): reorder to local joint order first and then just iterate over complete command
-  // interface list
-  std::array<std::string, kArms> arm_prefixes = {"left", "right"};
-  std::array<size_t, kArms> first_joint_indices = {0, 0};
-
-  for (size_t arm_index = 0; arm_index < kArms; ++arm_index) {
-    first_joint_indices[arm_index] = get_first_joint_index(joint_names_, arm_prefixes[arm_index]);
-    Vector7d q =
-        get_slice_of_trajectory_positions_arm(command_next_, first_joint_indices[arm_index]);
-    commandArmPosition(q, arm_index);
-  }
-
-  size_t first_joint_index = get_first_joint_index(joint_names_, "planar");
+  auto [left_arm_joint_position, right_arm_joint_position, mobile_base_positions,
+        mobile_base_velocities] = getCommandsFromJointTrajectoryPoint(command_next_);
+  commandArmPosition(left_arm_joint_position, 0);
+  commandArmPosition(right_arm_joint_position, 1);
   // TODO (wink_ma): get theta from robot state rather than planned trajectory
-  double theta = 0.0;
-  std::array<double, 3> planar_base_velocities =
-      get_slice_of_trajectory_velocities_base(command_next_, first_joint_index, theta);
-  commandMobileBaseVelocity(planar_base_velocities, theta);
+  commandMobileBaseVelocity(mobile_base_velocities, mobile_base_positions);
 
   if (rt_has_pending_goal_) {
-    RCLCPP_INFO_THROTTLE(logger, clock, 1000, "Commanded planar_base_velocities = [%f,%f,%f]",
-                         planar_base_velocities[0], planar_base_velocities[1],
-                         planar_base_velocities[2]);
+    RCLCPP_INFO_THROTTLE(logger, clock, 1000, "Commanded mobile_base_velocities = [%f,%f,%f]",
+                         mobile_base_velocities[0], mobile_base_velocities[1],
+                         mobile_base_velocities[2]);
   }
 
   const bool before_last_point = end_segment_itr != current_trajectory_->end();
@@ -189,6 +174,8 @@ controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
 CallbackReturn MobileFR3DuoJointTrajectoryController::on_configure(const rclcpp_lifecycle::State&) {
   auto k = get_node()->get_parameter("k_gains").as_double_array();
   auto d = get_node()->get_parameter("d_gains").as_double_array();
+  // TODO (wink_ma): throw errror if prefixes and types do not makes sense (e.g. not matching
+  // command / state interface number)
   robot_prefixes_ = get_node()->get_parameter("robot_prefixes").as_string_array();
   robot_types_ = get_node()->get_parameter("robot_types").as_string_array();
   const std::string cartesian_velocity_interface_prefix =
@@ -213,6 +200,13 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_configure(const rclcpp_
 
   auto params = param_listener_->get_params();
   joint_names_ = params.joints;
+  initializeState(state_current_, joint_names_);
+
+  left_arm_joint_map_ = getArmJointMap(joint_names_, "left");
+  right_arm_joint_map_ = getArmJointMap(joint_names_, "right");
+  mobile_base_joint_map_ =
+      getMobileBaseJointMap(joint_names_, {"planar_x", "planar_y", "planar_theta"});
+  joint_state_map_ = get_joint_state_map(joint_names_, arm_prefixes_);
 
   using namespace std::placeholders;
   action_server_ = rclcpp_action::create_server<FollowJTrajAction>(
@@ -236,16 +230,9 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_activate(const rclcpp_l
   current_trajectory_ = std::make_shared<Trajectory>();
   new_trajectory_msg_.writeFromNonRT(std::shared_ptr<trajectory_msgs::msg::JointTrajectory>());
 
-  q_.fill(Vector7d::Zero());
-  dq_.fill(Vector7d::Zero());
-  initial_q_.fill(Vector7d::Zero());
-  dq_filtered_.fill(Vector7d::Zero());
-
   franka_cartesian_velocity_->assign_loaned_command_interfaces(command_interfaces_);
 
   updateState(state_current_);
-  initial_q_ = q_;
-  elapsed_time_ = 0.0;
 
   RCLCPP_INFO(logger, "Successfully activated MobileFR3DuoJointTrajectoryController.");
 
@@ -345,10 +332,30 @@ void MobileFR3DuoJointTrajectoryController::preempt_active_goal() {
   }
 }
 
+void MobileFR3DuoJointTrajectoryController::initializeState(
+    trajectory_msgs::msg::JointTrajectoryPoint& state,
+    const std::vector<std::string>& joint_names) {
+  size_t number_of_joints = joint_names.size();
+
+  q_.fill(Vector7d::Zero());
+  dq_.fill(Vector7d::Zero());
+  dq_filtered_.fill(Vector7d::Zero());
+  state.positions.resize(number_of_joints, 0.0);
+  state.velocities.resize(number_of_joints, 0.0);
+
+  for (size_t i = 0; i < number_of_joints; ++i) {
+    state.positions[i] = 0.0;
+    state.velocities[i] = 0.0;
+  }
+}
+
 void MobileFR3DuoJointTrajectoryController::updateState(
     trajectory_msgs::msg::JointTrajectoryPoint& state) {
   auto logger = get_node()->get_logger();
   auto clock = *get_node()->get_clock();
+
+  state.time_from_start.sec = 0;
+  state.time_from_start.nanosec = 0;
 
   for (size_t arm_index = 0; arm_index < kArms; ++arm_index) {
     for (size_t i = 0; i < kArmCommandInterfaces; ++i) {
@@ -361,6 +368,7 @@ void MobileFR3DuoJointTrajectoryController::updateState(
       if (position && velocity) {
         q_[arm_index](i) = *position;
         dq_[arm_index](i) = *velocity;
+        dq_filtered_[arm_index](i) = *velocity;
       } else {
         RCLCPP_WARN_THROTTLE(logger, clock, 1000, "Missing state for arm_index %zu joint %zu",
                              arm_index, i);
@@ -368,28 +376,23 @@ void MobileFR3DuoJointTrajectoryController::updateState(
     }
   }
 
-  size_t first_planar_joint_index = get_first_joint_index(joint_names_, "planar");
-  size_t first_left_arm_joint_index = get_first_joint_index(joint_names_, "left");
-  size_t first_right_arm_joint_index = get_first_joint_index(joint_names_, "right");
-
-  state.positions.resize(joint_names_.size(), 0.0);
-  state.velocities.resize(joint_names_.size(), 0.0);
-
-  // TODO (wink_ma): better ideas than always setting to 0.0?
-  std::array<double, 3> planar_velocity = {0.0, 0.0, 0.0};
-  for (size_t i = 0; i < planar_velocity.size(); ++i) {
-    state.velocities[i + first_planar_joint_index] = planar_velocity[i];
+  for (size_t joint_index = 0; joint_index < kArmCommandInterfaces; ++joint_index) {
+    for (size_t arm_index = 0; arm_index < kArms; ++arm_index) {
+      state.positions[joint_state_map_.at({arm_index, joint_index})] = q_[arm_index](joint_index);
+      state.velocities[joint_state_map_.at({arm_index, joint_index})] = dq_[arm_index](joint_index);
+    }
   }
-  for (size_t i = 0; i < kArmCommandInterfaces; ++i) {
-    state.positions[i + first_left_arm_joint_index] = q_[0](i);
-    state.velocities[i + first_left_arm_joint_index] = dq_[0](i);
-    state.positions[i + first_right_arm_joint_index] = q_[1](i);
-    state.velocities[i + first_right_arm_joint_index] = dq_[1](i);
-  }
+
+  // TODO (wink_ma): use state_interface  for cartesian pose and cartesian velocity of mobile base
+  // to update position and velocity of (x,y,theta)
+  // Now, both are left at the default of 0.0
 }
 
-void MobileFR3DuoJointTrajectoryController::commandArmPosition(const Vector7d& q_goal,
-                                                               size_t arm_index) {
+void MobileFR3DuoJointTrajectoryController::commandArmPosition(
+    const std::array<double, 7>& position,
+    size_t arm_index) {
+  const Vector7d q_goal = Eigen::Map<const Vector7d>(position.data());
+
   constexpr double kAlpha = 0.99;
   dq_filtered_[arm_index] = (1.0 - kAlpha) * dq_filtered_[arm_index] + kAlpha * dq_[arm_index];
 
@@ -405,20 +408,71 @@ void MobileFR3DuoJointTrajectoryController::commandArmPosition(const Vector7d& q
   }
 }
 
+std::tuple<std::array<double, 7>,
+           std::array<double, 7>,
+           std::array<double, 3>,
+           std::array<double, 3>>
+MobileFR3DuoJointTrajectoryController::getCommandsFromJointTrajectoryPoint(
+    const trajectory_msgs::msg::JointTrajectoryPoint& point) const {
+  auto [left_arm_joint_positions, right_arm_joint_positions] =
+      getArmJointPositionsFromPoint(point.positions);
+  std::array<double, 3> mobile_base_positions = getMobileBasePositionsFromPoint(point.positions);
+  std::array<double, 3> mobile_base_velocities = getMobileBaseVelocitiesFromPoint(point.velocities);
+
+  return std::make_tuple(left_arm_joint_positions, right_arm_joint_positions, mobile_base_positions,
+                         mobile_base_velocities);
+}
+
+std::tuple<std::array<double, 7>, std::array<double, 7>>
+MobileFR3DuoJointTrajectoryController::getArmJointPositionsFromPoint(
+    const std::vector<double>& point) const {
+  std::array<double, 7> left_arm_joint_positions;
+  std::array<double, 7> right_arm_joint_positions;
+
+  for (size_t i = 0; i < 7; ++i) {
+    left_arm_joint_positions[i] = point[left_arm_joint_map_[i]];
+  }
+  for (size_t i = 0; i < 7; ++i) {
+    right_arm_joint_positions[i] = point[right_arm_joint_map_[i]];
+  }
+  return std::make_tuple(left_arm_joint_positions, right_arm_joint_positions);
+}
+
+std::array<double, 3> MobileFR3DuoJointTrajectoryController::getMobileBasePositionsFromPoint(
+    const std::vector<double>& point) const {
+  std::array<double, 3> mobile_base_positions;
+
+  for (size_t i = 0; i < mobile_base_positions.size(); ++i) {
+    mobile_base_positions[i] = point[mobile_base_joint_map_[i]];
+  }
+  return mobile_base_positions;
+}
+
+std::array<double, 3> MobileFR3DuoJointTrajectoryController::getMobileBaseVelocitiesFromPoint(
+    const std::vector<double>& point) const {
+  std::array<double, 3> mobile_base_velocities;
+
+  for (size_t i = 0; i < mobile_base_velocities.size(); ++i) {
+    mobile_base_velocities[i] = point[mobile_base_joint_map_[i]];
+  }
+  return mobile_base_velocities;
+}
+
 void MobileFR3DuoJointTrajectoryController::commandMobileBaseVelocity(
-    const std::array<double, 3>& planar_base_velocities,
-    double theta) {
-  double vx_world = planar_base_velocities[0];
-  double vy_world = planar_base_velocities[1];
+    const std::array<double, 3>& mobile_base_velocities,
+    const std::array<double, 3>& mobile_base_positions) {
+  double vx_world = mobile_base_velocities[0];
+  double vy_world = mobile_base_velocities[1];
 
   // TODO (wink_ma): make eigen matrix multiplication for this
+  double theta = mobile_base_positions[2];
   double c = std::cos(theta);
   double s = std::sin(theta);
   double vx_local = c * vx_world + s * vy_world;
   double vy_local = -s * vx_world + c * vy_world;
 
   const Eigen::Vector3d linear{vx_local, vy_local, 0.0};
-  const Eigen::Vector3d angular{0.0, 0.0, planar_base_velocities[2]};
+  const Eigen::Vector3d angular{0.0, 0.0, mobile_base_velocities[2]};
 
   if (!franka_cartesian_velocity_->setCommand(linear, angular)) {
     RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
@@ -426,53 +480,86 @@ void MobileFR3DuoJointTrajectoryController::commandMobileBaseVelocity(
   }
 }
 
-size_t MobileFR3DuoJointTrajectoryController::get_first_joint_index(
-    const std::vector<std::string>& joint_names,
-    const std::string& prefix) const {
-  for (size_t i = 0; i < joint_names.size(); ++i) {
-    if (joint_names[i].find(prefix) != std::string::npos) {
-      return i;
+std::array<size_t, 7> MobileFR3DuoJointTrajectoryController::getArmJointMap(
+    std::vector<std::string> joint_names,
+    std::string side) {
+  std::array<size_t, 7> map;
+
+  for (size_t i = 0; i < map.size(); ++i) {
+    std::string joint_string = "joint" + std::to_string(i + 1);
+    try {
+      map[i] = find_element_with_substrings(joint_names, {side, joint_string});
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "getArmJointMap: Could not find joint name matching {'%s', '%s'}. "
+                   " Error : %s",
+                   side.c_str(), joint_string.c_str(), e.what());
+      throw;
     }
   }
-  RCLCPP_WARN(get_node()->get_logger(),
-              "Could not find joint index for prefix '%s' in trajectory joint names. Returning "
-              "0 instead.",
-              prefix.c_str());
-  return 0;  // Default to 0 if not found
+  return map;
 }
 
-Vector7d MobileFR3DuoJointTrajectoryController::get_slice_of_trajectory_positions_arm(
-    const trajectory_msgs::msg::JointTrajectoryPoint& command,
-    size_t start_index) const {
-  Vector7d slice = Vector7d::Zero();
-  for (size_t i = 0; i < kArmCommandInterfaces; ++i) {
-    if (start_index + i < command.positions.size()) {
-      slice(i) = command.positions[start_index + i];
+std::array<size_t, 3> MobileFR3DuoJointTrajectoryController::getMobileBaseJointMap(
+    std::vector<std::string> joint_names,
+    std::array<std::string, 3> expected_joint_names) const {
+  std::array<size_t, 3> map;
+
+  for (size_t i = 0; i < 3; ++i) {
+    std::string joint_name = expected_joint_names[i];
+    auto it = std::find(joint_names.begin(), joint_names.end(), joint_name);
+    if (it != joint_names.end()) {
+      map[i] = std::distance(joint_names.begin(), it);
     } else {
-      RCLCPP_WARN(get_node()->get_logger(),
-                  "Requested slice exceeds command positions size. Filling remaining with zeros.");
-      break;
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "getMobileBaseJointMap: Could not find joint name '%s' in joint names.",
+                   joint_name.c_str());
+      throw std::runtime_error("Joint name not found in getMobileBaseJointMap");
     }
   }
-  return slice;
+  return map;
 }
 
-std::array<double, 3>
-MobileFR3DuoJointTrajectoryController::get_slice_of_trajectory_velocities_base(
-    const trajectory_msgs::msg::JointTrajectoryPoint& command,
-    size_t start_index,
-    double& theta) const {
-  std::array<double, 3> slice = {0.0, 0.0, 0.0};
-  double w_z = command.velocities[start_index];
-  double v_x = command.velocities[start_index + 1];
-  double v_y = command.velocities[start_index + 2];
-  slice[0] = v_x;
-  slice[1] = v_y;
-  slice[2] = w_z;
+void MobileFR3DuoJointTrajectoryController::sort_to_local_joint_order(
+    std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg) const {
+  // rearrange all points in the trajectory message based on mapping
+  std::vector<size_t> mapping_vector = mapping(trajectory_msg->joint_names, params_.joints);
+  auto remap = [this](const std::vector<double>& to_remap,
+                      const std::vector<size_t>& mapping) -> std::vector<double> {
+    if (to_remap.empty()) {
+      return to_remap;
+    }
+    if (to_remap.size() != mapping.size()) {
+      RCLCPP_WARN(get_node()->get_logger(), "Invalid input size (%zu) for sorting",
+                  to_remap.size());
+      return to_remap;
+    }
+    static std::vector<double> output(params_.joints.size(), 0.0);
+    // Only resize if necessary since it's an expensive operation
+    if (output.size() != mapping.size()) {
+      output.resize(mapping.size(), 0.0);
+    }
+    for (size_t index = 0; index < mapping.size(); ++index) {
+      auto map_index = mapping[index];
+      output[map_index] = to_remap[index];
+    }
+    return output;
+  };
 
-  theta = command.positions[start_index];
+  for (size_t index = 0; index < trajectory_msg->points.size(); ++index) {
+    trajectory_msg->points[index].positions =
+        remap(trajectory_msg->points[index].positions, mapping_vector);
 
-  return slice;
+    trajectory_msg->points[index].velocities =
+        remap(trajectory_msg->points[index].velocities, mapping_vector);
+
+    // TODO (wink_ma): don't really care about accelerations and effort - delete?
+    trajectory_msg->points[index].accelerations =
+        remap(trajectory_msg->points[index].accelerations, mapping_vector);
+
+    trajectory_msg->points[index].effort =
+        remap(trajectory_msg->points[index].effort, mapping_vector);
+  }
 }
 
 }  // namespace mobile_fr3_duo_joint_trajectory_controller
