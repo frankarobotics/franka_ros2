@@ -1,0 +1,31 @@
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = ["I"]
+
+[tool.ruff.lint.isort]
+# ament_flake8 uses flake8-import-order with import-order-style = google.
+# Google style: FUTURE | STDLIB | THIRD_PARTY (everything installed).
+# It does NOT distinguish first-party from third-party — all non-stdlib
+# packages (rclpy, franka_spine_msgs, requests, …) land in one group,
+# sorted alphabetically, with no blank lines between them.
+force-sort-within-sections = true
+# Disable type-based ordering so names within `from X import (...)` are
+# sorted purely alphabetically (case-insensitive), matching flake8-import-order.
+order-by-type = false
+known-first-party = []
+known-third-party = [
+    "ament_index_python",
+    "franka_spine_examples",
+    "franka_spine_msgs",
+    "franka_spine_server",
+    "launch",
+    "launch_ros",
+    "rclpy",
+    "requests",
+]

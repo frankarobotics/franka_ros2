@@ -108,11 +108,25 @@ parameters = [
         'controller_name': 'model_example_controller',
         'config_file_name': 'test_1.config.yaml',
     },
+    {
+        'controller_name': 'gravity_compensation_example_controller',
+        'config_file_name': 'test_use_fake_hardware.config.yaml',
+    },
+    {
+        'controller_name': 'joint_impedance_example_controller',
+        'config_file_name': 'test_use_fake_hardware.config.yaml',
+    },
+    {
+        'controller_name': 'joint_position_example_controller',
+        'config_file_name': 'test_use_fake_hardware.config.yaml',
+    },
+    {
+        'controller_name': 'move_to_start_example_controller',
+        'config_file_name': 'test_use_fake_hardware.config.yaml',
+    },
 ]
 
-full_test_parameters = put_parameter_in_between_parameters(
-    initialize_step, parameters
-)
+full_test_parameters = put_parameter_in_between_parameters(initialize_step, parameters)
 
 
 @launch_testing.parametrize('test_parameter', full_test_parameters)
@@ -126,9 +140,7 @@ def generate_test_description(test_parameter):
 
     config_file = substitutions.PathJoinSubstitution(
         [
-            launch_ros.substitutions.FindPackageShare(
-                'franka_bringup'
-            ),
+            launch_ros.substitutions.FindPackageShare('franka_bringup'),
             'test',
             'config',
             config_file_name,
@@ -139,9 +151,7 @@ def generate_test_description(test_parameter):
         launch_description_sources.PythonLaunchDescriptionSource(
             substitutions.PathJoinSubstitution(
                 [
-                    launch_ros.substitutions.FindPackageShare(
-                        'franka_bringup'
-                    ),
+                    launch_ros.substitutions.FindPackageShare('franka_bringup'),
                     'launch',
                     'example.launch.py',
                 ]
@@ -162,9 +172,7 @@ def generate_test_description(test_parameter):
                     description='Hostname or IP address of the robot (required).',
                 ),
                 example_launch_description,
-                actions.TimerAction(
-                    period=3.0, actions=[launch_testing.actions.ReadyToTest()]
-                ),
+                actions.TimerAction(period=3.0, actions=[launch_testing.actions.ReadyToTest()]),
             ],
         ),
         {'example_launch_description': example_launch_description},
@@ -188,8 +196,6 @@ class TestExampleController(unittest.TestCase):
 
     def test_has_no_error(self, proc_output):
         """Check if any error messages have been logged."""
-        has_no_error = not proc_output.waitFor(
-            'ERROR', timeout=5, stream='stderr'
-        )
+        has_no_error = not proc_output.waitFor('ERROR', timeout=5, stream='stderr')
 
         assert has_no_error, 'Found [ERROR] log messages in launch output'
