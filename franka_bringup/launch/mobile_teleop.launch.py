@@ -80,7 +80,7 @@ def generate_robot_nodes(context):
                 remappings=[
                     (
                         '/' + namespace + '/cmd_vel',
-                        '/' + namespace + '/mobile_cartesian_velocity_controller/cmd_vel',
+                        '/' + namespace + '/swerve_drive_controller/cmd_vel',
                     )
                 ],
             ),
