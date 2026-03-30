@@ -79,9 +79,10 @@ def get_robot_descriptions(robot_name, package_name, use_fake_hardware, simulate
         )
 
     robot_description_semantic_file_path = os.path.join(
-        get_package_share_directory(package_name),
-        "config",
-        f"{robot_name}.srdf",
+            get_package_share_directory("franka_description"),
+            "robots",
+            f"{robot_name}",
+            f"{robot_name}.srdf.xacro",
     )
     robot_description = xacro.process_file(
         robot_description_file_path,
@@ -120,7 +121,6 @@ def get_joint_state_publisher(namespace):
                 {
                     'source_list': ['franka/joint_states'],
                     'rate': 30,
-                    'use_robot_description': False,
                 }
         ],
     )
