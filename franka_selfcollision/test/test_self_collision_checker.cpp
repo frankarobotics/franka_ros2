@@ -41,7 +41,7 @@ std::string readFileToString(const std::string& filename) {
 }
 
 // ---------------------------------------------------------------------------
-// FR3 Duo (no link filter)
+// FR3 Duo
 // ---------------------------------------------------------------------------
 
 class SelfCollisionCheckerTest : public ::testing::Test {
@@ -100,35 +100,19 @@ TEST_F(SelfCollisionCheckerTest, givenCollidingConfiguration_thenReturnTrue) {
 }
 
 // ---------------------------------------------------------------------------
-// Mobile FR3 Duo (with isTrackedLink filter)
-// Requires test/mobile_fr3_duo.urdf and test/mobile_fr3_duo.srdf to exist.
+// Mobile FR3 Duo
 // ---------------------------------------------------------------------------
 
 class MobileSelfCollisionCheckerTest : public ::testing::Test {
  protected:
   static constexpr double kSecurityMargin = 0.001;
 
-  static bool isTrackedLink(const std::string& geom_name) {
-    static const std::vector<std::string> kTrackedPrefixes = {
-        "franka_spine",
-        "left_fr3v2_link",
-        "right_fr3v2_link",
-        "duo_mount_origin",
-    };
-    for (const auto& prefix : kTrackedPrefixes) {
-      if (geom_name.rfind(prefix, 0) == 0) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   void SetUp() override {
     std::string test_dir = TEST_DIR;
     std::string urdf_path = test_dir + "/mobile_fr3_duo_v0_2.urdf";
     std::string srdf_path = test_dir + "/mobile_fr3_duo_v0_2.srdf";
 
-    // Skip the fixture entirely if the mobile test assets are not present yet.
+    // Skip the fixture entirely if test assets are not present yet
     if (std::ifstream(urdf_path).fail() || std::ifstream(srdf_path).fail()) {
       GTEST_SKIP() << "Mobile test assets not found — skipping MobileSelfCollisionCheckerTest";
     }
@@ -138,8 +122,7 @@ class MobileSelfCollisionCheckerTest : public ::testing::Test {
       std::string srdf_xml = readFileToString(srdf_path);
       auto clock = std::make_shared<rclcpp::Clock>();
       checker_ = std::make_unique<franka_selfcollision::SelfCollisionChecker>(
-          urdf_xml, srdf_xml, kSecurityMargin, rclcpp::get_logger("test_logger"), clock,
-          &isTrackedLink);
+          urdf_xml, srdf_xml, kSecurityMargin, rclcpp::get_logger("test_logger"), clock);
     } catch (const std::exception& e) {
       FAIL() << "Setup failed: " << e.what();
     }
@@ -155,9 +138,8 @@ TEST_F(MobileSelfCollisionCheckerTest, givenNeutralConfiguration_thenReturnFalse
   ASSERT_FALSE(checker_->checkCollision(config, true)) << "Neutral config should be safe";
 }
 
-TEST_F(MobileSelfCollisionCheckerTest, givenLinkFilterApplied_thenModelHasExpectedJoints) {
-  // Verify the checker was constructed successfully and has a sane number of
-  // joints: universe + spine + 7 left + 7 right + base/drivetrain extras.
+TEST_F(MobileSelfCollisionCheckerTest, givenModelLoaded_thenHasExpectedJoints) {
+  // Verify the checker was constructed successfully and has a sane number of joints: universe + spine + 7 left + 7 right + base/drivetrain extras
   ASSERT_GE(checker_->getModelNjoints(), 16u)
       << "Model should have at least 16 joints";
 }

@@ -49,7 +49,6 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
   RCLCPP_INFO(this->get_logger(), "Loading robot model...");
 
   try {
-    // No link_filter — the fr3 duo SRDF already handles all exclusions.
     collision_checker_ = std::make_shared<franka_selfcollision::SelfCollisionChecker>(
         urdf_xml, srdf_xml, security_margin, this->get_logger(), this->get_clock());
   } catch (const std::exception& e) {
@@ -57,32 +56,49 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
     throw;
   }
 
-  const std::vector<std::string>& model_joint_names = collision_checker_->getModelJointNames();
+  // Initialize the full configuration vector to neutral so that non-tracked joints (e.g. mobile base wheels, steering) remain at a valid pose
+  Eigen::VectorXd q0 = collision_checker_->getNeutralConfiguration();
+  current_joint_positions_.assign(q0.data(), q0.data() + q0.size());
+
+  // Build joint_map_ using idx_q as the direct index into the full configuration vector. Multi-DOF joints (nq != 1, e.g. continuous wheels/steering on the mobile base) are skipped, they are not observable from JointState and remain at neutral permanently
   joint_map_.clear();
-  size_t index_counter = 0;
-  for (const auto& name : model_joint_names) {
-    if (name == kBaseLink)
+  for (pinocchio::JointIndex i = 1;
+       i < (pinocchio::JointIndex)collision_checker_->getModelNjoints(); ++i) {
+    const std::string& name = collision_checker_->getModelJointName(i);
+    int idx_q = collision_checker_->getModelJointIdxQ(i);
+    int nq_j = collision_checker_->getModelJointNq(i);
+
+    if (nq_j != 1) {
+      RCLCPP_INFO(this->get_logger(),
+                  "Skipping joint [%s] (idx_q=%d, nq=%d) — multi-DOF, stays at neutral",
+                  name.c_str(), idx_q, nq_j);
       continue;
-    joint_map_[name] = index_counter;
-    index_counter++;
+    }
+
+    joint_map_[name] = static_cast<size_t>(idx_q);
   }
 
-  current_joint_positions_.resize(joint_map_.size(), 0.0);
+  RCLCPP_INFO(this->get_logger(), "model_.nq=%zu | tracked joints=%zu",
+              collision_checker_->getModelNq(), joint_map_.size());
+
   joint_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
       "joint_states", rclcpp::SensorDataQoS(),
       [this](const sensor_msgs::msg::JointState::SharedPtr msg) {
         this->joint_state_callback(msg);
       });
+
   RCLCPP_INFO(this->get_logger(), "Self-Collision Monitor Active. (Margin: %.3f m)",
               security_margin);
 }
 
 void CollisionMonitorNode::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg) {
+  // current_joint_positions_ has size model_.nq (full configuration vector).
+  // Only joints with nq=1 are updated here via idx_q; all other entries remain at the neutral configuration set during setup
   for (size_t i = 0; i < msg->name.size(); ++i) {
     auto it = joint_map_.find(msg->name[i]);
-    if (it != joint_map_.end()) {
+    if (it != joint_map_.end() && i < msg->position.size()) {
       size_t idx = it->second;
-      if (i < msg->position.size() && idx < current_joint_positions_.size()) {
+      if (idx < current_joint_positions_.size()) {
         current_joint_positions_[idx] = msg->position[i];
       }
     }

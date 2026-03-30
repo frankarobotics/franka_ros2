@@ -56,26 +56,6 @@ ament_target_dependencies(self_collision_node
 )
 
 
-# mobile collision node
-add_executable(mobile_self_collision_node
-        src/mobile_self_collision_node.cpp)
-
-target_include_directories(mobile_self_collision_node PRIVATE
-  include
-)
-
-target_link_libraries(mobile_self_collision_node
-                    ${PROJECT_NAME}
-                    pinocchio::pinocchio)
-
-ament_target_dependencies(mobile_self_collision_node
-    ament_index_cpp
-    rclcpp
-    sensor_msgs
-    std_msgs
-)
-
-
 install(DIRECTORY include/ DESTINATION include)
 
 install(TARGETS ${PROJECT_NAME}
@@ -88,7 +68,6 @@ install(TARGETS ${PROJECT_NAME}
 
 install(TARGETS
         self_collision_node
-        mobile_self_collision_node
         RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

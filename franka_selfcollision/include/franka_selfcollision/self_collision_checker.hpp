@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <functional>
 #include <rclcpp/rclcpp.hpp>
 #include <sstream>
 #include <string>
@@ -45,8 +44,7 @@ class SelfCollisionChecker {
                        const std::string& srdf_xml,
                        double security_margin,
                        rclcpp::Logger logger,
-                       rclcpp::Clock::SharedPtr clock,
-                       std::function<bool(const std::string&)> link_filter = nullptr);
+                       rclcpp::Clock::SharedPtr clock);
 
   /**
    * @brief Checks if the given joint configuration results in a self-collision.
