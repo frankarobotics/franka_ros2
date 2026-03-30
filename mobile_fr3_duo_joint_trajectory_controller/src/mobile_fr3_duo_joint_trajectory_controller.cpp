@@ -101,7 +101,7 @@ controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
 
   if (current_trajectory_msg != *new_external_msg &&
       (rt_has_pending_goal_ && !active_goal) == false) {
-    sort_to_local_joint_order(*new_external_msg, params_.joints);
+    sortToLocalJointOrder(*new_external_msg, params_.joints);
 
     current_trajectory_->update(*new_external_msg);
   }
@@ -189,11 +189,11 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_configure(const rclcpp_
 
   initializeState(state_current_, params_.joints);
 
-  left_arm_joint_map_ = get_arm_joint_map(params_.joints, "left");
-  right_arm_joint_map_ = get_arm_joint_map(params_.joints, "right");
+  left_arm_joint_map_ = getArmJointMap(params_.joints, "left");
+  right_arm_joint_map_ = getArmJointMap(params_.joints, "right");
   mobile_base_joint_map_ =
-      get_mobile_base_joint_map(params_.joints, {"planar_x", "planar_y", "planar_theta"});
-  joint_state_map_ = get_joint_state_map(params_.joints, arm_prefixes_);
+      getMobileBaseJointMap(params_.joints, {"planar_x", "planar_y", "planar_theta"});
+  joint_state_map_ = getJointStateMap(params_.joints, arm_prefixes_);
 
   using namespace std::placeholders;
   action_server_ = rclcpp_action::create_server<FollowJTrajAction>(

@@ -22,22 +22,21 @@
 
 namespace mobile_fr3_duo_joint_trajectory_controller {
 
-size_t find_matching_element(const std::vector<std::string>& vec, const std::string& match);
+size_t findMatchingElement(const std::vector<std::string>& vec, const std::string& match);
 
-size_t find_element_with_substrings(const std::vector<std::string>& vec,
-                                    const std::vector<std::string>& substrings);
+size_t findElementWithSubstrings(const std::vector<std::string>& vec,
+                                 const std::vector<std::string>& substrings);
 
-std::map<std::pair<size_t, size_t>, size_t> get_joint_state_map(
+std::map<std::pair<size_t, size_t>, size_t> getJointStateMap(
     const std::vector<std::string>& joint_names,
     const std::vector<std::string>& arm_prefixes);
 
-std::array<size_t, 7> get_arm_joint_map(std::vector<std::string> joint_names, std::string side);
+std::array<size_t, 7> getArmJointMap(std::vector<std::string> joint_names, std::string side);
 
-std::array<size_t, 3> get_mobile_base_joint_map(std::vector<std::string> joint_names,
-                                                std::array<std::string, 3> expected_joint_names);
+std::array<size_t, 3> getMobileBaseJointMap(std::vector<std::string> joint_names,
+                                            std::array<std::string, 3> expected_joint_names);
 
-void sort_to_local_joint_order(
-    std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg,
-    const std::vector<std::string> joint_names);
+void sortToLocalJointOrder(std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg,
+                           const std::vector<std::string> joint_names);
 
 }  // namespace mobile_fr3_duo_joint_trajectory_controller

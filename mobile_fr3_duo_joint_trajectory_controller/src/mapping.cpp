@@ -23,7 +23,7 @@ bool contains_substring(const std::string& str, const std::string& substring) {
   return str.find(substring) != std::string::npos;
 }
 
-size_t find_matching_element(const std::vector<std::string>& vec, const std::string& match) {
+size_t findMatchingElement(const std::vector<std::string>& vec, const std::string& match) {
   auto it = std::find(vec.begin(), vec.end(), match);
   if (it != vec.end()) {
     return std::distance(vec.begin(), it);
@@ -33,8 +33,8 @@ size_t find_matching_element(const std::vector<std::string>& vec, const std::str
   throw std::runtime_error(msg);
 }
 
-size_t find_element_with_substrings(const std::vector<std::string>& vec,
-                                    const std::vector<std::string>& substrings) {
+size_t findElementWithSubstrings(const std::vector<std::string>& vec,
+                                 const std::vector<std::string>& substrings) {
   auto it = std::find_if(vec.begin(), vec.end(), [&substrings](const std::string& str) {
     for (const auto& substring : substrings) {
       if (!contains_substring(str, substring)) {
@@ -51,7 +51,7 @@ size_t find_element_with_substrings(const std::vector<std::string>& vec,
   throw std::runtime_error("Substrings not found in vector.");
 }
 
-std::map<std::pair<size_t, size_t>, size_t> get_joint_state_map(
+std::map<std::pair<size_t, size_t>, size_t> getJointStateMap(
     const std::vector<std::string>& joint_names,
     const std::vector<std::string>& arm_prefixes) {
   std::map<std::pair<size_t, size_t>, size_t> map;
@@ -62,7 +62,7 @@ std::map<std::pair<size_t, size_t>, size_t> get_joint_state_map(
       const std::string joint_string = "joint" + std::to_string(joint_index + 1);
       const std::string side = arm_prefixes[arm_index];
       try {
-        const size_t state_index = find_element_with_substrings(joint_names, {side, joint_string});
+        const size_t state_index = findElementWithSubstrings(joint_names, {side, joint_string});
         map[{arm_index, joint_index}] = state_index;
       } catch (const std::runtime_error& e) {
         // it's ok for the map if the substrings were not part of the vector
@@ -73,13 +73,13 @@ std::map<std::pair<size_t, size_t>, size_t> get_joint_state_map(
   return map;
 }
 
-std::array<size_t, 7> get_arm_joint_map(std::vector<std::string> joint_names, std::string side) {
+std::array<size_t, 7> getArmJointMap(std::vector<std::string> joint_names, std::string side) {
   std::array<size_t, 7> map;
 
   for (size_t i = 0; i < map.size(); ++i) {
     std::string joint_string = "joint" + std::to_string(i + 1);
     try {
-      map[i] = find_element_with_substrings(joint_names, {side, joint_string});
+      map[i] = findElementWithSubstrings(joint_names, {side, joint_string});
     } catch (const std::runtime_error& e) {
       std::string msg = "Could not find joint name matching {'" + side + "', '" + joint_string +
                         "'}. "
@@ -91,13 +91,13 @@ std::array<size_t, 7> get_arm_joint_map(std::vector<std::string> joint_names, st
   return map;
 }
 
-std::array<size_t, 3> get_mobile_base_joint_map(std::vector<std::string> joint_names,
-                                                std::array<std::string, 3> expected_joint_names) {
+std::array<size_t, 3> getMobileBaseJointMap(std::vector<std::string> joint_names,
+                                            std::array<std::string, 3> expected_joint_names) {
   std::array<size_t, 3> map;
 
   for (size_t i = 0; i < 3; ++i) {
     std::string joint_name = expected_joint_names[i];
-    map[i] = find_matching_element(joint_names, joint_name);
+    map[i] = findMatchingElement(joint_names, joint_name);
   }
   return map;
 }
@@ -128,9 +128,8 @@ inline std::vector<size_t> mapping(const T& t1, const T& t2) {
   return mapping_vector;
 }
 
-void sort_to_local_joint_order(
-    std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg,
-    const std::vector<std::string> joint_names) {
+void sortToLocalJointOrder(std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg,
+                           const std::vector<std::string> joint_names) {
   // rearrange all points in the trajectory message based on mapping
   std::vector<size_t> mapping_vector = mapping(trajectory_msg->joint_names, joint_names);
   auto remap = [&joint_names](const std::vector<double>& to_remap,
