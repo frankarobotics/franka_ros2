@@ -192,6 +192,7 @@ def get_move_group_params(
     joint_limits,
     trajectory_execution,
     moveit_defaults,
+    simulate_in_gazebo
 ):
 
     move_group_configuration = {
@@ -212,6 +213,7 @@ def get_move_group_params(
         "publish_state_updates": True,
         "publish_transforms_updates": True,
         "monitor_dynamics": False,
+        "use_sim_time": simulate_in_gazebo
     }
 
     move_group_configuration.update(moveit_defaults)
@@ -229,6 +231,7 @@ def get_move_group_node(
     joint_limits,
     trajectory_execution,
     moveit_defaults,
+    simulate_in_gazebo
 ):
     return Node(
         package='moveit_ros_move_group',
@@ -242,6 +245,7 @@ def get_move_group_node(
             joint_limits,
             trajectory_execution,
             moveit_defaults,
+            simulate_in_gazebo
         ),
     )
 
@@ -252,12 +256,7 @@ def get_controller_nodes(package_name, simulate_in_gazebo, namespace):
     else:
         cartesian_velocity_interface_prefix = ''
 
-    full_body_controller_node = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["full_body_controller", '--controller-manager-timeout', '120',
-                   '--service-call-timeout', '60'],
-        parameters=[
+    full_body_controller_node_parameters = [
             PathJoinSubstitution(
                 [
                     FindPackageShare(package_name),
@@ -272,7 +271,14 @@ def get_controller_nodes(package_name, simulate_in_gazebo, namespace):
                     }
                 }
             },
-        ],
+        ]
+
+    full_body_controller_node = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["full_body_controller", '--controller-manager-timeout', '120',
+                   '--service-call-timeout', '60'],
+        parameters=full_body_controller_node_parameters,
         output="screen",
     )
 
@@ -294,12 +300,6 @@ def get_controller_nodes(package_name, simulate_in_gazebo, namespace):
             )
 
     if simulate_in_gazebo == 'true':
-        # chain the ik controller to simulate TMR ik
-        swerve_ik_controller = Node(
-            package="controller_manager",
-            executable="spawner",
-            arguments=["swerve_ik_controller"],
-        )
         spawn = Node(
             package='ros_gz_sim',
             executable='create',
@@ -309,20 +309,29 @@ def get_controller_nodes(package_name, simulate_in_gazebo, namespace):
             output='screen',
         )
 
-        controller_nodes = [spawn,RegisterEventHandler(event_handler=OnProcessExit(target_action=spawn,on_exit=[joint_state_broadcaster_node],)),
-                RegisterEventHandler(
-                    event_handler=OnProcessExit(
-                        target_action=spawn,
-                        on_exit=[swerve_ik_controller],
-                    )
-                ),
-                RegisterEventHandler(
-                    event_handler=OnProcessExit(
-                        target_action=swerve_ik_controller,
-                        on_exit=[full_body_controller_node],
-                    )
-                ),
-        ]
+        mobile_fr3_duo_controller = Node(
+            package='controller_manager',
+            executable='spawner',
+            arguments=[
+                'joint_state_broadcaster',
+                'swerve_ik_controller',
+                'full_body_controller',
+                    '--controller-manager-timeout', '120',
+                    '--service-call-timeout', '60',
+                    '--controller-ros-args',
+                    '--remap joint_states:=/franka/joint_states'],
+            parameters=full_body_controller_node_parameters,
+            output='screen',
+        )
+
+
+        controller_nodes = [spawn, RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=spawn,
+                on_exit=[mobile_fr3_duo_controller],
+            )
+        ),]
+
     else:
         controller_nodes = [joint_state_broadcaster_node, full_body_controller_node]
 
@@ -332,6 +341,7 @@ def get_controller_nodes(package_name, simulate_in_gazebo, namespace):
 def generate_nodes(context):
     use_fake_hardware = LaunchConfiguration("use_fake_hardware").perform(context)
     simulate_in_gazebo = LaunchConfiguration("simulate_in_gazebo").perform(context)
+    simulate_in_gazebo_bool = simulate_in_gazebo == "true" or simulate_in_gazebo == "True"
 
     robot_type = "mobile_fr3_duo"
     hardware_version = "v0_2"
@@ -372,6 +382,7 @@ def generate_nodes(context):
     with open(moveit_defaults_path, "r") as file:
         moveit_defaults = json.load(file)
 
+
     rviz_parameters = [
         {"planning_pipelines": moveit_defaults["planning_pipelines"]},
         {
@@ -381,6 +392,7 @@ def generate_nodes(context):
         },
         {"robot_description_kinematics": kinematics},
         {"robot_description_planning": joint_limits},
+        {'use_sim_time': simulate_in_gazebo_bool},
     ]
 
     rviz_node = Node(
@@ -411,6 +423,7 @@ def generate_nodes(context):
         joint_limits,
         trajectory_execution,
         moveit_defaults,
+        simulate_in_gazebo_bool
     )
 
     controller_nodes = get_controller_nodes(package_name, simulate_in_gazebo, namespace)
@@ -418,7 +431,6 @@ def generate_nodes(context):
     nodes = [
             robot_state_publisher,
             move_group_node,
-            ros2_control_node,
             joint_state_publisher,
             rviz_node,
         ] + controller_nodes
@@ -426,7 +438,7 @@ def generate_nodes(context):
     if simulate_in_gazebo == 'true':
         nodes += gazebo_nodes()
     else:
-        nodes.append(franka_robot_state_broadcaster)
+        nodes += [franka_robot_state_broadcaster, ros2_control_node]
 
     return nodes
 
