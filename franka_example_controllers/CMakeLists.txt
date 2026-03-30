@@ -48,7 +48,6 @@ add_library(
         src/fr3/joint_position_example_controller.cpp
         src/fr3/joint_velocity_example_controller.cpp
         src/mobile_fr3_duo/mobile_fr3_duo_joint_impedance_example_controller.cpp
-        src/mobile_fr3_duo/mobile_fr3_duo_self_collision_example_controller.cpp
         src/fr3/model_example_controller.cpp
         src/motion_generator.cpp
         src/fr3/move_to_start_example_controller.cpp
