@@ -88,13 +88,14 @@ if(BUILD_TESTING)
     ament_xmllint()
     if(CHECK_TIDY)
         find_package(ament_cmake_clang_tidy REQUIRED)
-        # Get src directory (parent of package source tree)
+        # Get scripts directory from franka_ros2 package
+        get_filename_component(SCRIPTS_DIR "${CMAKE_SOURCE_DIR}/../franka_ros2/scripts" ABSOLUTE)
+        set(CLANG_TIDY_TEST "${SCRIPTS_DIR}/.run_clang_tidy_filtered.sh")
         get_filename_component(SRC_DIR "${CMAKE_SOURCE_DIR}/.." ABSOLUTE)
-        set(FILTER_SCRIPT "${SRC_DIR}/.run_clang_tidy_filtered.sh")
         set(CLANG_TIDY_CONFIG "${SRC_DIR}/.clang-tidy")
         # Use wrapper script to filter compile_commands.json before clang-tidy
         add_test(NAME clang_tidy
-            COMMAND bash "${FILTER_SCRIPT}" "${CMAKE_BINARY_DIR}" --jobs 6 --config "${CLANG_TIDY_CONFIG}"
+            COMMAND bash "${CLANG_TIDY_TEST}" "${CMAKE_BINARY_DIR}" --jobs 6 --config "${CLANG_TIDY_CONFIG}"
             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         )
     endif()
