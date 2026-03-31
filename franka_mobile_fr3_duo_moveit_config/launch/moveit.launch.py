@@ -1,135 +1,65 @@
 import os
+
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, OpaqueFunction, Shutdown, RegisterEventHandler
-from launch.event_handlers import OnProcessExit
-from launch.substitutions import (
-    LaunchConfiguration,
-    PathJoinSubstitution,
-    LaunchConfiguration,
+from launch.actions import (
+    IncludeLaunchDescription,
+    DeclareLaunchArgument,
+    OpaqueFunction,
+    Shutdown,
+    RegisterEventHandler,
 )
+from launch.event_handlers import OnProcessExit
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch.conditions import UnlessCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 
-import xacro
 from ament_index_python.packages import get_package_share_directory
-import yaml
-import json
+from franka_mobile_fr3_duo_moveit_config.description import get_robot_descriptions
+
+
+PACKAGE_NAME = "franka_mobile_fr3_duo_moveit_config"
+
 
 def set_gz_sim_resource_path(context):
-    description_share = os.path.dirname(get_package_share_directory('franka_description'))
-    os.environ['GZ_SIM_RESOURCE_PATH'] = description_share
+    description_share = os.path.dirname(
+        get_package_share_directory("franka_description")
+    )
+    os.environ["GZ_SIM_RESOURCE_PATH"] = description_share
     return []
 
+
 def get_gz_world(context):
-    pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
-    gz_args = '-r'
-
-    world_path = 'empty.sdf'
-
-    return [IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
-        launch_arguments={'gz_args': f'{world_path} {gz_args}'}.items(),
-    )]
-
-def get_bridge():
-
-    bridge_args = ['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock']
-    remappings = []
-
-    return Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        arguments=bridge_args,
-        remappings=remappings,
-        output='screen'
-    )
-
-def gazebo_nodes():
-    set_gz_sim_resource_path_action = OpaqueFunction(
-        function=set_gz_sim_resource_path)
-    gazebo_world = OpaqueFunction(function=get_gz_world)
-    bridge = get_bridge()
-
+    """Return the Gazebo world include action."""
+    pkg_ros_gz_sim = get_package_share_directory("ros_gz_sim")
     return [
-        set_gz_sim_resource_path_action,
-        gazebo_world,
-        bridge,
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg_ros_gz_sim, "launch", "gz_sim.launch.py")
+            ),
+            launch_arguments={"gz_args": "empty.sdf -r"}.items(),
+        )
     ]
 
 
-def get_robot_descriptions(robot_name, package_name, use_fake_hardware, simulate_in_gazebo):
+def gazebo_nodes():
+    """Return the list of actions needed to start Gazebo simulation."""
+    return [
+        OpaqueFunction(function=set_gz_sim_resource_path),
+        OpaqueFunction(function=get_gz_world),
+        Node(
+            package="ros_gz_bridge",
+            executable="parameter_bridge",
+            arguments=["/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock"],
+            output="screen",
+        ),
+    ]
 
-    print(f"{simulate_in_gazebo=}")
-    print(f"{use_fake_hardware=}")
-    if simulate_in_gazebo == 'true':
-        robot_description_file_path = os.path.join(
-            get_package_share_directory('franka_gazebo_bringup'),
-            'urdf',
-            f'{robot_name}.gazebo.urdf.xacro'
-        )
-    else:
-        robot_description_file_path = os.path.join(
-            get_package_share_directory("franka_description"),
-            "robots",
-            f"{robot_name}",
-            f"{robot_name}.urdf.xacro",
-        )
-
-    robot_description_semantic_file_path = os.path.join(
-            get_package_share_directory("franka_description"),
-            "robots",
-            f"{robot_name}",
-            f"{robot_name}.srdf.xacro",
-    )
-    robot_description = xacro.process_file(
-        robot_description_file_path,
-        mappings={
-            "robot_ips": "['172.16.16.10', '172.16.16.12', '172.16.16.11']",
-            "robot_prefixes": "['', 'left', 'right']",
-            "robot_types": "['tmrv0_2', 'fr3v2', 'fr3v2']",
-            "hand": "false",
-            "load_gripper": "false",
-            "ee_id": "None",
-            "use_fake_hardware": use_fake_hardware,
-            "ros2_control": "true",
-            'gazebo_effort': simulate_in_gazebo,
-            "fake_sensor_commands": "false",
-            'is_async': 'true',
-            'thread_priority': '97',
-        },
-    ).toxml()
-
-    robot_description_semantic = xacro.process_file(
-        robot_description_semantic_file_path,
-        mappings={},
-    ).toxml()
-
-    return (robot_description, robot_description_semantic)
-
-
-def get_joint_state_publisher(namespace):
-
-    return Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        namespace=namespace,
-            parameters=[
-                {
-                    'source_list': ['franka/joint_states'],
-                    'rate': 30,
-                }
-        ],
-    )
-
-
-def get_ros2_control_node(namespace, robot_description, package_name):
+def get_ros2_control_node(namespace, robot_description):
     ros2_controllers_path = PathJoinSubstitution(
         [
-            FindPackageShare(package_name),
+            FindPackageShare(PACKAGE_NAME),
             'config',
             'mobile_fr3_duo_controllers.yaml',
         ]
@@ -153,17 +83,6 @@ def get_ros2_control_node(namespace, robot_description, package_name):
         on_exit=Shutdown(),
     )
 
-
-def get_robot_state_publisher(namespace, robot_description):
-    return Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        namespace=namespace,
-        output='both',
-        parameters=[{"robot_description": robot_description}],
-    )
-
 def get_franka_robot_state_broadcaster(use_fake_hardware, namespace):
     return Node(
             package='controller_manager',
@@ -174,275 +93,165 @@ def get_franka_robot_state_broadcaster(use_fake_hardware, namespace):
             output='screen',
         )
 
-def get_config_yaml(package_name, file_name):
-    config_yaml_path = os.path.join(
-        get_package_share_directory(package_name),
-        "config",
-        file_name,
-    )
-
-    with open(config_yaml_path, "r") as file:
-        return yaml.load(file, Loader=yaml.FullLoader)
-
-
-def get_move_group_params(
-    robot_description,
-    robot_description_semantic,
-    kinematics,
-    joint_limits,
-    trajectory_execution,
-    moveit_defaults,
-    simulate_in_gazebo
-):
-
-    move_group_configuration = {
-        "robot_description": robot_description,
-        "publish_robot_description": True,
-        "robot_description_kinematics": kinematics,
-        "robot_description_semantic": robot_description_semantic,
-        "robot_description_planning": joint_limits,
-    }
-
-    extra_params = {
-        "allow_trajectory_execution": True,
-        "capabilities": "",
-        "disable_capabilities": "",
-        "publish_robot_description_semantic": True,
-        "publish_planning_scene": True,
-        "publish_geometry_updates": True,
-        "publish_state_updates": True,
-        "publish_transforms_updates": True,
-        "monitor_dynamics": False,
-        "use_sim_time": simulate_in_gazebo
-    }
-
-    move_group_configuration.update(moveit_defaults)
-    move_group_configuration.update(trajectory_execution)
-    move_group_configuration.update(extra_params)
-
-    return [move_group_configuration, extra_params]
-
-
-def get_move_group_node(
-    namespace,
-    robot_description,
-    robot_description_semantic,
-    kinematics,
-    joint_limits,
-    trajectory_execution,
-    moveit_defaults,
-    simulate_in_gazebo
-):
-    return Node(
-        package='moveit_ros_move_group',
-        executable='move_group',
-        namespace=namespace,
-        output='screen',
-        parameters=get_move_group_params(
-            robot_description,
-            robot_description_semantic,
-            kinematics,
-            joint_limits,
-            trajectory_execution,
-            moveit_defaults,
-            simulate_in_gazebo
-        ),
-    )
-
-
-def get_controller_nodes(package_name, simulate_in_gazebo, namespace):
-    if simulate_in_gazebo == 'true':
-        cartesian_velocity_interface_prefix = 'swerve_ik_controller/'
+def get_controller_nodes(simulate_in_gazebo, namespace):
+    """Return the list of controller spawner nodes."""
+    if simulate_in_gazebo:
+        cartesian_velocity_interface_prefix = "swerve_ik_controller/"
     else:
-        cartesian_velocity_interface_prefix = ''
+        cartesian_velocity_interface_prefix = ""
 
     full_body_controller_node_parameters = [
+        PathJoinSubstitution(
+            [
+                FindPackageShare(PACKAGE_NAME),
+                "config",
+                "mobile_fr3_duo_controllers.yaml",
+            ]
+        ),
+        {
+            "full_body_controller": {
+                "ros__parameters": {
+                    "cartesian_velocity_interface_prefix": cartesian_velocity_interface_prefix,
+                }
+            }
+        },
+    ]
+
+    if simulate_in_gazebo:
+        spawn = Node(
+            package="ros_gz_sim",
+            executable="create",
+            namespace=namespace,
+            arguments=[
+                "-topic", "/robot_description",
+                "-x", "0", "-y", "0", "-z", "0.05",
+            ],
+            output="screen",
+        )
+
+        mobile_fr3_duo_controller = Node(
+            package="controller_manager",
+            executable="spawner",
+            arguments=[
+                "joint_state_broadcaster",
+                "swerve_ik_controller",
+                "full_body_controller",
+                "--controller-manager-timeout", "120",
+                "--service-call-timeout", "60",
+                "--controller-ros-args",
+                "--remap joint_states:=/franka/joint_states",
+            ],
+            parameters=full_body_controller_node_parameters,
+            output="screen",
+        )
+
+        return [
+            spawn,
+            RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=spawn,
+                    on_exit=[mobile_fr3_duo_controller],
+                )
+            ),
+        ]
+
+    joint_state_broadcaster_node = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "joint_state_broadcaster",
+            "--controller-manager-timeout", "30",
+            "--controller-ros-args",
+            "--remap joint_states:=/franka/joint_states",
+        ],
+        parameters=[
             PathJoinSubstitution(
                 [
-                    FindPackageShare(package_name),
+                    FindPackageShare(PACKAGE_NAME),
                     "config",
                     "mobile_fr3_duo_controllers.yaml",
                 ]
-            ),
-            {
-                "full_body_controller": {
-                    "ros__parameters": {
-                        "cartesian_velocity_interface_prefix": cartesian_velocity_interface_prefix,
-                    }
-                }
-            },
-        ]
+            )
+        ],
+        output="screen",
+    )
 
     full_body_controller_node = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["full_body_controller", '--controller-manager-timeout', '120',
-                   '--service-call-timeout', '60'],
+        arguments=[
+            "full_body_controller",
+            "--controller-manager-timeout", "120",
+            "--service-call-timeout", "60",
+        ],
         parameters=full_body_controller_node_parameters,
         output="screen",
     )
 
-    joint_state_broadcaster_node = Node(
-                package="controller_manager",
-                executable="spawner",
-                arguments=["joint_state_broadcaster", '--controller-manager-timeout', '30', '--controller-ros-args',
-                '--remap joint_states:=/franka/joint_states'],
-                parameters=[
-                    PathJoinSubstitution(
-                        [
-                            FindPackageShare(package_name),
-                            'config',
-                            'mobile_fr3_duo_controllers.yaml',
-                        ]
-                    )
-                ],
-                output="screen",
-            )
-
-    if simulate_in_gazebo == 'true':
-        spawn = Node(
-            package='ros_gz_sim',
-            executable='create',
-            namespace=namespace,
-            arguments=['-topic', '/robot_description',
-                    '-x', '0', '-y', '0', '-z', '0.05'],
-            output='screen',
-        )
-
-        mobile_fr3_duo_controller = Node(
-            package='controller_manager',
-            executable='spawner',
-            arguments=[
-                'joint_state_broadcaster',
-                'swerve_ik_controller',
-                'full_body_controller',
-                    '--controller-manager-timeout', '120',
-                    '--service-call-timeout', '60',
-                    '--controller-ros-args',
-                    '--remap joint_states:=/franka/joint_states'],
-            parameters=full_body_controller_node_parameters,
-            output='screen',
-        )
-
-
-        controller_nodes = [spawn, RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=spawn,
-                on_exit=[mobile_fr3_duo_controller],
-            )
-        ),]
-
-    else:
-        controller_nodes = [joint_state_broadcaster_node, full_body_controller_node]
-
-    return controller_nodes
+    return [joint_state_broadcaster_node, full_body_controller_node]
 
 
 def generate_nodes(context):
+    """Generate infrastructure nodes (robot state, controllers, Gazebo)."""
     use_fake_hardware = LaunchConfiguration("use_fake_hardware").perform(context)
     simulate_in_gazebo = LaunchConfiguration("simulate_in_gazebo").perform(context)
     simulate_in_gazebo_bool = simulate_in_gazebo == "true" or simulate_in_gazebo == "True"
 
-    robot_type = "mobile_fr3_duo"
-    hardware_version = "v0_2"
+    robot_name = "mobile_fr3_duo_v0_2"
+    namespace = LaunchConfiguration("namespace", default="")
 
-    robot_name = f"{robot_type}_{hardware_version}"
-    package_name = "franka_mobile_fr3_duo_moveit_config"
-
-    namespace = LaunchConfiguration('namespace', default='')
-
-    robot_description, robot_description_semantic = get_robot_descriptions(
-        robot_name, package_name, use_fake_hardware, simulate_in_gazebo
+    robot_description, _ = get_robot_descriptions(
+        robot_name, use_fake_hardware, simulate_in_gazebo
     )
-
-    joint_state_publisher = get_joint_state_publisher(namespace)
-    robot_state_publisher = get_robot_state_publisher(
-        namespace, robot_description
-    )
-    franka_robot_state_broadcaster = get_franka_robot_state_broadcaster(use_fake_hardware,namespace)
-
-    ros2_control_node = get_ros2_control_node(
-        namespace, robot_description, package_name
-    )
-
-    kinematics = get_config_yaml(package_name, "kinematics.yaml")
-
-    joint_limits = get_config_yaml(package_name, "joint_limits.yaml")
-
-    trajectory_execution = get_config_yaml(
-        package_name, "moveit_controllers.yaml"
-    )
-
-    moveit_defaults_path = os.path.join(
-        get_package_share_directory(package_name),
-        "config",
-        "moveit_defaults.json",
-    )
-
-    with open(moveit_defaults_path, "r") as file:
-        moveit_defaults = json.load(file)
-
-
-    rviz_parameters = [
-        {"planning_pipelines": moveit_defaults["planning_pipelines"]},
-        {
-            "default_planning_pipeline": moveit_defaults[
-                "default_planning_pipeline"
-            ]
-        },
-        {"robot_description_kinematics": kinematics},
-        {"robot_description_planning": joint_limits},
-        {'use_sim_time': simulate_in_gazebo_bool},
-    ]
-
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz2',
-        namespace=namespace,
-        output='screen',
-        respawn=False,
-        arguments=[
-            '-d',
-            PathJoinSubstitution(
-                [
-                    FindPackageShare(package_name),
-                    'config',
-                    'moveit.rviz',
-                ]
-            ),
-        ],
-        parameters=rviz_parameters,
-    )
-
-    move_group_node = get_move_group_node(
-        namespace,
-        robot_description,
-        robot_description_semantic,
-        kinematics,
-        joint_limits,
-        trajectory_execution,
-        moveit_defaults,
-        simulate_in_gazebo_bool
-    )
-
-    controller_nodes = get_controller_nodes(package_name, simulate_in_gazebo, namespace)
 
     nodes = [
-            robot_state_publisher,
-            move_group_node,
-            joint_state_publisher,
-            rviz_node,
-        ] + controller_nodes
-    
-    if simulate_in_gazebo == 'true':
+        Node(
+            package="robot_state_publisher",
+            executable="robot_state_publisher",
+            name="robot_state_publisher",
+            namespace=namespace,
+            output="both",
+            parameters=[{"robot_description": robot_description}],
+        ),
+        Node(
+            package="joint_state_publisher",
+            executable="joint_state_publisher",
+            name="joint_state_publisher",
+            namespace=namespace,
+            parameters=[
+                {
+                    "source_list": ["franka/joint_states"],
+                    "rate": 30,
+                }
+            ],
+        ),
+    ] + get_controller_nodes(simulate_in_gazebo_bool, namespace)
+
+    if simulate_in_gazebo_bool:
         nodes += gazebo_nodes()
     else:
-        nodes += [franka_robot_state_broadcaster, ros2_control_node]
+        nodes += [get_franka_robot_state_broadcaster(use_fake_hardware, namespace), get_ros2_control_node(namespace, robot_description)]
 
     return nodes
 
+
 def generate_launch_description():
+    """Top-level launch: infrastructure nodes + included MoveIt nodes."""
+    moveit_nodes_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory(PACKAGE_NAME),
+                "launch",
+                "moveit_nodes.launch.py",
+            )
+        ),
+        launch_arguments={
+            "use_fake_hardware": LaunchConfiguration("use_fake_hardware"),
+            "simulate_in_gazebo": LaunchConfiguration("simulate_in_gazebo"),
+            "rviz": LaunchConfiguration("rviz"),
+        }.items(),
+    )
+
     return LaunchDescription(
         [
                 DeclareLaunchArgument(
@@ -455,6 +264,12 @@ def generate_launch_description():
                     default_value='false',
                     description='Simulates the robot in Gazebo if true. ',
                 ),
-            OpaqueFunction(function=generate_nodes)
-        ]
+                DeclareLaunchArgument(
+                    "rviz",
+                    default_value='true',
+                    description='Visualize the robot in rviz. ',
+                ),
+            OpaqueFunction(function=generate_nodes),
+            moveit_nodes_launch
+        ],
     )
