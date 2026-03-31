@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "mobile_fr3_duo_joint_trajectory_controller/mobile_fr3_duo_joint_trajectory_controller.hpp"
-#include "mobile_fr3_duo_joint_trajectory_controller/mapping.hpp"
+#include "mobile_fr3_duo_trajectory_controller/mobile_fr3_duo_trajectory_controller.hpp"
+#include "mobile_fr3_duo_trajectory_controller/mapping.hpp"
 
 #include <cmath>
 #include <string>
 
 #include "rclcpp_action/create_server.hpp"
 
-namespace mobile_fr3_duo_joint_trajectory_controller {
+namespace mobile_fr3_duo_trajectory_controller {
 
 static constexpr size_t kBaseJoints = 3;
 static constexpr size_t kArmStateInterfaces = 7 * kArms;  // arm joints: pos + vel
@@ -28,11 +28,11 @@ static constexpr size_t kBaseCommandInterfaces = 6;       // vx vy vz wx wy wz
 static constexpr size_t kBaseStateInterfaces = 0;         // base joints: pos + vel
 static constexpr size_t kArmCommandInterfaces = 7;
 
-CallbackReturn MobileFR3DuoJointTrajectoryController::on_init() {
+CallbackReturn MobileFR3DuoTrajectoryController::on_init() {
   try {
     // Create the parameter listener and get the parameters
     param_listener_ =
-        std::make_shared<mobile_fr3_duo_joint_trajectory_controller::ParamListener>(get_node());
+        std::make_shared<mobile_fr3_duo_trajectory_controller::ParamListener>(get_node());
     params_ = param_listener_->get_params();
   } catch (const std::exception& e) {
     fprintf(stderr, "Exception thrown during init stage with message: %s \n", e.what());
@@ -52,7 +52,7 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_init() {
 }
 
 controller_interface::InterfaceConfiguration
-MobileFR3DuoJointTrajectoryController::command_interface_configuration() const {
+MobileFR3DuoTrajectoryController::command_interface_configuration() const {
   auto logger = get_node()->get_logger();
 
   controller_interface::InterfaceConfiguration config;
@@ -71,7 +71,7 @@ MobileFR3DuoJointTrajectoryController::command_interface_configuration() const {
 }
 
 controller_interface::InterfaceConfiguration
-MobileFR3DuoJointTrajectoryController::state_interface_configuration() const {
+MobileFR3DuoTrajectoryController::state_interface_configuration() const {
   auto logger = get_node()->get_logger();
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
@@ -88,7 +88,7 @@ MobileFR3DuoJointTrajectoryController::state_interface_configuration() const {
   return config;
 }
 
-controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
+controller_interface::return_type MobileFR3DuoTrajectoryController::update(
     const rclcpp::Time& time,
     const rclcpp::Duration& period) {
   auto logger = this->get_node()->get_logger();
@@ -160,7 +160,7 @@ controller_interface::return_type MobileFR3DuoJointTrajectoryController::update(
   return controller_interface::return_type::OK;
 }
 
-CallbackReturn MobileFR3DuoJointTrajectoryController::on_configure(const rclcpp_lifecycle::State&) {
+CallbackReturn MobileFR3DuoTrajectoryController::on_configure(const rclcpp_lifecycle::State&) {
   auto k = get_node()->get_parameter("k_gains").as_double_array();
   auto d = get_node()->get_parameter("d_gains").as_double_array();
   // TODO (wink_ma): throw errror if prefixes and types do not makes sense (e.g. not matching
@@ -200,9 +200,9 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_configure(const rclcpp_
       get_node()->get_node_base_interface(), get_node()->get_node_clock_interface(),
       get_node()->get_node_logging_interface(), get_node()->get_node_waitables_interface(),
       std::string(get_node()->get_name()) + "/follow_joint_trajectory",
-      std::bind(&MobileFR3DuoJointTrajectoryController::goal_received_callback, this, _1, _2),
-      std::bind(&MobileFR3DuoJointTrajectoryController::goal_cancelled_callback, this, _1),
-      std::bind(&MobileFR3DuoJointTrajectoryController::goal_accepted_callback, this, _1));
+      std::bind(&MobileFR3DuoTrajectoryController::goal_received_callback, this, _1, _2),
+      std::bind(&MobileFR3DuoTrajectoryController::goal_cancelled_callback, this, _1),
+      std::bind(&MobileFR3DuoTrajectoryController::goal_accepted_callback, this, _1));
 
   update_period_ =
       rclcpp::Duration(0.0, static_cast<uint32_t>(1.0e9 / static_cast<double>(get_update_rate())));
@@ -210,9 +210,9 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_configure(const rclcpp_
   return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn MobileFR3DuoJointTrajectoryController::on_activate(const rclcpp_lifecycle::State&) {
+CallbackReturn MobileFR3DuoTrajectoryController::on_activate(const rclcpp_lifecycle::State&) {
   auto logger = get_node()->get_logger();
-  RCLCPP_INFO(logger, "Trying to activate MobileFR3DuoJointTrajectoryController.");
+  RCLCPP_INFO(logger, "Trying to activate MobileFR3DuoTrajectoryController.");
 
   current_trajectory_ = std::make_shared<Trajectory>();
   new_trajectory_msg_.writeFromNonRT(std::shared_ptr<trajectory_msgs::msg::JointTrajectory>());
@@ -221,19 +221,18 @@ CallbackReturn MobileFR3DuoJointTrajectoryController::on_activate(const rclcpp_l
 
   updateState(state_current_);
 
-  RCLCPP_INFO(logger, "Successfully activated MobileFR3DuoJointTrajectoryController.");
+  RCLCPP_INFO(logger, "Successfully activated MobileFR3DuoTrajectoryController.");
 
   return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn MobileFR3DuoJointTrajectoryController::on_deactivate(
-    const rclcpp_lifecycle::State&) {
+CallbackReturn MobileFR3DuoTrajectoryController::on_deactivate(const rclcpp_lifecycle::State&) {
   current_trajectory_.reset();
 
   return CallbackReturn::SUCCESS;
 }
 
-rclcpp_action::GoalResponse MobileFR3DuoJointTrajectoryController::goal_received_callback(
+rclcpp_action::GoalResponse MobileFR3DuoTrajectoryController::goal_received_callback(
     const rclcpp_action::GoalUUID&,
     std::shared_ptr<const FollowJTrajAction::Goal> goal) {
   if (get_lifecycle_id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
@@ -250,7 +249,7 @@ rclcpp_action::GoalResponse MobileFR3DuoJointTrajectoryController::goal_received
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-rclcpp_action::CancelResponse MobileFR3DuoJointTrajectoryController::goal_cancelled_callback(
+rclcpp_action::CancelResponse MobileFR3DuoTrajectoryController::goal_cancelled_callback(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<FollowJTrajAction>> goal_handle) {
   const auto active_goal = *rt_active_goal_.readFromNonRT();
 
@@ -268,7 +267,7 @@ rclcpp_action::CancelResponse MobileFR3DuoJointTrajectoryController::goal_cancel
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void MobileFR3DuoJointTrajectoryController::goal_accepted_callback(
+void MobileFR3DuoTrajectoryController::goal_accepted_callback(
     std::shared_ptr<rclcpp_action::ServerGoalHandle<FollowJTrajAction>> goal_handle) {
   auto logger = this->get_node()->get_logger();
 
@@ -294,21 +293,21 @@ void MobileFR3DuoJointTrajectoryController::goal_accepted_callback(
                                     std::bind(&RealtimeGoalHandle::runNonRealtime, rt_goal));
 }
 
-bool MobileFR3DuoJointTrajectoryController::validate_trajectory_msg(
+bool MobileFR3DuoTrajectoryController::validate_trajectory_msg(
     const trajectory_msgs::msg::JointTrajectory& trajectory) const {
   // TODO (wink_ma): check for missing joints, empty trajectory points, non-zero end velocity
   return true;
 }
 
-bool MobileFR3DuoJointTrajectoryController::has_active_trajectory() const {
+bool MobileFR3DuoTrajectoryController::has_active_trajectory() const {
   return current_trajectory_ != nullptr && current_trajectory_->has_trajectory_msg();
 }
 
-void MobileFR3DuoJointTrajectoryController::add_new_trajectory_msg(
+void MobileFR3DuoTrajectoryController::add_new_trajectory_msg(
     const std::shared_ptr<trajectory_msgs::msg::JointTrajectory>& traj_msg) {
   new_trajectory_msg_.writeFromNonRT(traj_msg);
 }
-void MobileFR3DuoJointTrajectoryController::preempt_active_goal() {
+void MobileFR3DuoTrajectoryController::preempt_active_goal() {
   const auto active_goal = *rt_active_goal_.readFromNonRT();
   if (active_goal) {
     auto result = std::make_shared<FollowJTrajAction::Result>();
@@ -319,7 +318,7 @@ void MobileFR3DuoJointTrajectoryController::preempt_active_goal() {
   }
 }
 
-void MobileFR3DuoJointTrajectoryController::initializeState(
+void MobileFR3DuoTrajectoryController::initializeState(
     trajectory_msgs::msg::JointTrajectoryPoint& state,
     const std::vector<std::string>& joint_names) {
   size_t number_of_joints = joint_names.size();
@@ -336,7 +335,7 @@ void MobileFR3DuoJointTrajectoryController::initializeState(
   }
 }
 
-void MobileFR3DuoJointTrajectoryController::updateState(
+void MobileFR3DuoTrajectoryController::updateState(
     trajectory_msgs::msg::JointTrajectoryPoint& state) {
   auto logger = get_node()->get_logger();
   auto clock = *get_node()->get_clock();
@@ -375,9 +374,8 @@ void MobileFR3DuoJointTrajectoryController::updateState(
   // Now, both are left at the default of 0.0
 }
 
-void MobileFR3DuoJointTrajectoryController::commandArmPosition(
-    const std::array<double, 7>& position,
-    size_t arm_index) {
+void MobileFR3DuoTrajectoryController::commandArmPosition(const std::array<double, 7>& position,
+                                                          size_t arm_index) {
   const Vector7d q_goal = Eigen::Map<const Vector7d>(position.data());
 
   constexpr double kAlpha = 0.99;
@@ -399,7 +397,7 @@ std::tuple<std::array<double, 7>,
            std::array<double, 7>,
            std::array<double, 3>,
            std::array<double, 3>>
-MobileFR3DuoJointTrajectoryController::getCommandsFromJointTrajectoryPoint(
+MobileFR3DuoTrajectoryController::getCommandsFromJointTrajectoryPoint(
     const trajectory_msgs::msg::JointTrajectoryPoint& point) const {
   auto [left_arm_joint_positions, right_arm_joint_positions] =
       getArmJointPositionsFromPoint(point.positions);
@@ -411,7 +409,7 @@ MobileFR3DuoJointTrajectoryController::getCommandsFromJointTrajectoryPoint(
 }
 
 std::tuple<std::array<double, 7>, std::array<double, 7>>
-MobileFR3DuoJointTrajectoryController::getArmJointPositionsFromPoint(
+MobileFR3DuoTrajectoryController::getArmJointPositionsFromPoint(
     const std::vector<double>& point) const {
   std::array<double, 7> left_arm_joint_positions;
   std::array<double, 7> right_arm_joint_positions;
@@ -425,7 +423,7 @@ MobileFR3DuoJointTrajectoryController::getArmJointPositionsFromPoint(
   return std::make_tuple(left_arm_joint_positions, right_arm_joint_positions);
 }
 
-std::array<double, 3> MobileFR3DuoJointTrajectoryController::getMobileBasePositionsFromPoint(
+std::array<double, 3> MobileFR3DuoTrajectoryController::getMobileBasePositionsFromPoint(
     const std::vector<double>& point) const {
   std::array<double, 3> mobile_base_positions;
 
@@ -435,7 +433,7 @@ std::array<double, 3> MobileFR3DuoJointTrajectoryController::getMobileBasePositi
   return mobile_base_positions;
 }
 
-std::array<double, 3> MobileFR3DuoJointTrajectoryController::getMobileBaseVelocitiesFromPoint(
+std::array<double, 3> MobileFR3DuoTrajectoryController::getMobileBaseVelocitiesFromPoint(
     const std::vector<double>& point) const {
   std::array<double, 3> mobile_base_velocities;
 
@@ -445,7 +443,7 @@ std::array<double, 3> MobileFR3DuoJointTrajectoryController::getMobileBaseVeloci
   return mobile_base_velocities;
 }
 
-void MobileFR3DuoJointTrajectoryController::commandMobileBaseVelocity(
+void MobileFR3DuoTrajectoryController::commandMobileBaseVelocity(
     const std::array<double, 3>& mobile_base_velocities,
     const std::array<double, 3>& mobile_base_positions) {
   double vx_world = mobile_base_velocities[0];
@@ -467,9 +465,8 @@ void MobileFR3DuoJointTrajectoryController::commandMobileBaseVelocity(
   }
 }
 
-}  // namespace mobile_fr3_duo_joint_trajectory_controller
+}  // namespace mobile_fr3_duo_trajectory_controller
 
 #include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(
-    mobile_fr3_duo_joint_trajectory_controller::MobileFR3DuoJointTrajectoryController,
-    controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(mobile_fr3_duo_trajectory_controller::MobileFR3DuoTrajectoryController,
+                       controller_interface::ControllerInterface)

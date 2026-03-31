@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "mobile_fr3_duo_joint_trajectory_controller/mapping.hpp"
+#include "mobile_fr3_duo_trajectory_controller/mapping.hpp"
 
 class MobileFR3DuoTrajectoryControllerTest : public ::testing::Test {
   void SetUp() override {}
@@ -29,8 +29,8 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest,
   };
   const std::vector<std::string> substrings = {"bottom", "joint1"};
 
-  size_t i = mobile_fr3_duo_joint_trajectory_controller::findElementWithSubstrings(joint_names,
-                                                                                   substrings);
+  size_t i =
+      mobile_fr3_duo_trajectory_controller::findElementWithSubstrings(joint_names, substrings);
   size_t expected_index = 3;
   ASSERT_EQ(i, expected_index);
 }
@@ -43,10 +43,7 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest,
   const std::vector<std::string> substrings = {"top", "joint1"};
 
   ASSERT_THROW(
-      {
-        mobile_fr3_duo_joint_trajectory_controller::findElementWithSubstrings(joint_names,
-                                                                              substrings);
-      },
+      { mobile_fr3_duo_trajectory_controller::findElementWithSubstrings(joint_names, substrings); },
       std::runtime_error);
 }
 
@@ -57,8 +54,7 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest,
   };
   const std::string joint_name = "planar_theta";
 
-  size_t i =
-      mobile_fr3_duo_joint_trajectory_controller::findMatchingElement(joint_names, joint_name);
+  size_t i = mobile_fr3_duo_trajectory_controller::findMatchingElement(joint_names, joint_name);
 
   size_t expected_index = 2;
   ASSERT_EQ(i, expected_index);
@@ -72,7 +68,7 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest,
   const std::string joint_name = "planar_y";
 
   ASSERT_THROW(
-      { mobile_fr3_duo_joint_trajectory_controller::findMatchingElement(joint_names, joint_name); },
+      { mobile_fr3_duo_trajectory_controller::findMatchingElement(joint_names, joint_name); },
       std::runtime_error);
 }
 
@@ -82,7 +78,7 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest, givenJointNamesWhenGetStateMapThenA
   const std::vector<std::string> arm_prefixes = {"left"};
   std::map<std::pair<size_t, size_t>, size_t> expected_joint_map = {{{0, 0}, 1}, {{0, 1}, 4}};
   std::map<std::pair<size_t, size_t>, size_t> joint_map =
-      mobile_fr3_duo_joint_trajectory_controller::getJointStateMap(joint_names, arm_prefixes);
+      mobile_fr3_duo_trajectory_controller::getJointStateMap(joint_names, arm_prefixes);
 
   ASSERT_EQ(joint_map, expected_joint_map);
 };
@@ -95,7 +91,7 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest, givenJointNamesWhenGetArmMapThenAsE
   std::array<size_t, 7> expected_arm_map = {1, 4, 2, 5, 6, 7, 8};
 
   std::array<size_t, 7> arm_map =
-      mobile_fr3_duo_joint_trajectory_controller::getArmJointMap(joint_names, "left");
+      mobile_fr3_duo_trajectory_controller::getArmJointMap(joint_names, "left");
 
   ASSERT_EQ(arm_map, expected_arm_map);
 };
@@ -106,7 +102,7 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest, givenMissingJoint6WhenGetArmMapThen
       "left_fr3_joint2",   "left_joint4", "left_joint5", "left_joint7"};
 
   ASSERT_THROW(
-      { mobile_fr3_duo_joint_trajectory_controller::getArmJointMap(joint_names, "left"); },
+      { mobile_fr3_duo_trajectory_controller::getArmJointMap(joint_names, "left"); },
       std::runtime_error);
 };
 
@@ -119,8 +115,8 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest, givenJointNamesWhenGetMobileBaseMap
   std::array<size_t, 3> expected_mobile_base_map = {8, 6, 4};
 
   std::array<size_t, 3> mobile_base_map =
-      mobile_fr3_duo_joint_trajectory_controller::getMobileBaseJointMap(all_joint_names,
-                                                                        base_joint_names);
+      mobile_fr3_duo_trajectory_controller::getMobileBaseJointMap(all_joint_names,
+                                                                  base_joint_names);
 
   ASSERT_EQ(mobile_base_map, expected_mobile_base_map);
 };
@@ -135,8 +131,8 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest,
 
   ASSERT_THROW(
       {
-        mobile_fr3_duo_joint_trajectory_controller::getMobileBaseJointMap(all_joint_names,
-                                                                          base_joint_names);
+        mobile_fr3_duo_trajectory_controller::getMobileBaseJointMap(all_joint_names,
+                                                                    base_joint_names);
       },
       std::runtime_error);
 };
@@ -176,7 +172,7 @@ TEST_F(MobileFR3DuoTrajectoryControllerTest, givenJointNamesWhenSortThenExpected
 
   const std::vector<std::string> local_joint_names = {"joint1", "joint3", "joint4"};
 
-  mobile_fr3_duo_joint_trajectory_controller::sortToLocalJointOrder(trajectory, local_joint_names);
+  mobile_fr3_duo_trajectory_controller::sortToLocalJointOrder(trajectory, local_joint_names);
 
   auto expected_trajectory = std::make_shared<trajectory_msgs::msg::JointTrajectory>();
   expected_trajectory->header = header;

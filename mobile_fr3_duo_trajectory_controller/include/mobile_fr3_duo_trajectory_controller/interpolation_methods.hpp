@@ -19,11 +19,11 @@
 #include "hardware_interface/lexical_casts.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-namespace mobile_fr3_duo_joint_trajectory_controller {
+namespace mobile_fr3_duo_trajectory_controller {
 
 /// \brief Setup interpolation_methods' rclcpp::Logger instance.
 static const rclcpp::Logger LOGGER =
-    rclcpp::get_logger("mobile_fr3_duo_joint_trajectory_controller.interpolation_methods");
+    rclcpp::get_logger("mobile_fr3_duo_trajectory_controller.interpolation_methods");
 
 namespace interpolation_methods {
 
@@ -121,4 +121,4 @@ const InterpolationMethod DEFAULT_INTERPOLATION = InterpolationMethod::VARIABLE_
 }
 
 }  // namespace interpolation_methods
-}  // namespace mobile_fr3_duo_joint_trajectory_controller
+}  // namespace mobile_fr3_duo_trajectory_controller

@@ -33,7 +33,7 @@ controller_manager:
       type: franka_mobile/SwerveDriveController
 
     full_body_controller:
-      type: mobile_fr3_duo_joint_trajectory_controller/MobileFR3DuoJointTrajectoryController
+      type: mobile_fr3_duo_trajectory_controller/MobileFR3DuoTrajectoryController
 
 joint_position_example_controller:
   ros__parameters:

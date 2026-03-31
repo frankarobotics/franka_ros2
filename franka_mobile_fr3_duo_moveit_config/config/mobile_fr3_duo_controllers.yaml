@@ -8,7 +8,7 @@ controller_manager:
       print_warnings: false
 
     full_body_controller:
-      type: mobile_fr3_duo_joint_trajectory_controller/MobileFR3DuoJointTrajectoryController
+      type: mobile_fr3_duo_trajectory_controller/MobileFR3DuoTrajectoryController
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster

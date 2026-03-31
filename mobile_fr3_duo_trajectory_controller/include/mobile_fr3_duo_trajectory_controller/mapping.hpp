@@ -20,7 +20,7 @@
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <vector>
 
-namespace mobile_fr3_duo_joint_trajectory_controller {
+namespace mobile_fr3_duo_trajectory_controller {
 
 size_t findMatchingElement(const std::vector<std::string>& vec, const std::string& match);
 
@@ -39,4 +39,4 @@ std::array<size_t, 3> getMobileBaseJointMap(std::vector<std::string> joint_names
 void sortToLocalJointOrder(std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg,
                            const std::vector<std::string> joint_names);
 
-}  // namespace mobile_fr3_duo_joint_trajectory_controller
+}  // namespace mobile_fr3_duo_trajectory_controller

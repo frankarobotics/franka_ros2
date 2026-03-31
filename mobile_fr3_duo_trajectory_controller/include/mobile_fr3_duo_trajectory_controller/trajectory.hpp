@@ -17,11 +17,11 @@
 #include <memory>
 #include <vector>
 
-#include "mobile_fr3_duo_joint_trajectory_controller/interpolation_methods.hpp"
+#include "mobile_fr3_duo_trajectory_controller/interpolation_methods.hpp"
 #include "rclcpp/time.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
-namespace mobile_fr3_duo_joint_trajectory_controller {
+namespace mobile_fr3_duo_trajectory_controller {
 using TrajectoryPointIter = std::vector<trajectory_msgs::msg::JointTrajectoryPoint>::iterator;
 using TrajectoryPointConstIter =
     std::vector<trajectory_msgs::msg::JointTrajectoryPoint>::const_iterator;
@@ -160,4 +160,4 @@ class Trajectory {
   size_t last_sample_idx_ = 0;
 };
 
-}  // namespace mobile_fr3_duo_joint_trajectory_controller
+}  // namespace mobile_fr3_duo_trajectory_controller

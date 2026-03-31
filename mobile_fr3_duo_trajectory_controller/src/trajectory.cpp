@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "mobile_fr3_duo_joint_trajectory_controller/trajectory.hpp"
+#include "mobile_fr3_duo_trajectory_controller/trajectory.hpp"
 
 #include <cmath>
 #include <memory>
@@ -21,7 +21,7 @@
 #include "rclcpp/duration.hpp"
 #include "rclcpp/time.hpp"
 
-namespace mobile_fr3_duo_joint_trajectory_controller {
+namespace mobile_fr3_duo_trajectory_controller {
 double shortest_angular_distance(double from, double to) {
   double angle = to - from;
   const double result = fmod(angle + M_PI, 2.0 * M_PI);
@@ -370,4 +370,4 @@ bool Trajectory::has_nontrivial_msg() const {
   return has_trajectory_msg() && trajectory_msg_->points.size() > 1;
 }
 
-}  // namespace mobile_fr3_duo_joint_trajectory_controller
+}  // namespace mobile_fr3_duo_trajectory_controller

@@ -15,9 +15,9 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include "mobile_fr3_duo_joint_trajectory_controller/mapping.hpp"
+#include "mobile_fr3_duo_trajectory_controller/mapping.hpp"
 
-namespace mobile_fr3_duo_joint_trajectory_controller {
+namespace mobile_fr3_duo_trajectory_controller {
 
 bool contains_substring(const std::string& str, const std::string& substring) {
   return str.find(substring) != std::string::npos;
@@ -61,12 +61,14 @@ std::map<std::pair<size_t, size_t>, size_t> getJointStateMap(
     for (size_t joint_index = 0; joint_index < 7; ++joint_index) {
       const std::string joint_string = "joint" + std::to_string(joint_index + 1);
       const std::string side = arm_prefixes[arm_index];
+      size_t state_index;
       try {
-        const size_t state_index = findElementWithSubstrings(joint_names, {side, joint_string});
-        map[{arm_index, joint_index}] = state_index;
+        state_index = findElementWithSubstrings(joint_names, {side, joint_string});
       } catch (const std::runtime_error& e) {
         // it's ok for the map if the substrings were not part of the vector
+        continue;
       }
+      map[{arm_index, joint_index}] = state_index;
     }
   }
 
@@ -168,4 +170,4 @@ void sortToLocalJointOrder(std::shared_ptr<trajectory_msgs::msg::JointTrajectory
   }
 }
 
-}  // namespace mobile_fr3_duo_joint_trajectory_controller
+}  // namespace mobile_fr3_duo_trajectory_controller

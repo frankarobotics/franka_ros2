@@ -1,4 +1,4 @@
-mobile_fr3_duo_joint_trajectory_controller:
+mobile_fr3_duo_trajectory_controller:
   joints: {
     type: string_array,
     default_value: [],

@@ -24,8 +24,8 @@
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
 #include "control_msgs/action/follow_joint_trajectory.hpp"
 #include "controller_interface/controller_interface.hpp"
-#include "mobile_fr3_duo_joint_trajectory_controller/mobile_fr3_duo_joint_trajectory_controller_parameters.hpp"
-#include "mobile_fr3_duo_joint_trajectory_controller/trajectory.hpp"
+#include "mobile_fr3_duo_trajectory_controller/mobile_fr3_duo_trajectory_controller_parameters.hpp"
+#include "mobile_fr3_duo_trajectory_controller/trajectory.hpp"
 #include "rclcpp/duration.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/timer.hpp"
@@ -39,7 +39,7 @@ using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
 
 using namespace std::chrono_literals;  // NOLINT
 
-namespace mobile_fr3_duo_joint_trajectory_controller {
+namespace mobile_fr3_duo_trajectory_controller {
 
 /**
  * The mobile FR3 duo joint trajectory controller combines:
@@ -49,7 +49,7 @@ namespace mobile_fr3_duo_joint_trajectory_controller {
 using Vector7d = Eigen::Matrix<double, 7, 1>;
 static constexpr size_t kArms = 2;
 
-class MobileFR3DuoJointTrajectoryController : public controller_interface::ControllerInterface {
+class MobileFR3DuoTrajectoryController : public controller_interface::ControllerInterface {
  public:
   CallbackReturn on_init() override;
 
@@ -68,8 +68,8 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
   trajectory_msgs::msg::JointTrajectoryPoint state_current_;
   trajectory_msgs::msg::JointTrajectoryPoint command_next_;
 
-  std::shared_ptr<mobile_fr3_duo_joint_trajectory_controller::ParamListener> param_listener_;
-  mobile_fr3_duo_joint_trajectory_controller::Params params_;
+  std::shared_ptr<mobile_fr3_duo_trajectory_controller::ParamListener> param_listener_;
+  mobile_fr3_duo_trajectory_controller::Params params_;
 
   rclcpp::Time traj_time_;
 
@@ -151,4 +151,4 @@ class MobileFR3DuoJointTrajectoryController : public controller_interface::Contr
                        const std::vector<std::string>& joint_names);
 };
 
-}  // namespace mobile_fr3_duo_joint_trajectory_controller
+}  // namespace mobile_fr3_duo_trajectory_controller

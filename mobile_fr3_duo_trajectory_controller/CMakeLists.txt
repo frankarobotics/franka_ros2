@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(mobile_fr3_duo_joint_trajectory_controller)
+project(mobile_fr3_duo_trajectory_controller)
 
 if(NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 20)
@@ -28,26 +28,25 @@ find_package(franka_semantic_components REQUIRED)
 
 find_package(ament_cmake REQUIRED)
 
-generate_parameter_library(mobile_fr3_duo_joint_trajectory_controller_parameters
-  src/mobile_fr3_duo_joint_trajectory_controller_parameters.yaml
+generate_parameter_library(${PROJECT_NAME}_parameters
+  config/${PROJECT_NAME}_parameters.yaml
 )
 
 add_library(${PROJECT_NAME} SHARED
-  src/mobile_fr3_duo_joint_trajectory_controller.cpp
+  src/${PROJECT_NAME}.cpp
   src/trajectory.cpp
   src/mapping.cpp
 )
 
 target_include_directories(
-        mobile_fr3_duo_joint_trajectory_controller
+        ${PROJECT_NAME}
         PUBLIC
         include
         ${EIGEN3_INCLUDE_DIRS}
 )
 
-# TODO (wink_ma): this is ugly
 target_link_libraries(${PROJECT_NAME} PUBLIC
-                      mobile_fr3_duo_joint_trajectory_controller_parameters)
+                      ${PROJECT_NAME}_parameters)
 
 
 ament_target_dependencies(
@@ -63,13 +62,12 @@ ament_target_dependencies(
         franka_semantic_components
 )
 
-pluginlib_export_plugin_description_file(controller_interface mobile_fr3_duo_joint_trajectory_controller.xml)
-
+pluginlib_export_plugin_description_file(controller_interface ${PROJECT_NAME}.xml)
 
 install(
         TARGETS
         ${PROJECT_NAME}
-        mobile_fr3_duo_joint_trajectory_controller_parameters
+        ${PROJECT_NAME}_parameters
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
