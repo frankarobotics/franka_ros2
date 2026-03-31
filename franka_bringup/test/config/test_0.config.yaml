@@ -7,4 +7,4 @@ TEST_ROBOT_0:
   namespace: ""
   robot_ip: ""
   use_fake_hardware: "false"
-  use_rviz: "true"
+  use_rviz: "false"
