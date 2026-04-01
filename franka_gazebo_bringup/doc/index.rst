@@ -104,22 +104,65 @@ Now you can launch the mobile FR3 duo example with Gazebo:
 
     ros2 launch franka_gazebo_bringup gazebo_mobile_fr3_duo_example.launch.py
 
-To launch with the full sensor suite (4x cameras, 2x LiDARs, 1x IMU), also build ``franka_mobile_sensors``:
+To launch with the complete sensor suite including both the mobile platform sensors and the Vision and Manipulation Kit sensors,
+also build ``franka_mobile_sensors`` and ``franka_vision_and_manipulation_kit``:
 
 .. code-block:: shell
 
-    colcon build --packages-select franka_mobile_sensors
+    colcon build --packages-select franka_mobile_sensors franka_vision_and_manipulation_kit
     source install/setup.bash
-    ros2 launch franka_gazebo_bringup gazebo_mobile_fr3_duo_example.launch.py with_sensors:=true
+    ros2 launch franka_gazebo_bringup gazebo_mobile_fr3_duo_example.launch.py with_sensors:=true 
+
+.. note::
+
+   The sensor suite integrates 10 sensors total from two packages:
+   
+   - **franka_mobile_sensors** provides 7 sensors (4 RGB cameras, 2 LiDARs, 1 IMU)
+   - **franka_vision_and_manipulation_kit** provides 3 sensors (2 wrist D405 cameras, 1 ZED Mini head camera)
+   
+   All sensors are properly attached to the robot kinematic tree, ensuring proper simulation and sensor data streaming.
+   
+   **Important**: When using ``with_sensors:=true``, the Vision and Manipulation Kit includes Robotiq grippers.
+
+**Sensor Configuration with** ``with_sensors:=true``:
+
+This command enables BOTH sensor suites:
+
+**Mobile Platform Sensors** (from ``franka_mobile_sensors``):
+  - 4x RealSense D455 cameras (front, rear, left, right)
+  - 2x SICK nanoScan3 LiDARs (front, rear)
+  - 1x OLV-IMU01 IMU
+
+**Vision and Manipulation Kit Sensors** (from ``franka_vision_and_manipulation_kit``):
+  - 2x RealSense D405 cameras (left and right wrist cameras)
+  - 1x ZED Mini camera (head camera)
+
+**Topics available:**
+
+Mobile platform cameras:
+  - ``/camera_front/color/image_raw``, ``/camera_rear/color/image_raw``, etc.
+
+Mobile platform LiDARs:
+  - ``/lidar_front/scan``, ``/lidar_rear/scan``
+
+Mobile platform IMU:
+  - ``/imu/data``
+
+Wrist cameras (Vision and Manipulation Kit):
+  - ``/left_wrist_camera/image_raw``, ``/right_wrist_camera/image_raw``
+
+Head camera (ZED Mini):
+  - ``/head_camera/image_raw``, ``/head_camera/image_raw/camera_info``
 
 **Arguments:**
 
-- ``with_sensors``: If set to ``true``, uses the sensor-enhanced description (``franka_mobile_sensors``)
+- ``with_sensors``: If set to ``true``, uses the complete sensor-enhanced description with both mobile platform sensors 
+  (``franka_mobile_sensors``) and Vision and Manipulation Kit sensors (``franka_vision_and_manipulation_kit``) 
   with Gazebo sensor plugins. Defaults to ``false``.
 - ``world``: SDF world filename inside ``franka_gazebo_bringup/worlds/`` to load.
   Overrides the default world selection.
 
-This will spawn the mobile base and two FR3 arms, and start the joint impedance controller
+This will spawn the mobile base and two FR3 arms with gripper and wrist cameras, and start the joint impedance controller
 for both arms and cartesian velocity control for the mobile base. RViz will also launch
 for visualization. Select ``base_link`` to see the robot there.
 

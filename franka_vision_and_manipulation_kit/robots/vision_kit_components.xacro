@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<!--
+  Vision and Manipulation Kit components macro.
+
+  Attaches the vision and manipulation kit accessories to the robot:
+    - 2x Robotiq grippers with RealSense D405 wrist cameras
+    - 1x ZED Mini head camera
+
+  This file is robot-independent: components attach to standard
+  arm link8 mounting points and optional head_camera_mounting_point.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find franka_vision_and_manipulation_kit)/accessories/robotiq_gripper_with_realsense_camera.xacro" />
+  <xacro:include filename="$(find zed_description)/urdf/zed_macro.urdf.xacro"/>
+
+  <xacro:macro name="vision_kit_components" params="left_arm_type:=fr3v2 right_arm_type:=fr3v2 prefix:='' robotiq_use_fake_hardware:=false robotiq_include_ros2_control:=true sim_gazebo:=false">
+
+    <!-- Robotiq Grippers with RealSense D405 wrist cameras -->
+    <xacro:robotiq_gripper_with_realsense_camera parent="left_${left_arm_type}_link8" prefix="${prefix}left_" robotiq_name="left_robotiq_gripper_hardware" robotiq_use_fake_hardware="${robotiq_use_fake_hardware}" robotiq_include_ros2_control="${robotiq_include_ros2_control}" robotiq_sim_gazebo="${sim_gazebo}" />
+    <xacro:robotiq_gripper_with_realsense_camera parent="right_${right_arm_type}_link8" prefix="${prefix}right_" robotiq_name="right_robotiq_gripper_hardware" robotiq_use_fake_hardware="${robotiq_use_fake_hardware}" robotiq_include_ros2_control="${robotiq_include_ros2_control}" robotiq_sim_gazebo="${sim_gazebo}" />
+
+    <!-- ZED Mini head camera -->
+    <xacro:zed_camera name="${prefix}head" model="zedm" custom_baseline="0.0" enable_gnss="false">
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    </xacro:zed_camera>
+
+    <!-- Attach head camera to the robot via the mounting point -->
+    <joint name="head_camera_mounting_joint" type="fixed">
+      <parent link="head_camera_mounting_point" />
+      <child link="${prefix}head_camera_link" />
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+
+</robot>
