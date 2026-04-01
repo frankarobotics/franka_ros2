@@ -1,8 +1,8 @@
 repositories:
   franka_description:
     type: git
-    url: ssh://git@bitbucket.fe.lan:7999/moctrl/franka_description.git
-    version: PRCUN-5983-mobile-fr-3-duo-move-it-integration
+    url: https://github.com/frankarobotics/franka_description.git
+    version: 2.6.0
   libfranka:
     type: git
     url: https://github.com/frankarobotics/libfranka.git
