@@ -83,17 +83,6 @@ def get_ros2_control_node(namespace, robot_description):
         on_exit=Shutdown(),
     )
 
-def get_franka_robot_state_broadcaster(use_fake_hardware, namespace):
-    return Node(
-            package='controller_manager',
-            executable='spawner',
-            namespace=namespace,
-            arguments=['franka_robot_state_broadcaster'],
-            condition=UnlessCondition(use_fake_hardware),
-            output='screen',
-        )
-
-
 def activate_controller(controller_name,wait_time):
     """Return an ExecuteProcess that retries activating a controller until it succeeds."""
     set_active = ExecuteProcess(
@@ -152,9 +141,10 @@ def generate_nodes(context):
             'full_body_controller',
         ]
     else:
-        nodes += [get_franka_robot_state_broadcaster(use_fake_hardware, namespace), get_ros2_control_node(namespace, robot_description)]
+        nodes += [get_ros2_control_node(namespace, robot_description)]
         controller_names = [
             'joint_state_broadcaster',
+            'swerve_drive_controller',
             'full_body_controller',
         ]
 

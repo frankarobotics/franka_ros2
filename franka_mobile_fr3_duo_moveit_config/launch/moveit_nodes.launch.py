@@ -79,7 +79,7 @@ def get_controller_nodes(simulate_in_gazebo, namespace):
     if simulate_in_gazebo:
         cartesian_velocity_interface_prefix = "swerve_ik_controller/"
     else:
-        cartesian_velocity_interface_prefix = ""
+        cartesian_velocity_interface_prefix = "swerve_drive_controller/"
 
     full_body_controller_node_parameters = [
         PathJoinSubstitution(
@@ -137,42 +137,24 @@ def get_controller_nodes(simulate_in_gazebo, namespace):
             ),
         ]
 
-    joint_state_broadcaster_node = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "joint_state_broadcaster",
-            "--inactive",
-            "--controller-manager-timeout", "30",
-            "--controller-ros-args",
-            "--remap joint_states:=/franka/joint_states",
-        ],
-        parameters=[
-            PathJoinSubstitution(
-                [
-                    FindPackageShare(PACKAGE_NAME),
-                    "config",
-                    "mobile_fr3_duo_controllers.yaml",
-                ]
-            )
-        ],
-        output="screen",
-    )
-
     full_body_controller_node = Node(
         package="controller_manager",
         executable="spawner",
         arguments=[
+            "joint_state_broadcaster",
+            'swerve_drive_controller',
             "full_body_controller",
             "--inactive",
             "--controller-manager-timeout", "120",
             "--service-call-timeout", "60",
+            "--controller-ros-args",
+            "--remap joint_states:=/franka/joint_states",
         ],
         parameters=full_body_controller_node_parameters,
         output="screen",
     )
 
-    return [joint_state_broadcaster_node, full_body_controller_node]
+    return [full_body_controller_node]
 
 def generate_moveit_nodes(context):
     """Generate MoveIt-specific nodes: move_group and optionally rviz."""
@@ -215,7 +197,6 @@ def generate_moveit_nodes(context):
         rviz_node = Node(
             package="rviz2",
             executable="rviz2",
-            name="rviz2",
             namespace=namespace,
             output="screen",
             respawn=False,
