@@ -9,10 +9,4 @@ ament_python_install_package(${PROJECT_NAME})
 
 ament_package()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launch")
-  install(
-    DIRECTORY launch
-    DESTINATION share/${PROJECT_NAME})
-endif()
-
-install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch config urdf DESTINATION share/${PROJECT_NAME})

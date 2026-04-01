@@ -13,7 +13,7 @@
 -->
 
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro"
-       name="mobile_fr3_duo_v0_2">
+       name="mobile_fr3_duo_v0_2_gazebo">
 
   <!-- ================================================================ -->
   <!-- Macro includes                                                    -->

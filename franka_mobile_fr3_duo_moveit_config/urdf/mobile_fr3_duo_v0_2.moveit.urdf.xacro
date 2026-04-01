@@ -1,0 +1,141 @@
+<?xml version="1.0"?>
+<!-- Copyright (c) 2026 Franka Robotics GmbH
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+         http://www.apache.org/licenses/LICENSE-2.0 -->
+
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro"
+       name="mobile_fr3_duo_v0_2">
+
+    <xacro:include filename="$(find franka_description)/robots/mobile_fr3_duo_v0_2/mobile_fr3_duo_v0_2.xacro"/>
+
+    <xacro:arg name="robot_ips"          default="['172.16.16.10', '172.16.16.12', '172.16.16.11']" />
+    <xacro:arg name="robot_types" default="['tmrv0_2','fr3v2','fr3v2']" />
+    <xacro:property name="robot_types_list" value="${$(arg robot_types)}" />
+    <xacro:arg name="hand"               default="false" />
+    <xacro:arg name="ee_id"              default="None" />
+    <xacro:arg name="ros2_control"       default="true" />
+    <xacro:property name="robot_ips_list" value="${$(arg robot_ips)}" />
+    <xacro:arg name="gazebo_effort"        default="false" />
+    <xacro:arg name="use_fake_hardware"    default="false" />
+    <xacro:arg name="is_async"             default="true" />
+    <xacro:arg name="thread_priority"      default="97" />
+
+    <xacro:arg name="no_prefix"          default="false"/>
+    <xacro:arg name="special_connection" default=""/>
+    <xacro:arg name="xyz_ee" default="0 0 0"/>
+    <xacro:arg name="rpy_ee" default="0 0 ${-pi/4}"/>
+    <xacro:arg name="tcp_xyz" default="0 0 0.1034"/>
+    <xacro:arg name="tcp_rpy" default="0 0 0"/>
+    <xacro:arg name="safety_distance" default="0.03"/>
+    <xacro:arg name="with_sc" default="false"/>
+    <xacro:arg name="fake_sensor_commands" default="false"/>
+    <xacro:arg name="gazebo" default="false"/>
+    <xacro:arg name="description_pkg" default="franka_description"/>
+    <xacro:arg name="connected_to" default="base"/>
+    <xacro:arg name="reduced_version" default="false"/>
+    <xacro:arg name="use_arms" default="true"/>
+
+    <!-- 2 prismatic + 1 revolute joints combine to one virtual planar joint for planning the 
+    cartesian position/velocity of the mobile base -->
+    <link name="base">
+        <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.01"/>
+        <inertia
+            ixx="0.001"
+            ixy="0"
+            ixz="0"
+            iyy="0.001"
+            iyz="0"
+            izz="0.001"/>
+        </inertial>
+    </link>
+
+    <joint name="planar_x" type="prismatic">
+        <parent link="base" />
+        <child link="virtual_x" />
+        <axis xyz="1 0 0" />
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <limit lower="-1" upper="1" effort="1000" velocity="2" />
+    </joint>
+
+    <link name="virtual_x">
+        <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.01"/>
+        <inertia
+            ixx="0.001"
+            ixy="0"
+            ixz="0"
+            iyy="0.001"
+            iyz="0"
+            izz="0.001"/>
+        </inertial>
+    </link>
+
+    <link name="virtual_y">
+        <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.01"/>
+        <inertia
+            ixx="0.001"
+            ixy="0"
+            ixz="0"
+            iyy="0.001"
+            iyz="0"
+            izz="0.001"/>
+        </inertial>
+    </link>
+
+    <joint name="planar_y" type="prismatic">
+        <parent link="virtual_x" />
+        <child link="virtual_y" />
+        <axis xyz="0 1 0" />
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <limit lower="-1" upper="1" effort="1000" velocity="2" />
+    </joint>
+    <joint name="planar_theta" type="revolute">
+        <parent link="virtual_y" />
+        <child link="base_link" />
+        <axis xyz="0 0 1" />
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <limit lower="-3.14159" upper="3.14159" effort="1000" velocity="2" />
+    </joint>
+
+    <xacro:mobile_fr3_duo_v0_2
+        robot_ips="$(arg robot_ips)"
+        robot_types="$(arg robot_types)"
+        hand="$(arg hand)"
+        ee_id="$(arg ee_id)"
+        ros2_control="$(arg ros2_control)"
+        gazebo="$(arg gazebo)"
+        gazebo_effort="$(arg gazebo_effort)"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        is_async="$(arg is_async)"
+        thread_priority="$(arg thread_priority)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        reduced_version="$(arg reduced_version)"
+        description_pkg="$(arg description_pkg)"
+        connected_to="$(arg connected_to)"
+        use_arms="$(arg use_arms)"
+        no_prefix="$(arg no_prefix)"
+        special_connection="$(arg special_connection)"
+        xyz_ee="$(arg xyz_ee)"
+        rpy_ee="$(arg rpy_ee)"
+        tcp_xyz="$(arg tcp_xyz)"
+        tcp_rpy="$(arg tcp_rpy)"
+        safety_distance="$(arg safety_distance)"
+        with_sc="$(arg with_sc)"
+    />
+
+    <xacro:if value="$(arg gazebo)">
+        <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
+        <xacro:disable_arm_gravity prefix="left_" robot_type="${robot_types_list[1]}"/>
+        <xacro:disable_arm_gravity prefix="right_" robot_type="${robot_types_list[2]}"/>
+        <xacro:disable_mobile_base_gravity/>
+    </xacro:if>
+    
+</robot>
