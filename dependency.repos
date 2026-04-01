@@ -15,3 +15,15 @@ repositories:
     type: git
     url: https://github.com/olive-robotics/olvx_descriptions_module.git
     version: main
+  ros2_robotiq_gripper:
+    type: git
+    url: https://github.com/PickNikRobotics/ros2_robotiq_gripper.git
+    version: main
+  serial:
+    type: git
+    url: https://github.com/tylerjw/serial.git
+    version: ros2
+  zed_description:
+    type: git
+    url: https://github.com/stereolabs/zed-ros2-description.git
+    version: 0.1.3

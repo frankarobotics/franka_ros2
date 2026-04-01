@@ -10,3 +10,10 @@ install/
 log/
 libfranka
 franka_description
+
+#Third party packages
+gz-ros2-control
+olvx_descriptions_module
+ros2_robotiq_gripper
+zed_description
+serial

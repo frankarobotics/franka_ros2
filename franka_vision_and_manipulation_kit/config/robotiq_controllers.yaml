@@ -1,0 +1,35 @@
+/**:
+  controller_manager:
+    ros__parameters:
+      update_rate: 500  # Hz
+      joint_state_broadcaster:
+        type: joint_state_broadcaster/JointStateBroadcaster
+      # Jazzy and newer: parallel_gripper_action_controller replaces gripper_controllers package
+      robotiq_gripper_controller:
+        type: parallel_gripper_action_controller/GripperActionController
+      robotiq_activation_controller:
+        type: robotiq_controllers/RobotiqActivationController
+
+/**:
+  robotiq_gripper_controller:
+    ros__parameters:
+      joint: robotiq_85_left_knuckle_joint
+
+      # Enable effort control (replacement for use_effort_interface)
+      max_effort_interface: "robotiq_85_left_knuckle_joint/set_gripper_max_effort"
+      max_effort: 50.0
+
+      # Enable velocity/speed control (replacement for use_speed_interface)
+      max_velocity_interface: "robotiq_85_left_knuckle_joint/set_gripper_max_velocity"
+      max_velocity: 0.5
+
+      # Optional (recommended)
+      state_interfaces: ["position", "velocity"]
+      allow_stalling: true
+      stall_timeout: 0.05
+      goal_tolerance: 0.02
+
+/**:
+  robotiq_activation_controller:
+    ros__parameters:
+      default: true

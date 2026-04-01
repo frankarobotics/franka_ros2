@@ -33,7 +33,7 @@ RUN apt-get update && \
 
 # Setup user configuration
 RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME --groups dialout \
     && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
     && echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /home/$USERNAME/.bashrc \
     && echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> /home/$USERNAME/.bashrc
@@ -74,7 +74,6 @@ RUN sudo apt-get update \
         ros-jazzy-teleop-twist-keyboard \
         ros-jazzy-joy \
         ros-jazzy-teleop-twist-joy \
-
     && sudo apt-get clean \
     && sudo rm -rf /var/lib/apt/lists/*
 
@@ -86,7 +85,7 @@ RUN sudo chown -R $USERNAME:$USERNAME /ros2_ws \
     && vcs import src < src/dependency.repos --recursive --skip-existing \
     && sudo apt-get update \
     && rosdep update \
-    && rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y \
+    && rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y --skip-keys=zed_wrapper \
     && sudo apt-get clean \
     && sudo rm -rf /var/lib/apt/lists/* \
     && rm -rf /home/$USERNAME/.ros \

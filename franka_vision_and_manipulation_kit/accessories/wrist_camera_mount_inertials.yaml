@@ -1,0 +1,12 @@
+wrist_camera_mount:
+  origin:
+    xyz: 0.0 0.0 0.0
+    rpy: 0 0 0
+  mass: 0.05
+  inertia:
+    xx: 0.0001
+    xy: 0.0
+    xz: 0.0
+    yy: 0.0001
+    yz: 0.0
+    zz: 0.0001

@@ -10,6 +10,7 @@ UNRELEASED
 * chore: removed vendored controller_manager
 * feat: Added `franka_mobile` package with `swerve_drive_controller` (tf and odom support) and `swerve_ik_controller` for gazebo sim.
 * docu: Maintenance work on documentation
+* feat: add franka_vision_and_manipulation_kit package with urdf descriptions and launch files for the Franka Vision and Manipulation Kit
 
 v3.2.2 (2026-03-03)
 -------------------

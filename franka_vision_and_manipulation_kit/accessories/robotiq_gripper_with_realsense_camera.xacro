@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Include RealSense D455 camera description -->
+  <xacro:include filename="$(find realsense2_description)/urdf/_d405.urdf.xacro" />
+  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro" />
+  <xacro:include filename="$(find robotiq_description)/urdf/ur_to_robotiq_adapter.urdf.xacro" />
+  <xacro:include filename="$(find franka_vision_and_manipulation_kit)/accessories/wrist_camera_mount.xacro" />
+
+  <xacro:macro name="robotiq_gripper_with_realsense_camera"
+    params="prefix
+      parent
+      use_fake_hardware:=false
+      robotiq_adapter_rotation:=^|${-pi/2}
+      robotiq_name:=RobotiqGripperHardwareInterface
+      robotiq_com_port:='/dev/ttyUSB0'
+      robotiq_sim_isaac:=false
+      robotiq_use_fake_hardware:=false
+      robotiq_include_ros2_control:=true
+      robotiq_com_port:=/dev/ttyUSB0
+      realsense_use_nominal_extrinsics:=true
+      ">
+      
+      <!-- Adapter -->
+      <xacro:ur_to_robotiq prefix="${prefix}" parent="${parent}" child="${prefix}gripper_mount_link" rotation="${robotiq_adapter_rotation}" />
+      
+      <!-- Robotiq 2F-85 Gripper -->
+      <xacro:robotiq_gripper
+        name="${robotiq_name}"
+        prefix="${prefix}"
+        parent="${prefix}gripper_mount_link"
+        com_port="${robotiq_com_port}"
+        sim_isaac="${robotiq_sim_isaac}"
+        use_fake_hardware="${robotiq_use_fake_hardware}"
+        include_ros2_control="${robotiq_include_ros2_control}">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+      </xacro:robotiq_gripper>
+
+      <!-- Wrist Camera Mount -->
+      <xacro:wrist_camera_mount 
+        prefix="${prefix}" 
+        parent="${prefix}robotiq_85_base_link" 
+        inertials="${xacro.load_yaml('$(find franka_vision_and_manipulation_kit)/accessories/wrist_camera_mount_inertials.yaml')}">
+        <origin xyz="0.0 0.027 0.0363" rpy="0 0 0" />
+      </xacro:wrist_camera_mount>
+
+      <!-- D405 Wrist Camera -->
+      <xacro:sensor_d405 parent="${prefix}_wrist_camera_mount_link" name="${prefix}_wrist_camera"
+                         use_nominal_extrinsics="${realsense_use_nominal_extrinsics}">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+      </xacro:sensor_d405>
+  </xacro:macro>
+
+</robot>

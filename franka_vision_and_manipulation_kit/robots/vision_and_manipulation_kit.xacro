@@ -1,0 +1,116 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find franka_description)/robots/fr3_duo/fr3_duo.xacro" />
+  <xacro:include filename="$(find franka_description)/accessories/franka_head_v0_2/franka_head.xacro"/>
+  <xacro:include filename="$(find franka_description)/robots/mobile_fr3_duo_v0_2/mobile_fr3_duo_v0_2.xacro" />
+  <xacro:include filename="$(find zed_description)/urdf/zed_macro.urdf.xacro"/>
+  <xacro:include filename="$(find franka_vision_and_manipulation_kit)/accessories/robotiq_gripper_with_realsense_camera.xacro" />
+
+  <xacro:macro name="fr3_duo_with_vision_and_manipulation_kit"
+    params="
+    prefix
+    mobile_platform
+    mobile_platform_type
+    left_arm_type
+    right_arm_type
+    no_prefix
+    special_connection
+    xyz_ee
+    rpy_ee
+    tcp_xyz
+    tcp_rpy
+    safety_distance
+    with_sc
+    ros2_control
+    mobile_platform_ip
+    left_arm_ip
+    right_arm_ip
+    use_fake_hardware
+    fake_sensor_commands
+    gazebo
+    gazebo_effort
+    description_pkg
+    ">
+
+    <xacro:if value="${'$(arg mobile_platform)' == 'false'}">
+      <link name="base"/>
+      <includeded_robot_macro name="fr3_duo" />
+      <xacro:fr3_duo
+        name="$(arg prefix)fr3_duo_base"
+        robot_types="${['$(arg left_arm_type)', '$(arg right_arm_type)']}"
+        arm_prefixes="${['$(arg prefix)left', '$(arg prefix)right']}"
+        robot_ips="${['$(arg left_arm_ip)', '$(arg right_arm_ip)']}"
+        hand="false"
+        ee_id="none"
+        special_connection="$(arg special_connection)"
+        xyz_ee="$(arg xyz_ee)"
+        rpy_ee="$(arg rpy_ee)"
+        tcp_xyz="$(arg tcp_xyz)"
+        tcp_rpy="$(arg tcp_rpy)"
+        base_mount="base"
+        safety_distance="$(arg safety_distance)"
+        with_sc="$(arg with_sc)"
+        ros2_control="$(arg ros2_control)"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        gazebo="$(arg gazebo)"
+        gazebo_effort="$(arg gazebo_effort)"
+        description_pkg="$(arg description_pkg)"
+        connected_to=""
+      />
+      <xacro:head parent="fr3_duo_mount_mounting_point"/>
+    </xacro:if>
+
+    <xacro:unless value="${'$(arg mobile_platform)' == 'false'}">
+      <xacro:unless value="$(arg gazebo)">
+        <link name="base"/>
+        <joint name="base_joint" type="fixed">
+          <parent link="base"/>
+          <child link="base_link"/>
+          <origin rpy="0 0 0" xyz="0 0 0"/>
+        </joint>
+      </xacro:unless>
+      <xacro:property name="robot_types_list" value="${['$(arg mobile_platform_type)', '$(arg left_arm_type)', '$(arg right_arm_type)']}"/>
+      <xacro:property name="robot_ips_list" value="${['$(arg mobile_platform_ip)', '$(arg left_arm_ip)', '$(arg right_arm_ip)']}"/>
+      <includeded_robot_macro name="mobile_fr3_duo_v0_2" />
+      <xacro:mobile_fr3_duo_v0_2
+        robot_types="${robot_types_list}"
+        hand="false"
+        ros2_control="$(arg ros2_control)"
+        gazebo="$(arg gazebo)"
+        gazebo_effort="$(arg gazebo_effort)"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        reduced_version="false"
+        robot_ips="${robot_ips_list}"
+        description_pkg="$(arg description_pkg)"
+        connected_to="base"
+        use_arms="true"
+        no_prefix="$(arg no_prefix)"
+        ee_id="none"
+        special_connection="$(arg special_connection)"
+        xyz_ee="$(arg xyz_ee)"
+        rpy_ee="$(arg rpy_ee)"
+        tcp_xyz="$(arg tcp_xyz)"
+        tcp_rpy="$(arg tcp_rpy)"
+        safety_distance="$(arg safety_distance)"
+        with_sc="$(arg with_sc)" />
+    </xacro:unless>
+
+
+    <xacro:robotiq_gripper_with_realsense_camera parent="left_$(arg left_arm_type)_link8" prefix="$(arg prefix)left_" />
+    <xacro:robotiq_gripper_with_realsense_camera parent="right_$(arg right_arm_type)_link8" prefix="$(arg prefix)right_" />
+
+    <xacro:zed_camera name="$(arg prefix)head" model="zedm" custom_baseline="0.0" enable_gnss="false">
+        <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    </xacro:zed_camera>
+
+    <joint name="$(arg prefix)head_camera_mounting_point_to_head_camera_link" type="fixed">
+      <parent link="$(arg prefix)head_camera_mounting_point"/>
+      <child link="$(arg prefix)head_camera_link"/>
+      <origin xyz="0.0015 -0.011 -0.013" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+</robot>
