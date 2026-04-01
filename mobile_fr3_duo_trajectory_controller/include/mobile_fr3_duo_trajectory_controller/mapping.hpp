@@ -14,6 +14,10 @@
 
 #pragma once
 
+/// @file mapping.hpp
+/// @brief Utility functions for mapping joint names between the trajectory
+///        message ordering and the internal controller ordering.
+
 #include <map>
 #include <memory>
 #include <string>
@@ -22,20 +26,33 @@
 
 namespace mobile_fr3_duo_trajectory_controller {
 
+/// @brief Return the index of @p match in @p vec.
+/// @throws std::runtime_error if no exact match is found.
 size_t findMatchingElement(const std::vector<std::string>& vec, const std::string& match);
 
+/// @brief Return the index of the first element in @p vec that contains every
+///        substring in @p substrings.
+/// @throws std::runtime_error if no element matches.
 size_t findElementWithSubstrings(const std::vector<std::string>& vec,
                                  const std::vector<std::string>& substrings);
 
+/// @brief Build a map from (arm_index, local_joint_index) to the flat state
+///        interface index, corresponding to the to their @p joint_names @p arm_prefixes.
 std::map<std::pair<size_t, size_t>, size_t> getJointStateMap(
     const std::vector<std::string>& joint_names,
     const std::vector<std::string>& arm_prefixes);
 
+/// @brief Return a 7-element index array mapping local joint indices to their
+///        positions in @p joint_names for the given @p side ("left" or "right").
 std::array<size_t, 7> getArmJointMap(std::vector<std::string> joint_names, std::string side);
 
+/// @brief Return a 3-element index array mapping mobile base joints to their
+///        positions in @p joint_names.
 std::array<size_t, 3> getMobileBaseJointMap(std::vector<std::string> joint_names,
                                             std::array<std::string, 3> expected_joint_names);
 
+/// @brief Re-order the positions/velocities/accelerations of every waypoint in
+///        @p trajectory_msg so they match @p joint_names ordering.
 void sortToLocalJointOrder(std::shared_ptr<trajectory_msgs::msg::JointTrajectory> trajectory_msg,
                            const std::vector<std::string> joint_names);
 

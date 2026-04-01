@@ -2,14 +2,14 @@ import os
 
 from launch import LaunchDescription
 from launch.actions import (
+    ExecuteProcess,
     IncludeLaunchDescription,
     DeclareLaunchArgument,
     OpaqueFunction,
     Shutdown,
-    RegisterEventHandler,
+    TimerAction
 )
-from launch.event_handlers import OnProcessExit
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, FindExecutable
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
@@ -93,102 +93,19 @@ def get_franka_robot_state_broadcaster(use_fake_hardware, namespace):
             output='screen',
         )
 
-def get_controller_nodes(simulate_in_gazebo, namespace):
-    """Return the list of controller spawner nodes."""
-    if simulate_in_gazebo:
-        cartesian_velocity_interface_prefix = "swerve_ik_controller/"
-    else:
-        cartesian_velocity_interface_prefix = ""
 
-    full_body_controller_node_parameters = [
-        PathJoinSubstitution(
-            [
-                FindPackageShare(PACKAGE_NAME),
-                "config",
-                "mobile_fr3_duo_controllers.yaml",
-            ]
-        ),
-        {
-            "full_body_controller": {
-                "ros__parameters": {
-                    "cartesian_velocity_interface_prefix": cartesian_velocity_interface_prefix,
-                }
-            }
-        },
-    ]
-
-    if simulate_in_gazebo:
-        spawn = Node(
-            package="ros_gz_sim",
-            executable="create",
-            namespace=namespace,
-            arguments=[
-                "-topic", "/robot_description",
-                "-x", "0", "-y", "0", "-z", "0.05",
-            ],
-            output="screen",
-        )
-
-        mobile_fr3_duo_controller = Node(
-            package="controller_manager",
-            executable="spawner",
-            arguments=[
-                "joint_state_broadcaster",
-                "swerve_ik_controller",
-                "full_body_controller",
-                "--controller-manager-timeout", "120",
-                "--service-call-timeout", "60",
-                "--controller-ros-args",
-                "--remap joint_states:=/franka/joint_states",
-            ],
-            parameters=full_body_controller_node_parameters,
-            output="screen",
-        )
-
-        return [
-            spawn,
-            RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=spawn,
-                    on_exit=[mobile_fr3_duo_controller],
-                )
-            ),
-        ]
-
-    joint_state_broadcaster_node = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "joint_state_broadcaster",
-            "--controller-manager-timeout", "30",
-            "--controller-ros-args",
-            "--remap joint_states:=/franka/joint_states",
-        ],
-        parameters=[
-            PathJoinSubstitution(
-                [
-                    FindPackageShare(PACKAGE_NAME),
-                    "config",
-                    "mobile_fr3_duo_controllers.yaml",
-                ]
-            )
-        ],
-        output="screen",
+def activate_controller(controller_name,wait_time):
+    """Return an ExecuteProcess that retries activating a controller until it succeeds."""
+    set_active = ExecuteProcess(
+        cmd=[[FindExecutable(name='ros2'),
+            ' control set_controller_state ', controller_name,' active'
+        ]],
+        shell=True,
     )
 
-    full_body_controller_node = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "full_body_controller",
-            "--controller-manager-timeout", "120",
-            "--service-call-timeout", "60",
-        ],
-        parameters=full_body_controller_node_parameters,
-        output="screen",
-    )
+    return TimerAction(period=wait_time,
+            actions=[set_active])
 
-    return [joint_state_broadcaster_node, full_body_controller_node]
 
 
 def generate_nodes(context):
@@ -225,12 +142,24 @@ def generate_nodes(context):
                 }
             ],
         ),
-    ] + get_controller_nodes(simulate_in_gazebo_bool, namespace)
+    ]
 
     if simulate_in_gazebo_bool:
         nodes += gazebo_nodes()
+        controller_names = [
+            'joint_state_broadcaster',
+            'swerve_ik_controller',
+            'full_body_controller',
+        ]
     else:
         nodes += [get_franka_robot_state_broadcaster(use_fake_hardware, namespace), get_ros2_control_node(namespace, robot_description)]
+        controller_names = [
+            'joint_state_broadcaster',
+            'full_body_controller',
+        ]
+
+
+    nodes += [activate_controller(name, wait_time) for (name, wait_time) in zip(controller_names, [5.0,5.0,8.0])]
 
     return nodes
 

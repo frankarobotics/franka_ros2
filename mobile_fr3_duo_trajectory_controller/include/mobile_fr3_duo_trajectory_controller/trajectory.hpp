@@ -14,6 +14,9 @@
 
 #pragma once
 
+/// @file trajectory.hpp
+/// @brief Trajectory container with spline-based sampling for joint trajectory points.
+
 #include <memory>
 #include <vector>
 
@@ -26,12 +29,21 @@ using TrajectoryPointIter = std::vector<trajectory_msgs::msg::JointTrajectoryPoi
 using TrajectoryPointConstIter =
     std::vector<trajectory_msgs::msg::JointTrajectoryPoint>::const_iterator;
 
+/// @brief Wraps a JointTrajectory message, providing time-based sampling and
+/// spline interpolation between trajectory points.
 class Trajectory {
  public:
+  /// @brief Construct an empty trajectory.
   Trajectory();
 
+  /// @brief Construct a trajectory from an existing message.
+  /// @param joint_trajectory Shared pointer to the trajectory message.
   explicit Trajectory(std::shared_ptr<trajectory_msgs::msg::JointTrajectory> joint_trajectory);
 
+  /// @brief Construct a trajectory, recording the current state as the point before the message.
+  /// @param current_time Current time used as the pre-trajectory timestamp.
+  /// @param current_point State to record before the trajectory message begins.
+  /// @param joint_trajectory Shared pointer to the trajectory message.
   explicit Trajectory(const rclcpp::Time& current_time,
                       const trajectory_msgs::msg::JointTrajectoryPoint& current_point,
                       std::shared_ptr<trajectory_msgs::msg::JointTrajectory> joint_trajectory);
@@ -46,6 +58,8 @@ class Trajectory {
       const rclcpp::Time& current_time,
       const trajectory_msgs::msg::JointTrajectoryPoint& current_point);
 
+  /// @brief Replace the stored trajectory message.
+  /// @param joint_trajectory New trajectory message to use.
   void update(std::shared_ptr<trajectory_msgs::msg::JointTrajectory> joint_trajectory);
 
   /// Find the segment (made up of 2 points) and its expected state from the
@@ -121,20 +135,27 @@ class Trajectory {
                                   const rclcpp::Time& sample_time,
                                   trajectory_msgs::msg::JointTrajectoryPoint& output);
 
+  /// @brief Return a const iterator to the first trajectory point.
   TrajectoryPointConstIter begin() const;
 
+  /// @brief Return a const iterator past the last trajectory point.
   TrajectoryPointConstIter end() const;
 
+  /// @brief Return the header timestamp of the stored trajectory message.
   rclcpp::Time time_from_start() const;
 
+  /// @brief Check whether a trajectory message has been set.
   bool has_trajectory_msg() const;
 
+  /// @brief Check whether the trajectory message contains at least one point.
   bool has_nontrivial_msg() const;
 
+  /// @brief Get the underlying trajectory message.
   std::shared_ptr<trajectory_msgs::msg::JointTrajectory> get_trajectory_msg() const {
     return trajectory_msg_;
   }
 
+  /// @brief Return true if sample() has been called at least once.
   bool is_sampled_already() const { return sampled_already_; }
 
   /// Get the index of the segment start returned by the last \p sample() operation.

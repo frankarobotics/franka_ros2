@@ -2,10 +2,11 @@ import os
 import json
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch.event_handlers import OnProcessExit
 
 from ament_index_python.packages import get_package_share_directory
 import yaml
@@ -73,6 +74,105 @@ def build_move_group_params(
 
     return [move_group_configuration, extra_params]
 
+def get_controller_nodes(simulate_in_gazebo, namespace):
+    """Return the list of controller spawner nodes."""
+    if simulate_in_gazebo:
+        cartesian_velocity_interface_prefix = "swerve_ik_controller/"
+    else:
+        cartesian_velocity_interface_prefix = ""
+
+    full_body_controller_node_parameters = [
+        PathJoinSubstitution(
+            [
+                FindPackageShare(PACKAGE_NAME),
+                "config",
+                "mobile_fr3_duo_controllers.yaml",
+            ]
+        ),
+        {
+            "full_body_controller": {
+                "ros__parameters": {
+                    "cartesian_velocity_interface_prefix": cartesian_velocity_interface_prefix,
+                }
+            }
+        },
+    ]
+
+    if simulate_in_gazebo:
+        spawn = Node(
+            package="ros_gz_sim",
+            executable="create",
+            namespace=namespace,
+            arguments=[
+                "-topic", "/robot_description",
+                "-x", "0", "-y", "0", "-z", "0.05",
+            ],
+            output="screen",
+        )
+
+        mobile_fr3_duo_controller = Node(
+            package="controller_manager",
+            executable="spawner",
+            arguments=[
+                "joint_state_broadcaster",
+                "swerve_ik_controller",
+                "full_body_controller",
+                "--inactive",
+                "--controller-manager-timeout", "120",
+                "--service-call-timeout", "60",
+                "--controller-ros-args",
+                "--remap joint_states:=/franka/joint_states",
+            ],
+            parameters=full_body_controller_node_parameters,
+            output="screen",
+        )
+
+        return [
+            spawn,
+            RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=spawn,
+                    on_exit=[mobile_fr3_duo_controller],
+                )
+            ),
+        ]
+
+    joint_state_broadcaster_node = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "joint_state_broadcaster",
+            "--inactive",
+            "--controller-manager-timeout", "30",
+            "--controller-ros-args",
+            "--remap joint_states:=/franka/joint_states",
+        ],
+        parameters=[
+            PathJoinSubstitution(
+                [
+                    FindPackageShare(PACKAGE_NAME),
+                    "config",
+                    "mobile_fr3_duo_controllers.yaml",
+                ]
+            )
+        ],
+        output="screen",
+    )
+
+    full_body_controller_node = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "full_body_controller",
+            "--inactive",
+            "--controller-manager-timeout", "120",
+            "--service-call-timeout", "60",
+        ],
+        parameters=full_body_controller_node_parameters,
+        output="screen",
+    )
+
+    return [joint_state_broadcaster_node, full_body_controller_node]
 
 def generate_moveit_nodes(context):
     """Generate MoveIt-specific nodes: move_group and optionally rviz."""
@@ -109,7 +209,7 @@ def generate_moveit_nodes(context):
         ),
     )
 
-    nodes = [move_group_node]
+    nodes = [move_group_node] + get_controller_nodes(simulate_in_gazebo_bool, namespace)
 
     if rviz.lower() == "true":
         rviz_node = Node(
@@ -140,7 +240,6 @@ def generate_moveit_nodes(context):
         nodes.append(rviz_node)
 
     return nodes
-
 
 def generate_launch_description():
     """Entry point for this MoveIt nodes launch file."""
