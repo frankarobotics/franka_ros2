@@ -1,0 +1,4 @@
+# Use union merge strategy for changelog files to prevent conflicts
+# when both branches add entries at the same position.
+CHANGELOG.rst merge=union
+CHANGELOG.md merge=union
