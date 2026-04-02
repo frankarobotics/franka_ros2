@@ -99,7 +99,8 @@
 
 
     <!-- Attach vision kit components (wrist cameras + head camera) -->
-    <xacro:vision_kit_components left_arm_type="$(arg left_arm_type)" right_arm_type="$(arg right_arm_type)" prefix="$(arg prefix)" robotiq_use_fake_hardware="$(arg use_fake_hardware)" robotiq_include_ros2_control="$(arg ros2_control)" />
+    <xacro:vision_kit_components left_arm_type="$(arg left_arm_type)" right_arm_type="$(arg right_arm_type)" 
+      prefix="$(arg prefix)" robotiq_use_fake_hardware="$(arg use_fake_hardware)" robotiq_include_ros2_control="$(arg ros2_control)" />
 
   </xacro:macro>
 </robot>
