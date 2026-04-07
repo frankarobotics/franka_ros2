@@ -138,6 +138,7 @@ def generate_nodes(context):
         controller_names = [
             'joint_state_broadcaster',
             'swerve_ik_controller',
+            'swerve_drive_controller',
             'full_body_controller',
         ]
     else:
@@ -149,7 +150,7 @@ def generate_nodes(context):
         ]
 
 
-    nodes += [activate_controller(name, wait_time) for (name, wait_time) in zip(controller_names, [5.0,5.0,8.0])]
+    nodes += [activate_controller(name, wait_time) for (name, wait_time) in zip(controller_names, [5.0,5.0,5.0, 8.0])]
 
     return nodes
 
