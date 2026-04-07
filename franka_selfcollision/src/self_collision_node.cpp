@@ -56,7 +56,6 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
     throw;
   }
 
-
   Eigen::VectorXd q0 = collision_checker_->getNeutralConfiguration();
   current_joint_positions_.assign(q0.data(), q0.data() + q0.size());
 
