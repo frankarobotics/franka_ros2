@@ -109,6 +109,10 @@ controller_interface::return_type MobileFR3DuoTrajectoryController::update(
   updateState(state_current_);
 
   if (!has_active_trajectory()) {
+    commandArmPosition(q_init_left_, 0);
+    commandArmPosition(q_init_right_, 1);
+    commandMobileBaseVelocity({0.0, 0.0, 0.0}, {0.0, 0.0, 0.0});
+
     return controller_interface::return_type::OK;
   }
 
@@ -221,6 +225,11 @@ CallbackReturn MobileFR3DuoTrajectoryController::on_activate(const rclcpp_lifecy
 
   updateState(state_current_);
 
+  for (size_t i = 0; i < 7; ++i) {
+    q_init_left_[i] = state_current_.positions[left_arm_joint_map_[i]];
+    q_init_right_[i] = state_current_.positions[right_arm_joint_map_[i]];
+  }
+
   RCLCPP_INFO(logger, "Successfully activated MobileFR3DuoTrajectoryController.");
 
   return CallbackReturn::SUCCESS;
@@ -228,7 +237,7 @@ CallbackReturn MobileFR3DuoTrajectoryController::on_activate(const rclcpp_lifecy
 
 CallbackReturn MobileFR3DuoTrajectoryController::on_deactivate(const rclcpp_lifecycle::State&) {
   current_trajectory_.reset();
-
+  franka_cartesian_velocity_->release_interfaces();
   return CallbackReturn::SUCCESS;
 }
 

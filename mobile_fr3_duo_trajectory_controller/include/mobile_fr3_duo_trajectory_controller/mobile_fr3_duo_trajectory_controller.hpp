@@ -143,6 +143,9 @@ class MobileFR3DuoTrajectoryController : public controller_interface::Controller
   std::array<Vector7d, kArms> dq_;
   std::array<Vector7d, kArms> dq_filtered_;
 
+  std::array<double, 7> q_init_left_;
+  std::array<double, 7> q_init_right_;
+
   Vector7d k_gains_;
   Vector7d d_gains_;
 
