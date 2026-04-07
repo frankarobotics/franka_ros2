@@ -757,6 +757,78 @@ TEST_F(FrankaHardwareInterfaceTest,
             hardware_interface::return_type::OK);
 }
 
+TEST_F(FrankaHardwareInterfaceTest,
+       givenControlExceptionDuringRead_whenReadCalled_expectErrorAndStopRobot) {
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillOnce(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce())
+      .WillOnce(testing::Throw(franka::ControlException("test reflex error")));
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(1);
+
+  auto time = rclcpp::Time(0, 0);
+  auto duration = rclcpp::Duration(0, 0);
+  auto return_type = default_franka_hardware_interface.read(time, duration);
+  ASSERT_EQ(return_type, hardware_interface::return_type::ERROR);
+}
+
+TEST_F(FrankaHardwareInterfaceTest,
+       givenControlExceptionDuringRead_whenReadCalledAgain_expectOk) {
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+  franka::RobotState robot_state;
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce())
+      .WillOnce(testing::Throw(franka::ControlException("test reflex error")))
+      .WillOnce(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(1);
+
+  auto time = rclcpp::Time(0, 0);
+  auto duration = rclcpp::Duration(0, 0);
+
+  ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
+            hardware_interface::return_type::ERROR);
+  ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
+            hardware_interface::return_type::OK);
+}
+
+TEST_F(FrankaHardwareInterfaceTest,
+       whenOnActivateCalled_expectRunningFlagsReset) {
+  franka::RobotState robot_state;
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+
+  // First, start a position interface so running flag is set
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+  EXPECT_CALL(*default_mock_robot, initializeJointPositionInterface());
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+
+  std::vector<std::string> start_interface;
+  for (size_t i = 0; i < default_hardware_info.joints.size(); i++) {
+    start_interface.push_back(k_robot_type + "_" + k_joint_name + std::to_string(i + 1) +
+                              "/" + k_position_controller);
+  }
+  std::vector<std::string> stop_interface = {};
+
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+
+  // Now call on_activate — running flags should be reset
+  ASSERT_EQ(default_franka_hardware_interface.on_activate(rclcpp_lifecycle::State()),
+            CallbackReturn::SUCCESS);
+
+  // After on_activate, perform_command_mode_switch should re-initialize because
+  // running flag was reset (initializeJointPositionInterface called again)
+  EXPECT_CALL(*default_mock_robot, initializeJointPositionInterface());
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  ASSERT_EQ(default_franka_hardware_interface.perform_command_mode_switch(start_interface,
+                                                                          stop_interface),
+            hardware_interface::return_type::OK);
+}
+
 int main(int argc, char** argv) {
   rclcpp::init(0, nullptr);
   testing::InitGoogleTest(&argc, argv);

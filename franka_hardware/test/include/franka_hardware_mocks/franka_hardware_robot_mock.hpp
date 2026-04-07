@@ -47,6 +47,10 @@ class MockRobot : public franka_hardware::Robot {
               (const franka_msgs::srv::SetFullCollisionBehavior::Request::SharedPtr&),
               (override));
   MOCK_METHOD(void, automaticErrorRecovery, (), (override));
+  MOCK_METHOD(void,
+              reconnect,
+              (const std::string&, const rclcpp::Logger&),
+              (override));
   MOCK_METHOD(std::shared_ptr<franka::Robot>, getRobot, (), (override));
   MOCK_METHOD(const franka::RobotState&, getCurrentState, (), (override));
 };
