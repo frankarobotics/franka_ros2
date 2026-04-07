@@ -133,6 +133,13 @@
         - 0.5
 
 /**:
+  franka_robot_state_broadcaster:
+    ros__parameters:
+      # Publish rate in Hz for convenience topics (current_pose, joint_states, wrenches, etc.).
+      # Full robot state always publishes at the controller update rate (1kHz).
+      convenience_publish_rate: 1000
+
+/**:
   joint_impedance_with_ik_example_controller:
     ros__parameters:
       k_gains:
