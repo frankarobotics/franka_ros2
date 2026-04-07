@@ -237,6 +237,18 @@ class Robot {
   virtual void automaticErrorRecovery();
 
   /**
+   * Closes the current connection and establishes a new one. Any active control
+   * loop is stopped before reconnecting. This method can block for up to one
+   * minute if the robot is not responding.
+   *
+   * @param[in] robot_ip IP address or hostname of the robot.
+   * @param[in] logger ROS Logger to print eventual warnings.
+   *
+   * @throw NetworkException if the connection cannot be established.
+   */
+  virtual void reconnect(const std::string& robot_ip, const rclcpp::Logger& logger);
+
+  /**
    * @return the shared pointer to the underlying libfranka robot
    */
   virtual auto getRobot() -> std::shared_ptr<franka::Robot> { return robot_; }

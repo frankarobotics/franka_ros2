@@ -157,9 +157,15 @@ std::vector<CommandInterface> FrankaHardwareInterface::export_command_interfaces
 
 CallbackReturn FrankaHardwareInterface::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  read(rclcpp::Time(0),
-       rclcpp::Duration(0, 0));  // makes sure that the robot state is properly initialized.
-  RCLCPP_INFO(getLogger(), "Started");
+  effort_interface_running_ = false;
+  velocity_joint_interface_running_ = false;
+  position_joint_interface_running_ = false;
+  velocity_cartesian_interface_running_ = false;
+  pose_cartesian_interface_running_ = false;
+  elbow_command_interface_running_ = false;
+  hw_franka_model_ptr_ = nullptr;
+
+  read(rclcpp::Time(0), rclcpp::Duration(0, 0));
   return CallbackReturn::SUCCESS;
 }
 
@@ -217,9 +223,19 @@ hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time
   if (hw_franka_model_ptr_ == nullptr) {
     hw_franka_model_ptr_ = robot_->getModel();
   }
-  hw_franka_robot_state_ = robot_->readOnce();
-  robot_time_state_ = hw_franka_robot_state_.time.toSec();
-  initializePositionCommands(hw_franka_robot_state_);
+
+  try {
+    // Write new state into the RealtimeBuffer for thread-safe access by consumers
+    auto robot_state = robot_->readOnce();
+  } catch (const franka::ControlException& e) {
+    RCLCPP_ERROR(getLogger(), "%s", e.what());
+    robot_->stopRobot();
+    return hardware_interface::return_type::ERROR;
+  }
+
+  rt_robot_state_buffer_.writeFromNonRT(robot_state);
+  robot_time_state_ = robot_state.time.toSec();
+  initializePositionCommands(robot_state);
 
   hw_positions_ = hw_franka_robot_state_.q;
   hw_velocities_ = hw_franka_robot_state_.dq;
@@ -312,9 +328,8 @@ CallbackReturn FrankaHardwareInterface::on_init(const hardware_interface::Hardwa
     return CallbackReturn::ERROR;
   }
 
-  std::string robot_ip;
   try {
-    robot_ip = info_.hardware_parameters.at(kRobotIpName);
+    robot_ip_ = info_.hardware_parameters.at(kRobotIpName);
   } catch (const std::out_of_range& ex) {
     RCLCPP_FATAL(getLogger(), "Parameter '%s' is not set", kRobotIpName.c_str());
     return CallbackReturn::ERROR;
@@ -340,8 +355,8 @@ CallbackReturn FrankaHardwareInterface::on_init(const hardware_interface::Hardwa
 
   if (!robot_) {
     try {
-      RCLCPP_INFO(getLogger(), "Connecting to robot at \"%s\" ...", robot_ip.c_str());
-      robot_ = std::make_shared<Robot>(robot_ip, getLogger());
+      RCLCPP_INFO(getLogger(), "Connecting to robot at \"%s\" ...", robot_ip_.c_str());
+      robot_ = std::make_shared<Robot>(robot_ip_, getLogger());
     } catch (const franka::Exception& e) {
       RCLCPP_FATAL(getLogger(), "Could not connect to robot");
       RCLCPP_FATAL(getLogger(), "%s", fmt::format("{}", e.what()).c_str());
