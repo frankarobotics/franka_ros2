@@ -9,6 +9,9 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 (not released yet) 
 * chore: refactored cartesian velocity example controller to be gazebo independent by chaining `swerve_ik_controller`
 * docu: Maintenance work on documentation
 * feat: Added `franka_mobile` package with `swerve_drive_controller` (tf and odom support) and `swerve_ik_controller` for gazebo sim.
+* feat: add franka_vision_and_manipulation_kit package with urdf descriptions and launch files for the Franka Vision and Manipulation Kit
+* refactor: replace blocking mutex in franka_robot_state_broadcaster with lock-free AsyncBuffer
+* BREAKING CHANGE: franka_robot_state_broadcaster convenience topics are published with best_effort QoS
 
 v2.3.0 (2026-03-10)
 -------------------
