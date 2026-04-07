@@ -42,6 +42,24 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 (not released yet) 
      self.create_subscription(PoseStamped, 'current_pose', callback, qos)
 
 * fix: test fr3 urdf updated and segmentation fault errors from unit tests fixed
+* feat: franka_vision_and_manipulation_kit package used in Gazebo to display the sensors of the kit
+* fix: clang-tidy test duration reduced by applying a filter
+* feat: added a gazebo example for fr3 duo using the franka vision and manipulation kit
+* fix: teleop node is publishing correctly if there is no namespace
+* feat: Added moveit support for mobile fr3 duo
+* feat: Updated franka_selfcollision package to support mobile_fr3_duo in addition to fr3_duo
+* fix: resolve segfault caused by ABI mismatch between hardware_interface and controller_manager **C++ (rclcpp)**
+* chore: Unify ros2_control (Jazzy) sources to avoid ABI mismatches (add ros2_control to dependency.repos so hardware_interface/controller_manager build from the same ABI;
+remove the standalone hardware_interface fork; keep manage_overruns for async hardware components via a small patch auto-applied in franka_entrypoint.sh).
+**BREAKING**: existing workspaces must be cleaned before rebuilding: ``rm -rf build/ install/ && colcon build``
+* fix: Removed the `franka_robot_state_broadcaster` while using the TMR
+* fix: With async control, it could happen that the robot_state is teared while publishing. This fix provides a
+  lock-free intermediate buffer to allow mutual exclusive robot_state buffer data access.
+* fix: improved integration test reliability
+* chore: Removed the explicit self collision example and added it by default to the fr3 duo and mobile fr3 duo examples
+* fix: make FrankaHardwareInterface error recoverable
+* refactor: FrankaHardwareInterface to use enums for the control mode
+* fix: ActionServers crashing when exception is not caught
 
 v2.3.0 (2026-03-10)
 -------------------
