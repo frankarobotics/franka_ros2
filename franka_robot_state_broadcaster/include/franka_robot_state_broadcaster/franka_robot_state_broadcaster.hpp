@@ -14,22 +14,18 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <thread>
-#include <unordered_map>
 #include <vector>
 
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp_lifecycle/lifecycle_publisher.hpp>
 #include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
-// TODO: Remove this define when the realtime_publisher is updated in ROS 2
-// realtime_publisher has been almost completely re-written in the Rolling release
-// Those changes have been partially backported to Humble, but still require this define
-#define NON_POLLING 1  // NOLINT
-#include <realtime_tools/realtime_publisher.hpp>
 
 #include "franka_msgs/msg/franka_robot_state.hpp"
+#include "franka_robot_state_broadcaster/async_buffer.hpp"
 #include "franka_robot_state_broadcaster/franka_robot_state_broadcaster_parameters.hpp"
 #include "franka_semantic_components/franka_robot_state.hpp"
 
@@ -40,6 +36,19 @@ class FrankaRobotStateBroadcaster : public controller_interface::ControllerInter
       std::unique_ptr<franka_semantic_components::FrankaRobotState> franka_robot_state = nullptr);
 
   ~FrankaRobotStateBroadcaster() override;
+
+  // Controller update rate in Hz (must match controller_manager update_rate).
+  static constexpr int kUpdateRate = 1000;
+
+  // SCHED_FIFO priority for the publish thread.
+  // Must be below the ros2_control RT control loop (typically 70-80) so the RT thread
+  // is never preempted by publishing, and above 0 so the OS schedules it promptly.
+  static constexpr int kPublishThreadPriority = 50;
+
+  // How long the publish thread sleeps when no new data is ready.
+  // At 1kHz the update() loop fires every 1ms; sleeping 200µs means the thread
+  // wakes at most 200µs after data_ready_ is set, keeping latency well below 1ms.
+  static constexpr int kPublishThreadSleepUs = 200;
 
   [[nodiscard]] controller_interface::InterfaceConfiguration command_interface_configuration()
       const override;
@@ -61,34 +70,6 @@ class FrankaRobotStateBroadcaster : public controller_interface::ControllerInter
       const rclcpp_lifecycle::State& previous_state) override;
 
  private:
-  // override RealtimePublisher to customize the trylock behavior
-  class FrankaRobotStateRealtimePublisher
-      : public realtime_tools::RealtimePublisher<franka_msgs::msg::FrankaRobotState> {
-    using PublisherSharedPtr = rclcpp::Publisher<franka_msgs::msg::FrankaRobotState>::SharedPtr;
-
-   public:
-    // Constructor for the nested class
-    // NOLINTBEGIN
-    explicit FrankaRobotStateRealtimePublisher(PublisherSharedPtr publisher,
-                                               int try_count,
-                                               int sleep_time)
-        : realtime_tools::RealtimePublisher<franka_msgs::msg::FrankaRobotState>(
-              std::move(publisher)),
-          try_count_(try_count),
-          sleep_time_(sleep_time) {}
-    // NOLINTEND
-    // we only need to hide the trylock() method
-    bool trylock();
-    [[nodiscard]] int try_count() const { return try_count_; }
-
-   private:
-    int try_count_;   // how many times to attempt to lock before bailing out with error message
-    int sleep_time_;  // sleep interval in microseconds between lock attempts
-  };
-  // shared_ptr to object of override class
-  std::shared_ptr<FrankaRobotStateBroadcaster::FrankaRobotStateRealtimePublisher>
-      realtime_franka_state_publisher;
-
   std::shared_ptr<ParamListener> param_listener;
   Params params;
 
@@ -106,7 +87,6 @@ class FrankaRobotStateBroadcaster : public controller_interface::ControllerInter
       external_wrench_in_stiffness_frame_publisher_;
   std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::JointState>>
       external_joint_torques_publisher_;
-
   std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::JointState>> measured_joint_states_publisher_;
   std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::JointState>> desired_joint_states_publisher_;
 
@@ -119,31 +99,21 @@ class FrankaRobotStateBroadcaster : public controller_interface::ControllerInter
   const std::string kExternalJointTorques = "~/external_joint_torques";
   const std::string kDesiredJointStates = "~/desired_joint_states";
 
-  const int kLock_try_count = 5;
-  const int kLock_sleep_interval = 5;
-  const bool kLock_log_error = true;
-  const bool kLock_update_success = false;
-
-  const std::string kLockTryCount = "lock_try_count";
-  const std::string kLockSleepInterval = "lock_sleep_interval";
-  const std::string kLockLogError = "lock_log_error";
-  const std::string kLockUpdateSuccess = "lock_update_success";
-
-  bool lock_log_error_;
-  bool lock_update_success_;
-  franka_msgs::msg::FrankaRobotState franka_robot_state_msg_;
   std::unique_ptr<franka_semantic_components::FrankaRobotState> franka_robot_state_;
 
-  // Publish thread to not block the RT loop
-  std::thread publish_thread_;
-  std::mutex publish_mutex_;
-  std::atomic<bool> is_publish_thread_running_{false};
-  std::atomic<bool> publish_now_{false};
-  std::condition_variable condition_variable_publish_next_;
+  AsyncBuffer<franka_msgs::msg::FrankaRobotState> state_buffer_;
 
-  /**
-   * The function runs in a separate thread to publish the robot state to avoid blocking the RT loop
-   */
-  auto publishRunner() -> void;
+  std::thread publish_thread_;
+  std::atomic<bool> is_publish_thread_running_{false};
+
+  std::atomic<bool> data_ready_{false};
+
+  // Publish rate in Hz for convenience topics, loaded from the convenience_publish_rate parameter.
+  // Written in on_configure() before the publish thread starts; read in publishRunner().
+  int convenience_publish_rate_{1000};
+
+  void startPublishThread();
+  void stopPublishThread();
+  void publishRunner();
 };
 }  // namespace franka_robot_state_broadcaster
