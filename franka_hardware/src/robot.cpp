@@ -468,7 +468,8 @@ void Robot::reconnect(const std::string& robot_ip, const rclcpp::Logger& logger)
   franka::RealtimeConfig rt_config = franka::RealtimeConfig::kEnforce;
   if (!franka::hasRealtimeKernel()) {
     rt_config = franka::RealtimeConfig::kIgnore;
-    RCLCPP_WARN(logger, "Not using a real-time kernel. A real-time kernel is strongly recommended.");
+    RCLCPP_WARN(logger,
+                "Not using a real-time kernel. A real-time kernel is strongly recommended.");
   }
 
   robot_ = std::make_unique<franka::Robot>(robot_ip, rt_config);
