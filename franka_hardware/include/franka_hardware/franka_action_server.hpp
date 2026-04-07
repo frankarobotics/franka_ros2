@@ -16,6 +16,7 @@
 
 #include <future>
 #include <memory>
+#include <string>
 
 #include <franka_msgs/action/error_recovery.hpp>
 #include "franka/exception.h"
@@ -37,8 +38,11 @@ class ActionServer : public rclcpp::Node {
    *
    * @param options rclcpp::NodeOptions Options for the ROS 2 node
    * @param robot std::shared_ptr<Robot> The robot backend
+   * @param robot_prefix Prefix for the robot (e.g. "left_"). Used to derive the node namespace.
    */
-  ActionServer(const rclcpp::NodeOptions& options, std::shared_ptr<Robot> robot);
+  ActionServer(const rclcpp::NodeOptions& options,
+               std::shared_ptr<Robot> robot,
+               const std::string& robot_prefix = "");
 
  private:
   PTPMotionHandler ptp_motion_handler_;

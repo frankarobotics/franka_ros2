@@ -14,11 +14,26 @@
 
 #include "franka_hardware/franka_param_service_server.hpp"
 
+namespace {
+/// Convert a hardware prefix like "left_" to a ROS 2 namespace like "left".
+std::string prefixToNamespace(const std::string& prefix) {
+  if (prefix.empty()) {
+    return "";
+  }
+  if (prefix.back() == '_') {
+    return prefix.substr(0, prefix.size() - 1);
+  }
+  return prefix;
+}
+}  // namespace
+
 namespace franka_hardware {
 
 FrankaParamServiceServer::FrankaParamServiceServer(const rclcpp::NodeOptions& options,
-                                                   std::shared_ptr<Robot> robot)
-    : rclcpp::Node("service_server", options), robot_(std::move(robot)) {
+                                                   std::shared_ptr<Robot> robot,
+                                                   const std::string& robot_prefix)
+    : rclcpp::Node("service_server", prefixToNamespace(robot_prefix), options),
+      robot_(std::move(robot)) {
   set_joint_stiffness_service_ = create_service<franka_msgs::srv::SetJointStiffness>(
       "~/set_joint_stiffness",
       [this](const std::shared_ptr<franka_msgs::srv::SetJointStiffness::Request>& request,

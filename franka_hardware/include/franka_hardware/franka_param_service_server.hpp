@@ -15,6 +15,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "franka/exception.h"
 #include "franka_hardware/robot.hpp"
@@ -37,7 +38,9 @@ namespace franka_hardware {
 
 class FrankaParamServiceServer : public rclcpp::Node {
  public:
-  FrankaParamServiceServer(const rclcpp::NodeOptions& options, std::shared_ptr<Robot> robot);
+  FrankaParamServiceServer(const rclcpp::NodeOptions& options,
+                           std::shared_ptr<Robot> robot,
+                           const std::string& robot_prefix = "");
 
  private:
   /**
