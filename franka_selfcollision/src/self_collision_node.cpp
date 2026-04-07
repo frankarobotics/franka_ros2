@@ -56,25 +56,21 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
     throw;
   }
 
-  // Initialize the full configuration vector to neutral so that non-tracked joints (e.g. mobile
-  // base wheels, steering) remain at a valid pose
+
   Eigen::VectorXd q0 = collision_checker_->getNeutralConfiguration();
   current_joint_positions_.assign(q0.data(), q0.data() + q0.size());
 
-  // Build joint_map_ using idx_q as the direct index into the full configuration vector. Multi-DOF
-  // joints (nq != 1, e.g. continuous wheels/steering on the mobile base) are skipped, they are not
-  // observable from JointState and remain at neutral permanently
   joint_map_.clear();
   for (pinocchio::JointIndex i = 1;
        i < (pinocchio::JointIndex)collision_checker_->getModelNjoints(); ++i) {
     const std::string& name = collision_checker_->getModelJointName(i);
     int idx_q = collision_checker_->getModelJointIdxQ(i);
-    int nq_j = collision_checker_->getModelJointNq(i);
+    int joint_dof = collision_checker_->getModelJointNq(i);
 
-    if (nq_j != 1) {
+    if (joint_dof != 1) {
       RCLCPP_INFO(this->get_logger(),
                   "Skipping joint [%s] (idx_q=%d, nq=%d) — multi-DOF, stays at neutral",
-                  name.c_str(), idx_q, nq_j);
+                  name.c_str(), idx_q, joint_dof);
       continue;
     }
 
@@ -95,9 +91,6 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
 }
 
 void CollisionMonitorNode::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg) {
-  // current_joint_positions_ has size model_.nq (full configuration vector).
-  // Only joints with nq=1 are updated here via idx_q; all other entries remain at the neutral
-  // configuration set during setup
   for (size_t i = 0; i < msg->name.size(); ++i) {
     auto it = joint_map_.find(msg->name[i]);
     if (it != joint_map_.end() && i < msg->position.size()) {
