@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<!-- Copyright (c) 2026 Franka Robotics GmbH
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+         http://www.apache.org/licenses/LICENSE-2.0 -->
+
+<!--
+  Gazebo entry point for the FR3 Duo v0.2 with sensors.
+
+  ARCHITECTURE: Modular composition from source packages:
+    - Layer 1: Base robot from franka_description
+    - Layer 2b: Vision kit accessories from franka_vision_and_manipulation_kit
+    - Layer 3: Gazebo plugins applied by franka_gazebo_bringup
+
+  Result: Robot with 10 sensors fully simulated in Gazebo
+    - 2x Wrist cameras D405 (vision kit) from franka_vision_and_manipulation_kit
+    - 1x Head camera ZED Mini (vision kit) from franka_vision_and_manipulation_kit
+-->
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fr3_duo_gazebo_sensors">
+
+  <!-- ================================================================ -->
+  <!-- Includes                                                         -->
+  <!-- ================================================================ -->
+
+  <!-- Base robot (Layer 1) -->
+  <xacro:include filename="$(find franka_description)/robots/fr3_duo/fr3_duo.xacro"/>
+
+  <!-- Vision kit accessory components (Layer 2b) -->
+  <xacro:include filename="$(find franka_vision_and_manipulation_kit)/robots/vision_kit_components.xacro"/>
+
+  <!-- Gazebo sensor plugins (Layer 3) -->
+  <xacro:include filename="$(find franka_gazebo_bringup)/urdf/sensors.xacro" />
+  <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
+
+  <!-- ================================================================ -->
+  <!-- Arguments                                                        -->
+  <!-- ================================================================ -->
+
+  <xacro:arg name="robot_types" default="['fr3v2','fr3v2']" />
+  <xacro:property name="robot_types_list" value="${$(arg robot_types)}" />
+  <xacro:arg name="arm_prefixes" default="['left', 'right']" />
+  <xacro:property name="arm_prefixes_list" value="${$(arg arm_prefixes)}" />
+
+  <xacro:arg name="no_prefix"          default="false"/>
+  <xacro:arg name="hand"               default="true" />
+  <xacro:arg name="ee_id"              default="franka_hand" />
+  <xacro:arg name="special_connection" default="" />
+  <xacro:arg name="xyz_ee"             default="0 0 0" />
+  <xacro:arg name="rpy_ee"             default="0 0 ${-pi/4}" />
+  <xacro:arg name="tcp_xyz"            default="0 0 0.1034" />
+  <xacro:arg name="tcp_rpy"            default="0 0 0" />
+  <xacro:arg name="safety_distance"    default="0.03" />
+  <xacro:arg name="with_sc"            default="false" />
+  <xacro:arg name="robot_ips"          default="['172.16.0.1','172.16.0.2']" />
+  <xacro:property name="robot_ips_list" value="${$(arg robot_ips)}" />
+  <xacro:arg name="use_fake_hardware"    default="false" />
+  <xacro:arg name="fake_sensor_commands" default="false" />
+  <xacro:arg name="gazebo_effort"        default="false" />
+  <xacro:arg name="description_pkg"      default="franka_description" />
+  <xacro:arg name="base_mount"           default="world"/>
+  <xacro:arg name="connected_to"         default="world"/> 
+
+  <!-- For Gazebo simulation, disable ros2_control in fr3_duo macro -->
+  <xacro:property name="ros_control_flag" value="false"/>
+
+  <!-- ================================================================ -->
+  <!-- World link definition                                            -->
+  <!-- ================================================================ -->
+  <link name="world"/>
+
+  <!-- ================================================================ -->
+  <!-- LAYER 1: Base Robot                                              -->
+  <!-- ================================================================ -->
+  <xacro:fr3_duo
+        name="fr3_duo"
+        robot_types="${robot_types_list}"
+        arm_prefixes="${arm_prefixes_list}"
+        hand="$(arg hand)"
+        ros2_control="${ros_control_flag}"
+        gazebo="true"
+        gazebo_effort="$(arg gazebo_effort)"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        robot_ips="$(arg robot_ips)"
+        description_pkg="$(arg description_pkg)"
+        base_mount="$(arg base_mount)"
+        connected_to="$(arg connected_to)"
+        no_prefix="$(arg no_prefix)"
+        ee_id="$(arg ee_id)"
+        special_connection="$(arg special_connection)"
+        xyz_ee="$(arg xyz_ee)"
+        rpy_ee="$(arg rpy_ee)"
+        tcp_xyz="$(arg tcp_xyz)"
+        tcp_rpy="$(arg tcp_rpy)"
+        safety_distance="$(arg safety_distance)"
+        with_sc="$(arg with_sc)"/>
+
+  <!-- ================================================================ -->
+  <!-- LAYER 2b: Vision Kit Accessories                                -->
+  <!-- ================================================================ -->
+  <xacro:vision_kit_components left_arm_type="fr3v2" right_arm_type="fr3v2" prefix="" robotiq_use_fake_hardware="true" robotiq_include_ros2_control="true" sim_gazebo="true" />
+
+  <!-- ================================================================ -->
+  <!-- LAYER 3: Gazebo Sensor Plugins                                  -->
+  <!-- ================================================================ -->
+
+  <!-- Vision Kit Sensors (2x D405 wrist, 1x ZED head) -->
+  <xacro:franka_gazebo_vision_kit_sensors/>
+
+  <!-- ================================================================ -->
+  <!-- Physics Configuration                                            -->
+  <!-- ================================================================ -->
+  <xacro:disable_arm_gravity prefix="left_" robot_type="${robot_types_list[0]}"/>
+  <xacro:disable_arm_gravity prefix="right_" robot_type="${robot_types_list[1]}"/>
+  <xacro:disable_mobile_base_gravity/>
+
+</robot>
+

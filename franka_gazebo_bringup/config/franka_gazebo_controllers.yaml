@@ -13,6 +13,9 @@ controller_manager:
 
     mobile_fr3_duo_joint_impedance_example_controller:
       type: franka_example_controllers/MobileFr3DuoJointImpedanceExampleController
+
+    fr3_duo_joint_impedance_example_controller:
+      type: franka_example_controllers/Fr3DuoJointImpedanceExampleController
     
     gravity_compensation_example_controller:
       type: franka_example_controllers/GravityCompensationExampleController
@@ -124,3 +127,25 @@ mobile_fr3_duo_joint_impedance_example_controller:
       - 1.0
       - 1.0
       - 0.5
+      
+fr3_duo_joint_impedance_example_controller:
+  ros__parameters:
+      update_rate: 1000
+      robot_types: ['fr3v2', 'fr3v2']
+      arm_prefixes: ['left', 'right']
+      k_gains:
+        - 24.0
+        - 24.0
+        - 24.0
+        - 24.0
+        - 10.0
+        - 6.0
+        - 2.0
+      d_gains:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 1.0
+        - 1.0
+        - 1.0
+        - 0.5
