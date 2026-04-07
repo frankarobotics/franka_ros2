@@ -41,7 +41,7 @@ class TestFrankaRobotStateBroadcaster : public ::testing::Test {
     franka_robot_state_raw_ = franka_robot_state.get();  // Save raw pointer for mocking
 
     broadcaster_ = std::make_unique<FrankaRobotStateBroadcaster>(std::move(franka_robot_state));
-    broadcaster_->init("test_broadcaster", ros2_control_test_assets::minimal_robot_urdf, 30, "",
+    broadcaster_->init("test_broadcaster", "",
                        rclcpp::NodeOptions()
                            .allow_undeclared_parameters(true)
                            .automatically_declare_parameters_from_overrides(true));
