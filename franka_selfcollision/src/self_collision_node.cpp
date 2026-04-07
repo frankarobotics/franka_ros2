@@ -30,7 +30,7 @@ CollisionMonitorNode::CollisionMonitorNode(const rclcpp::NodeOptions& options)
   this->declare_parameter("robot_description_semantic", "");
 
   collision_pub_ = this->create_publisher<std_msgs::msg::Bool>(
-      "fr3_duo_self_collision_node/collision_detected", 1);
+      "self_collision_node/collision_detected", 1);
 }
 
 void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_description) {

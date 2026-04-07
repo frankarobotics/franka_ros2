@@ -50,6 +50,7 @@ UNRELEASED
 * feat: added a gazebo example for fr3 duo using the franka vision and manipulation kit
 * fix: teleop node is publishing correctly if there is no namespace
 * feat: Added moveit support for mobile fr3 duo
+* feat: Updated franka_selfcollision package to support mobile_fr3_duo in addition to fr3_duo
 
 v3.2.2 (2026-03-03)
 -------------------

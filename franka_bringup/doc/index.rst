@@ -160,30 +160,13 @@ The mobile dual-arm configuration is defined in ``franka_bringup/config/mobile_f
   * First entry: Mobile base IP address
   * Remaining entries: Arm IP addresses
 
+* ``check_selfcollision``:  Enables the self_collision_node (e.g., ``"true"``)
+
 .. note::
 
     All three arrays (``robot_types``, ``robot_ips``, ``arm_prefixes``) must have exactly **3 entries**
     (mobile base + 2 arms), and arm prefixes must be unique.
 
-Self-Collision Checking
-^^^^^^^^^^^^^^^^^^^^^^^
-
-The Mobile FR3 Duo supports self-collision checking via a dedicated node that monitors the arm and
-spine geometry. To enable it, set ``check_selfcollision: true`` in
-``franka_bringup/config/mobile_fr3_duo.config.yaml``.
-
-To run the self-collision example controller, first ensure the self-collision node is running, then:
-
-.. code-block:: shell
-
-    ros2 launch franka_bringup mobile_fr3_duo.launch.py \
-        controller_name:=mobile_fr3_duo_self_collision_example_controller
-
-.. important::
-
-    The controller will fail to activate if no publisher is detected on the collision topic
-    ``/mobile_fr3_duo_self_collision_node/collision_detected``. Always start the
-    self-collision node before activating this controller.
 
 Launching the Mobile FR3 Duo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

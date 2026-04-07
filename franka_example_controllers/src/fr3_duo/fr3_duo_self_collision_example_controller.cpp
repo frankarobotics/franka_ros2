@@ -155,7 +155,7 @@ CallbackReturn SelfCollisionFR3DuoExampleController::on_init() {
         {0.0, 0.2, 0.0, -3.0 * M_PI_4, 0.0, M_PI_2, M_PI_4,    // Robot 1
          0.0, 0.2, 0.0, -3.0 * M_PI_4, 0.0, M_PI_2, M_PI_4});  // Robot 2
 
-    auto_declare<std::string>("collision_topic", "/fr3_duo_self_collision_node/collision_detected");
+    auto_declare<std::string>("collision_topic", "/self_collision_node/collision_detected");
 
   } catch (const std::exception& e) {
     fprintf(stderr, "Exception thrown during init stage with message: %s \n", e.what());

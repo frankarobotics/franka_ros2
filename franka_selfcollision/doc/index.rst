@@ -1,43 +1,26 @@
 franka_selfcollision
 ====================
 
-This package provides self-collision checking for the FR3 Duo and Mobile FR3 Duo robots. It exposes
-a shared ``SelfCollisionChecker`` library and two executable nodes — one for each robot variant.
+This package contains the library and the node for self-collision checking of the FR3 Duo and
+Mobile FR3 Duo robots.
 
 .. important::
 
     Minimum necessary `franka_description` version is 2.3.2.
     You can clone franka_description package from https://github.com/frankarobotics/franka_description.
 
-Architecture
-------------
-
-The package is structured around a single unified ``SelfCollisionChecker`` class that handles both
-robot variants:
-
-* ``self_collision_checker.hpp/.cpp`` — unified collision checker with an optional ``link_filter``
-  parameter. When provided, only collision pairs where both geometry names satisfy the predicate are
-  kept. This is used by the mobile node to restrict checking to arm and spine links only.
-* ``self_collision_node.hpp`` — shared node header used by both executables.
-* ``self_collision_node.cpp`` — FR3 Duo executable. Uses sequential joint indexing. No link filter.
-* ``mobile_self_collision_node.cpp`` — Mobile FR3 Duo executable. Uses ``idx_q``-based joint
-  indexing and initializes the full configuration vector from the neutral pose so that non-tracked
-  joints (base, casters, TMR drivetrain) remain safely at neutral throughout.
-
 Functionality
 -------------
 
-Each node continuously monitors the robot's joint states and checks for self-collisions between
-the relevant links. Upon detecting a collision or a violation of the security margin it:
+This monitoring node is spawned by ``fr3_duo.launch.py`` or ``mobile_fr3_duo.launch.py`` in ``franka_bringup`` if the ``check_selfcollision`` argument is enabled.
 
-1. **Publishes status** — sends a boolean to the collision topic.
-2. **Logs warning** — prints the specific colliding link pairs to the console if enabled
-   (throttled to 500ms to prevent spam).
+The node continuously monitors the robot's joint states to check for self-collisions between the robot links. It handles both ``fr3_duo`` and ``mobile_fr3_duo`` configurations using ``idx_q``-based
+joint indexing, so that multi-DOF joints (wheels, steering) are automatically skipped and stay at
+their neutral configuration.
+It performs two main actions upon detecting a collision (or violation of the security margin):
 
-The published topics are:
-
-* FR3 Duo: ``/fr3_duo_self_collision_node/collision_detected``
-* Mobile FR3 Duo: ``/mobile_fr3_duo_self_collision_node/collision_detected``
+1. **Publishes Status:** Sends a boolean to the topic ``/self_collision_node/collision_detected``.
+2. **Logs Warning:** Prints the specific colliding link pairs to the console if enabled (throttled to 1Hz to prevent spam).
 
 Configuration
 -------------
