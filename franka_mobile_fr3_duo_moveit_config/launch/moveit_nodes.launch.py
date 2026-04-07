@@ -18,22 +18,22 @@ PACKAGE_NAME = 'franka_mobile_fr3_duo_moveit_config'
 def get_controller_nodes(simulate_in_gazebo, namespace):
     """Return the list of controller spawner nodes."""
     if simulate_in_gazebo:
-        cartesian_velocity_interface_prefix = "swerve_ik_controller/"
+        cartesian_velocity_interface_prefix = 'swerve_ik_controller/'
     else:
-        cartesian_velocity_interface_prefix = "swerve_drive_controller/"
+        cartesian_velocity_interface_prefix = 'swerve_drive_controller/'
 
     full_body_controller_node_parameters = [
         PathJoinSubstitution(
             [
                 FindPackageShare(PACKAGE_NAME),
-                "config",
-                "mobile_fr3_duo_controllers.yaml",
+                'config',
+                'mobile_fr3_duo_controllers.yaml',
             ]
         ),
         {
-            "full_body_controller": {
-                "ros__parameters": {
-                    "cartesian_velocity_interface_prefix": cartesian_velocity_interface_prefix,
+            'full_body_controller': {
+                'ros__parameters': {
+                    'cartesian_velocity_interface_prefix': cartesian_velocity_interface_prefix,
                 }
             }
         },
@@ -41,31 +41,40 @@ def get_controller_nodes(simulate_in_gazebo, namespace):
 
     if simulate_in_gazebo:
         spawn = Node(
-            package="ros_gz_sim",
-            executable="create",
+            package='ros_gz_sim',
+            executable='create',
             namespace=namespace,
             arguments=[
-                "-topic", "/robot_description",
-                "-x", "0", "-y", "0", "-z", "0.05",
+                '-topic',
+                '/robot_description',
+                '-x',
+                '0',
+                '-y',
+                '0',
+                '-z',
+                '0.05',
             ],
-            output="screen",
+            output='screen',
         )
 
         mobile_fr3_duo_controller = Node(
-            package="controller_manager",
-            executable="spawner",
+            package='controller_manager',
+            executable='spawner',
             arguments=[
-                "joint_state_broadcaster",
-                "swerve_ik_controller",
-                "full_body_controller",
-                "--inactive",
-                "--controller-manager-timeout", "120",
-                "--service-call-timeout", "60",
-                "--controller-ros-args",
-                "--remap joint_states:=/franka/joint_states",
+                'joint_state_broadcaster',
+                'swerve_ik_controller',
+                'swerve_drive_controller',
+                'full_body_controller',
+                '--inactive',
+                '--controller-manager-timeout',
+                '120',
+                '--service-call-timeout',
+                '60',
+                '--controller-ros-args',
+                '--remap joint_states:=/franka/joint_states',
             ],
             parameters=full_body_controller_node_parameters,
-            output="screen",
+            output='screen',
         )
 
         return [
@@ -79,41 +88,44 @@ def get_controller_nodes(simulate_in_gazebo, namespace):
         ]
 
     full_body_controller_node = Node(
-        package="controller_manager",
-        executable="spawner",
+        package='controller_manager',
+        executable='spawner',
         arguments=[
-            "joint_state_broadcaster",
+            'joint_state_broadcaster',
             'swerve_drive_controller',
-            "full_body_controller",
-            "--inactive",
-            "--controller-manager-timeout", "120",
-            "--service-call-timeout", "60",
-            "--controller-ros-args",
-            "--remap joint_states:=/franka/joint_states",
+            'full_body_controller',
+            '--inactive',
+            '--controller-manager-timeout',
+            '120',
+            '--service-call-timeout',
+            '60',
+            '--controller-ros-args',
+            '--remap joint_states:=/franka/joint_states',
         ],
         parameters=full_body_controller_node_parameters,
-        output="screen",
+        output='screen',
     )
 
     return [full_body_controller_node]
 
+
 def generate_moveit_nodes(context):
     """Generate MoveIt-specific nodes: move_group and optionally rviz."""
-    use_fake_hardware = LaunchConfiguration("use_fake_hardware").perform(context)
-    simulate_in_gazebo = LaunchConfiguration("simulate_in_gazebo").perform(context)
-    simulate_in_gazebo_bool = simulate_in_gazebo.lower() == "true"
-    rviz = LaunchConfiguration("rviz").perform(context)
-    namespace = LaunchConfiguration("namespace", default="")
+    use_fake_hardware = LaunchConfiguration('use_fake_hardware').perform(context)
+    simulate_in_gazebo = LaunchConfiguration('simulate_in_gazebo').perform(context)
+    simulate_in_gazebo_bool = simulate_in_gazebo.lower() == 'true'
+    rviz = LaunchConfiguration('rviz').perform(context)
+    namespace = LaunchConfiguration('namespace', default='')
 
-    robot_name = "mobile_fr3_duo_v0_2"
+    robot_name = 'mobile_fr3_duo_v0_2'
 
     robot_description, robot_description_semantic = get_robot_descriptions(
         robot_name, use_fake_hardware, simulate_in_gazebo
     )
 
     move_group_node = Node(
-        package="moveit_ros_move_group",
-        executable="move_group",
+        package='moveit_ros_move_group',
+        executable='move_group',
         namespace=namespace,
         output='screen',
         parameters=get_combined_parameters(
@@ -125,20 +137,20 @@ def generate_moveit_nodes(context):
 
     nodes = [move_group_node] + get_controller_nodes(simulate_in_gazebo_bool, namespace)
 
-    if rviz.lower() == "true":
+    if rviz.lower() == 'true':
         rviz_node = Node(
-            package="rviz2",
-            executable="rviz2",
+            package='rviz2',
+            executable='rviz2',
             namespace=namespace,
-            output="screen",
+            output='screen',
             respawn=False,
             arguments=[
-                "-d",
+                '-d',
                 PathJoinSubstitution(
                     [
                         FindPackageShare(PACKAGE_NAME),
-                        "config",
-                        "moveit.rviz",
+                        'config',
+                        'moveit.rviz',
                     ]
                 ),
             ],
@@ -148,21 +160,22 @@ def generate_moveit_nodes(context):
 
     return nodes
 
+
 def generate_launch_description():
     """Entry point for this MoveIt nodes launch file."""
     return LaunchDescription(
         [
             DeclareLaunchArgument(
-                "use_fake_hardware",
-                default_value="false",
+                'use_fake_hardware',
+                default_value='false',
             ),
             DeclareLaunchArgument(
-                "simulate_in_gazebo",
-                default_value="false",
+                'simulate_in_gazebo',
+                default_value='false',
             ),
             DeclareLaunchArgument(
-                "rviz",
-                default_value="true",
+                'rviz',
+                default_value='true',
             ),
             OpaqueFunction(function=generate_moveit_nodes),
         ]
