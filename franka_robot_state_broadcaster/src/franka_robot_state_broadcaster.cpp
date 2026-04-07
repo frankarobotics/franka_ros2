@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
+#include <sched.h>
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <memory>
-#include <pthread.h>
-#include <sched.h>
 #include <string>
 
 #include <rcutils/logging_macros.h>
@@ -65,8 +65,7 @@ void FrankaRobotStateBroadcaster::startPublishThread() {
                   "Grant CAP_SYS_NICE or run as root to enable RT scheduling.",
                   kPublishThreadPriority, strerror(errno));
     } else {
-      RCLCPP_INFO(get_node()->get_logger(),
-                  "Publish thread started with SCHED_FIFO priority %d.",
+      RCLCPP_INFO(get_node()->get_logger(), "Publish thread started with SCHED_FIFO priority %d.",
                   kPublishThreadPriority);
     }
   }
@@ -166,8 +165,8 @@ controller_interface::CallbackReturn FrankaRobotStateBroadcaster::on_configure(
     return CallbackReturn::ERROR;
   }
 
-  convenience_publish_rate_ = std::min(static_cast<int>(params.convenience_publish_rate),
-                                       kUpdateRate);
+  convenience_publish_rate_ =
+      std::min(static_cast<int>(params.convenience_publish_rate), kUpdateRate);
   int skip = std::max(1, kUpdateRate / convenience_publish_rate_);
   int effective_rate = kUpdateRate / skip;
   if (effective_rate != convenience_publish_rate_) {
@@ -176,8 +175,7 @@ controller_interface::CallbackReturn FrankaRobotStateBroadcaster::on_configure(
                 "Effective rate: %d Hz.",
                 convenience_publish_rate_, kUpdateRate, effective_rate);
   }
-  RCLCPP_INFO(get_node()->get_logger(),
-              "Convenience topics at %d Hz, full state at %d Hz",
+  RCLCPP_INFO(get_node()->get_logger(), "Convenience topics at %d Hz, full state at %d Hz",
               effective_rate, kUpdateRate);
 
   RCLCPP_DEBUG(get_node()->get_logger(), "configure successful");

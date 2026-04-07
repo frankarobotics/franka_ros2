@@ -1,31 +1,6 @@
 # This is a namespace agnostic configuration file for the Franka FR3 robot.
 # That is to say, it is not tied to any specific namespace and can be used in
 # any namespace.
-# If you require namespace specific configurations, you can easily modify this
-# file to include the namespace
-# As an example, below you can find:
-#
-# /**:
-#   franka_robot_state_broadcaster:
-#     ros__parameters:
-#       lock_try_count: 5
-#       lock_sleep_interval: 5
-#
-# Imagine, you have a specific need to have the lock try count in namespace "NAMESPACE_X"
-# to be different than the default value of 5, but leave all the other namespaces as default.
-# Add the following lines to the configuration file
-# (or use a different config file, but then you have to mody the launch script to reference that file)
-#
-# /NAMESPACE_X:
-#   franka_robot_state_broadcaster:
-#     ros__parameters:
-#       lock_try_count: 10
-#       lock_sleep_interval: 35
-# /**:
-#   franka_robot_state_broadcaster:
-#     ros__parameters:
-#       lock_try_count: 5
-#       lock_sleep_interval: 5
 
 
 /**:
@@ -103,15 +78,6 @@
         type: franka_mobile/SwerveDriveController
 
 
-/**:
-  franka_robot_state_broadcaster:
-    ros__parameters:
-      lock_try_count: 5 # Number of attempts to acquire the lock in a single on_update()
-      lock_sleep_interval: 5 # microseconds sleep between attempts
-      lock_log_error: false #  Log error if lock acquisition fails - false == do not log
-      lock_update_success: true # return update OK, although lock fails (no update occurs)
-
-      
 /**:
   joint_impedance_example_controller:
     ros__parameters:

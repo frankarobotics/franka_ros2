@@ -16,14 +16,6 @@
       franka_robot_state_broadcaster:
         type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
 
-/**:
-  franka_robot_state_broadcaster:
-    ros__parameters:
-      lock_try_count: 5 # Number of attempts to acquire the lock in a single on_update()
-      lock_sleep_interval: 5 # microseconds sleep between attempts
-      lock_log_error: false #  Log error if lock acquisition fails - false == do not log  
-      lock_update_success: true # return update OK, although lock fails (no update occurs)
-      
 /**: 
   fr3_arm_controller:
     ros__parameters:
