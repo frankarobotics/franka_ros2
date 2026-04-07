@@ -182,6 +182,7 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
 
   static rclcpp::Logger getLogger();
 
+  std::string robot_ip_;
   std::string robot_type_{"fr3"};
   std::string prefix_;  // Prefix for joint names in dual-arm setups (e.g.,
                         // "left_", "right_")
