@@ -55,7 +55,6 @@ ament_target_dependencies(self_collision_node
     std_msgs
 )
 
-
 install(DIRECTORY include/ DESTINATION include)
 
 install(TARGETS ${PROJECT_NAME}
