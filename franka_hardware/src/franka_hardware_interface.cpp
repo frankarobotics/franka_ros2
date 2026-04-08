@@ -164,7 +164,16 @@ CallbackReturn FrankaHardwareInterface::on_activate(
 
 CallbackReturn FrankaHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
+  std::lock_guard<std::mutex> lock(control_mutex_);
+
   robot_->stopRobot();
+
+  effort_interface_running_ = false;
+  velocity_joint_interface_running_ = false;
+  position_joint_interface_running_ = false;
+  velocity_cartesian_interface_running_ = false;
+  pose_cartesian_interface_running_ = false;
+  elbow_command_interface_running_ = false;
   return CallbackReturn::SUCCESS;
 }
 
@@ -224,6 +233,7 @@ hardware_interface::return_type FrankaHardwareInterface::write(const rclcpp::Tim
       hasInfinite(hw_elbow_command_) || hasInfinite(hw_cartesian_pose_commands_)) {
     return hardware_interface::return_type::ERROR;
   }
+  std::lock_guard<std::mutex> lock(control_mutex_);
 
   if (velocity_joint_interface_running_) {
     robot_->writeOnce(hw_velocity_commands_);
@@ -331,7 +341,8 @@ CallbackReturn FrankaHardwareInterface::on_init(const hardware_interface::Hardwa
     RCLCPP_INFO(getLogger(), "Successfully connected to robot");
   }
 
-  service_node_ = std::make_shared<FrankaParamServiceServer>(rclcpp::NodeOptions(), robot_, prefix_);
+  service_node_ =
+      std::make_shared<FrankaParamServiceServer>(rclcpp::NodeOptions(), robot_, prefix_);
   executor_ = std::make_shared<FrankaExecutor>();
   executor_->add_node(service_node_);
 
