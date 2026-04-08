@@ -9,9 +9,37 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 (not released yet) 
 * chore: refactored cartesian velocity example controller to be gazebo independent by chaining `swerve_ik_controller`
 * docu: Maintenance work on documentation
 * feat: Added `franka_mobile` package with `swerve_drive_controller` (tf and odom support) and `swerve_ik_controller` for gazebo sim.
-* feat: add franka_vision_and_manipulation_kit package with urdf descriptions and launch files for the Franka Vision and Manipulation Kit
 * refactor: replace blocking mutex in franka_robot_state_broadcaster with lock-free AsyncBuffer
-* BREAKING CHANGE: franka_robot_state_broadcaster convenience topics are published with best_effort QoS
+* BREAKING CHANGE: franka_robot_state_broadcaster convenience topics are published with best_effort QoS.
+  Topics affected: ``current_pose``, ``stiffness_frame_wrench``, and all other convenience topics
+  from the broadcaster. Subscribers using the default ``reliable`` QoS will no longer receive
+  messages. To migrate, set the subscriber QoS to ``best_effort``:
+
+  **C++ (rclcpp)**
+
+  .. code-block:: cpp
+
+     // Before (default reliable QoS — no longer receives messages):
+     auto sub = node->create_subscription<geometry_msgs::msg::PoseStamped>(
+         "current_pose", 10, callback);
+
+     // After (best_effort QoS):
+     rclcpp::QoS qos(10);
+     qos.best_effort();
+     auto sub = node->create_subscription<geometry_msgs::msg::PoseStamped>(
+         "current_pose", qos, callback);
+
+  **Python (rclpy)**
+
+  .. code-block:: python
+
+     # Before (default reliable QoS — no longer receives messages):
+     self.create_subscription(PoseStamped, 'current_pose', callback, 10)
+
+     # After (best_effort QoS):
+     from rclpy.qos import QoSProfile, ReliabilityPolicy
+     qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
+     self.create_subscription(PoseStamped, 'current_pose', callback, qos)
 
 v2.3.0 (2026-03-10)
 -------------------
