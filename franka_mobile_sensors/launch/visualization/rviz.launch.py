@@ -59,7 +59,7 @@ def generate_launch_description() -> LaunchDescription:
         [
             DeclareLaunchArgument(
                 'robot_xacro',
-                default_value='tmrv0_2_with_sensors.xacro',
+                default_value='tmrv0_2_with_sensors.urdf.xacro',
                 description='XACRO file for robot with sensors',
             ),
             OpaqueFunction(function=spawn_robot_and_rviz),
