@@ -11,7 +11,6 @@
 
   <depend>controller_interface</depend>
   <depend>franka_msgs</depend>
-  <depend>franka_selfcollision</depend>
   <depend>franka_semantic_components</depend>
   <depend>pinocchio</depend>
   <depend>pluginlib</depend>

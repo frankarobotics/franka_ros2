@@ -68,12 +68,9 @@
       mobile_cartesian_velocity_example_controller:
         type: franka_example_controllers/MobileCartesianVelocityExampleController
 
-      fr3_duo_self_collision_example_controller:
-        type: franka_example_controllers/Fr3DuoSelfCollisionExampleController
-      
       mobile_fr3_duo_joint_impedance_example_controller:
         type: franka_example_controllers/MobileFr3DuoJointImpedanceExampleController
-      
+
       swerve_drive_controller:
         type: franka_mobile/SwerveDriveController
 
@@ -166,27 +163,6 @@
         - 1.0
         - 1.0
         - 0.5
-
-/**:
-  fr3_duo_self_collision_example_controller:
-    ros__parameters:
-      update_rate: 1000
-      k_gains:
-        - 600.0
-        - 600.0
-        - 600.0
-        - 600.0
-        - 250.0
-        - 150.0
-        - 50.0
-      d_gains:
-        - 30.0
-        - 30.0
-        - 30.0
-        - 30.0
-        - 10.0
-        - 10.0
-        - 5.0
 
 /**:
   mobile_fr3_duo_joint_impedance_example_controller:

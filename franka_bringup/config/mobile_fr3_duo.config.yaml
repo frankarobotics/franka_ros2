@@ -15,4 +15,3 @@ mobile_fr3_duo_robot:
   joint_state_rate: 30
   thread_priority: 50
   use_rviz: true
-  check_selfcollision: false # Run self_collision_node in the background if "true"

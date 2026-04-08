@@ -34,7 +34,6 @@
 # joint_state_rate: Rate for joint state publishing in Hz (default: '30')
 # namespace: Namespace for the robot (default: '')
 # use_rviz: Launch RViz for the robot (default: 'true')
-# check_selfcollision: Launch self_collision_node for the robot (default: 'false')
 # thread_priority: Thread priority for the hardware interface (default: '50')
 #
 # The fr3_duo.launch.py launch file provides a robust interface for launching
@@ -60,15 +59,12 @@ import os
 import sys
 
 from ament_index_python.packages import get_package_share_directory
-
 import franka_bringup.launch_utils as launch_utils
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, Shutdown
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-
 import xacro
 
 package_share = get_package_share_directory('franka_bringup')
@@ -84,15 +80,12 @@ is_duo_config = launch_utils.is_duo_config
 
 
 def generate_robot_nodes(context):
-    robot_config_file = LaunchConfiguration(
-        'robot_config_file').perform(context)
+    robot_config_file = LaunchConfiguration('robot_config_file').perform(context)
 
     # If config_file is just a filename (no path separators), look in
     # franka_bringup/config/
-    if not os.path.isabs(
-            robot_config_file) and os.path.sep not in robot_config_file:
-        robot_config_file = os.path.join(
-            package_share, 'config', robot_config_file)
+    if not os.path.isabs(robot_config_file) and os.path.sep not in robot_config_file:
+        robot_config_file = os.path.join(package_share, 'config', robot_config_file)
 
     # Load configuration from file
     configs = load_yaml(robot_config_file)
@@ -103,7 +96,8 @@ def generate_robot_nodes(context):
     if not is_duo_config(config):
         print(
             f'Error: Configuration file {
-                robot_config_file} does not contain a duo configuration.\n'
+                robot_config_file
+            } does not contain a duo configuration.\n'
             f'Expected keys: robot_types, robot_ips, arm_prefixes\n'
             f'For single robot configurations, use example.launch.py instead.'
         )
@@ -119,7 +113,6 @@ def generate_robot_nodes(context):
     namespace = str(config.get('namespace', ''))
     joint_state_rate = int(config.get('joint_state_rate', 30))
     use_rviz = str(config.get('use_rviz', 'true')).lower() == 'true'
-    check_selfcollision = str(config.get('check_selfcollision', 'false')).lower() == 'true'
     thread_priority_str = str(config.get('thread_priority', 50))
 
     controllers_yaml = LaunchConfiguration('controllers_yaml').perform(context)
@@ -130,10 +123,7 @@ def generate_robot_nodes(context):
     arm_prefixes_list = parse_string_list(arm_prefixes_str)
 
     # Validate duo configuration
-    validate_duo_arrays_length(
-        robot_types_list,
-        robot_ips_list,
-        arm_prefixes_list)
+    validate_duo_arrays_length(robot_types_list, robot_ips_list, arm_prefixes_list)
     validate_arm_prefixes_unique(arm_prefixes_list)
 
     # Build URDF path
@@ -177,7 +167,7 @@ def generate_robot_nodes(context):
             'robot_types': robot_types_str,
             'arm_prefixes': arm_prefixes_str,
             'hand': load_gripper_str,
-        }
+        },
     ).toprettyxml(indent='  ')
 
     joint_state_publisher_sources = [
@@ -238,9 +228,7 @@ def generate_robot_nodes(context):
     # Spawn controller
     controller_name = LaunchConfiguration('controller_name').perform(context)
     if not controller_name:
-        print(
-            'Error: No controller name provided. Please provide a controller name.'
-        )
+        print('Error: No controller name provided. Please provide a controller name.')
         sys.exit(1)
 
     if CONTROLLER_EXAMPLE in controller_name:
@@ -250,10 +238,7 @@ def generate_robot_nodes(context):
                 package='controller_manager',
                 executable='spawner',
                 namespace=namespace,
-                arguments=[
-                    controller_name,
-                    '--controller-manager-timeout',
-                    '30'],
+                arguments=[controller_name, '--controller-manager-timeout', '30'],
                 parameters=[
                     PathJoinSubstitution(
                         [
@@ -283,32 +268,31 @@ def generate_robot_nodes(context):
                 executable='rviz2',
                 name='rviz2',
                 arguments=[
-                        '--display-config',
-                        PathJoinSubstitution(
-                            [
-                                FindPackageShare('franka_description'),
-                                'rviz',
-                                'visualize_franka.rviz',
-                            ]
-                        ),
+                    '--display-config',
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare('franka_description'),
+                            'rviz',
+                            'visualize_franka.rviz',
+                        ]
+                    ),
                 ],
                 output='screen',
             )
         )
-    if check_selfcollision:
-        nodes.append(
-            Node(
-                package='franka_selfcollision',
-                executable='self_collision_node',
-                name='self_collision_node',
-                namespace=namespace,
-                parameters=[
-                    {
-                        'robot_description_semantic': robot_description_semantic,
-                    }
-                ],
-            )
+    nodes.append(
+        Node(
+            package='franka_selfcollision',
+            executable='self_collision_node',
+            name='self_collision_node',
+            namespace=namespace,
+            parameters=[
+                {
+                    'robot_description_semantic': robot_description_semantic,
+                }
+            ],
         )
+    )
     return nodes
 
 
@@ -317,8 +301,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'robot_config_file',
             default_value=PathJoinSubstitution(
-                [FindPackageShare('franka_bringup'),
-                 'config', 'fr3_duo.config.yaml']
+                [FindPackageShare('franka_bringup'), 'config', 'fr3_duo.config.yaml']
             ),
             description='Config file name (looked up in franka_bringup/config/) or full path. '
             'If provided, robot_ips, robot_types, and arm_prefixes will be read from this file.',
@@ -326,18 +309,15 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'controllers_yaml',
             default_value=PathJoinSubstitution(
-                [FindPackageShare('franka_bringup'),
-                 'config', 'controllers.yaml']
+                [FindPackageShare('franka_bringup'), 'config', 'controllers.yaml']
             ),
             description='Override the default controllers.yaml file',
         ),
         DeclareLaunchArgument(
             'controller_name',
             description='Controller name to spawn (required). '
-                        'Only one controller is supported for duo setups.',
+            'Only one controller is supported for duo setups.',
         ),
     ]
 
-    return LaunchDescription(
-        launch_args + [OpaqueFunction(function=generate_robot_nodes)]
-    )
+    return LaunchDescription(launch_args + [OpaqueFunction(function=generate_robot_nodes)])

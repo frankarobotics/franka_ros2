@@ -59,6 +59,17 @@ controller_interface::return_type JointImpedanceFr3DuoExampleController::update(
     const rclcpp::Duration& period) {
   updateJointStates();
 
+  auto time_since_last_collision_msg =
+      (this->get_node()->now() - last_collision_msg_time_).seconds();
+  if (time_since_last_collision_msg > 0.5) {
+    RCLCPP_FATAL(get_node()->get_logger(), "Connection to collision node timed out!");
+    return controller_interface::return_type::ERROR;
+  }
+  if (collision_detected_) {
+    RCLCPP_FATAL(get_node()->get_logger(), "Collision detected! Stopping controller.");
+    return controller_interface::return_type::ERROR;
+  }
+
   elapsed_time_ = elapsed_time_ + period.seconds();
   for (size_t robot_index = 0; robot_index < robot_types_.size(); robot_index++) {
     Vector7d q_goal = initial_q_[robot_index];
@@ -129,6 +140,14 @@ CallbackReturn JointImpedanceFr3DuoExampleController::on_configure(
     RCLCPP_INFO(get_node()->get_logger(), "Received Arm Prefix: %s", prefix.c_str());
   }
 
+  collision_sub_ = get_node()->create_subscription<std_msgs::msg::Bool>(
+      kCollisionTopic, 1, [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        this->collision_detected_ = msg->data;
+        this->last_collision_msg_time_ = this->get_node()->now();
+      });
+  RCLCPP_INFO(get_node()->get_logger(), "Self-collision checking enabled on topic: %s",
+              kCollisionTopic);
+
   for (auto& dq : dq_filtered_) {
     dq.setZero();
   }
@@ -165,6 +184,14 @@ CallbackReturn JointImpedanceFr3DuoExampleController::on_activate(
   }
   initial_q_ = q_;
   elapsed_time_ = 0.0;
+
+  if (get_node()->count_publishers(kCollisionTopic) == 0) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Self Collision Node not detected on %s",
+                 kCollisionTopic);
+    return CallbackReturn::FAILURE;
+  }
+  last_collision_msg_time_ = this->get_node()->now();
+  collision_detected_ = false;
 
   return CallbackReturn::SUCCESS;
 }

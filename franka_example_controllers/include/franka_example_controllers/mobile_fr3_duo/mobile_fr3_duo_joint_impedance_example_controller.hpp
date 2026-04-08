@@ -22,6 +22,7 @@
 #include <controller_interface/controller_interface.hpp>
 #include <franka_semantic_components/franka_cartesian_velocity_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
@@ -82,6 +83,12 @@ class MobileFr3DuoJointImpedanceExampleController
   const double k_mobile_time_max_{8.0};  // Longer period for mobile base
   const double k_mobile_v_max_{0.1};     // Max linear velocity (m/s)
   const double k_mobile_angle_{0.0};     // Move forward/backward
+
+  // Self-collision checking
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr collision_sub_;
+  bool collision_detected_{false};
+  rclcpp::Time last_collision_msg_time_;
+  static constexpr auto kCollisionTopic = "collision_detected";
 
   // Helper methods
   void updateJointStates();
