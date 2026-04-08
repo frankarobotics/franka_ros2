@@ -79,7 +79,7 @@ This repository contains a `.repos` file that helps you clone the required depen
     ```
 5. **Detect and install project dependencies**
    ```bash
-   rosdep install --from-paths src --ignore-src --rosdistro jazzy -y
+   rosdep install --from-paths src --ignore-src --rosdistro jazzy -y --skip-keys=zed_wrapper
    ```
 6. **Build**
    ```bash

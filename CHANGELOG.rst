@@ -55,6 +55,7 @@ UNRELEASED
 * chore: Unify ros2_control (Jazzy) sources to avoid ABI mismatches (add ros2_control to dependency.repos so hardware_interface/controller_manager build from the same ABI; 
 remove the standalone hardware_interface fork; keep manage_overruns for async hardware components via a small patch auto-applied in franka_entrypoint.sh). 
 **BREAKING**: existing workspaces must be cleaned before rebuilding: ``rm -rf build/ install/ && colcon build``
+* fix: Removed the `franka_robot_state_broadcaster` while using the TMR
 
 v3.2.2 (2026-03-03)
 -------------------

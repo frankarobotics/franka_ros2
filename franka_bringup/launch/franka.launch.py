@@ -22,6 +22,9 @@
 # use_fake_hardware: Use fake hardware (default: 'false')
 # fake_sensor_commands: Fake sensor commands (default: 'false')
 # joint_state_rate: Rate for joint state publishing in Hz (default: '30')
+# load_franka_robot_state_broadcaster: Load franka_robot_state_broadcaster
+#                                      (default: 'true'). Set to 'false' for
+#                                      robots that do not support it (e.g., TMR).
 #
 # The franka.launch.py launch file provides a robust and flexible interface
 # for launching core Franka Robotics components, including robot_state_publisher,
@@ -69,9 +72,13 @@
 
 
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
-                            OpaqueFunction, Shutdown)
-from launch.conditions import IfCondition, UnlessCondition
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+    Shutdown,
+)
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -84,9 +91,7 @@ import xacro
 
 
 def generate_robot_nodes(context):
-    load_gripper_launch_configuration = LaunchConfiguration('load_gripper').perform(
-        context
-    )
+    load_gripper_launch_configuration = LaunchConfiguration('load_gripper').perform(context)
     load_gripper = load_gripper_launch_configuration.lower() == 'true'
     robot_type = LaunchConfiguration('robot_type').perform(context)
     arm_prefix = LaunchConfiguration('arm_prefix').perform(context)
@@ -106,12 +111,8 @@ def generate_robot_nodes(context):
             'arm_prefix': LaunchConfiguration('arm_prefix').perform(context),
             'robot_ip': LaunchConfiguration('robot_ip').perform(context),
             'hand': load_gripper_launch_configuration,
-            'use_fake_hardware': LaunchConfiguration('use_fake_hardware').perform(
-                context
-            ),
-            'fake_sensor_commands': LaunchConfiguration('fake_sensor_commands').perform(
-                context
-            ),
+            'use_fake_hardware': LaunchConfiguration('use_fake_hardware').perform(context),
+            'fake_sensor_commands': LaunchConfiguration('fake_sensor_commands').perform(context),
         },
     ).toprettyxml(indent='  ')
 
@@ -171,14 +172,25 @@ def generate_robot_nodes(context):
             ],
             output='screen',
         ),
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            namespace=namespace,
-            arguments=['franka_robot_state_broadcaster'],
-            condition=UnlessCondition(LaunchConfiguration('use_fake_hardware')),
-            output='screen',
-        ),
+    ]
+
+    load_broadcaster = (
+        LaunchConfiguration('load_franka_robot_state_broadcaster').perform(context).lower()
+        == 'true'
+    )
+    use_fake_hardware = LaunchConfiguration('use_fake_hardware').perform(context).lower() == 'true'
+    if load_broadcaster and not use_fake_hardware:
+        nodes.append(
+            Node(
+                package='controller_manager',
+                executable='spawner',
+                namespace=namespace,
+                arguments=['franka_robot_state_broadcaster'],
+                output='screen',
+            ),
+        )
+
+    nodes += [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 [
@@ -194,9 +206,7 @@ def generate_robot_nodes(context):
             launch_arguments={
                 'namespace': namespace,
                 'robot_ip': LaunchConfiguration('robot_ip').perform(context),
-                'use_fake_hardware': LaunchConfiguration('use_fake_hardware').perform(
-                    context
-                ),
+                'use_fake_hardware': LaunchConfiguration('use_fake_hardware').perform(context),
             }.items(),
             condition=IfCondition(LaunchConfiguration('load_gripper')),
         ),
@@ -214,9 +224,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'robot_type', default_value='', description='ID of the type of arm used'
         ),
-        DeclareLaunchArgument(
-            'arm_prefix', default_value='', description='Prefix for arm topics'
-        ),
+        DeclareLaunchArgument('arm_prefix', default_value='', description='Prefix for arm topics'),
         DeclareLaunchArgument(
             'namespace', default_value='', description='Namespace for the robot'
         ),
@@ -244,6 +252,12 @@ def generate_launch_description():
             description='Rate for joint state publishing (Hz)',
         ),
         DeclareLaunchArgument(
+            'load_franka_robot_state_broadcaster',
+            default_value='true',
+            description='Load franka_robot_state_broadcaster (default: true). '
+            'Set to false for robots that do not support it (e.g., TMR).',
+        ),
+        DeclareLaunchArgument(
             'controllers_yaml',
             default_value=PathJoinSubstitution(
                 [FindPackageShare('franka_bringup'), 'config', 'controllers.yaml']
@@ -252,6 +266,4 @@ def generate_launch_description():
         ),
     ]
 
-    return LaunchDescription(
-        launch_args + [OpaqueFunction(function=generate_robot_nodes)]
-    )
+    return LaunchDescription(launch_args + [OpaqueFunction(function=generate_robot_nodes)])
