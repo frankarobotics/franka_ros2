@@ -14,6 +14,36 @@ UNRELEASED
 * refactor: replace blocking mutex in franka_robot_state_broadcaster with lock-free AsyncBuffer
 * BREAKING CHANGE: franka_robot_state_broadcaster convenience topics are published with best_effort QoS
 * chore: Added a CI job to try backporting jazzy to humble
+* BREAKING CHANGE: franka_robot_state_broadcaster convenience topics are published with best_effort QoS.
+  Topics affected: ``current_pose``, ``stiffness_frame_wrench``, and all other convenience topics
+  from the broadcaster. Subscribers using the default ``reliable`` QoS will no longer receive
+  messages. To migrate, set the subscriber QoS to ``best_effort``:
+
+  **C++ (rclcpp)**
+
+  .. code-block:: cpp
+
+     // Before (default reliable QoS — no longer receives messages):
+     auto sub = node->create_subscription<geometry_msgs::msg::PoseStamped>(
+         "current_pose", 10, callback);
+
+     // After (best_effort QoS):
+     rclcpp::QoS qos(10);
+     qos.best_effort();
+     auto sub = node->create_subscription<geometry_msgs::msg::PoseStamped>(
+         "current_pose", qos, callback);
+
+  **Python (rclpy)**
+
+  .. code-block:: python
+
+     # Before (default reliable QoS — no longer receives messages):
+     self.create_subscription(PoseStamped, 'current_pose', callback, 10)
+
+     # After (best_effort QoS):
+     from rclpy.qos import QoSProfile, ReliabilityPolicy
+     qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
+     self.create_subscription(PoseStamped, 'current_pose', callback, qos)
 
 v3.2.2 (2026-03-03)
 -------------------
