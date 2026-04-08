@@ -16,6 +16,12 @@ controller_manager:
     swerve_drive_controller:
       type: franka_mobile/SwerveDriveController
 
+    left_state_broadcaster:
+      type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
+
+    right_state_broadcaster:
+      type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
+
 full_body_controller:
   ros__parameters:
     cartesian_velocity_interface_prefix: swerve_drive_controller/ # do I need this or is it comming from the launch file?
@@ -97,3 +103,13 @@ swerve_drive_controller:
         has_jerk_limits        : false
         max_jerk               : 10.0  # rad/s^3
         min_jerk               : -10.0  # rad/s^3
+
+left_state_broadcaster:
+  ros__parameters:
+    arm_prefix: "left"
+    robot_type: "fr3v2"
+
+right_state_broadcaster:
+  ros__parameters:
+    arm_prefix: "right"
+    robot_type: "fr3v2"
