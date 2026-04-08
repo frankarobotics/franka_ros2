@@ -14,13 +14,13 @@
 
 #include <gmock/gmock.h>
 
+#include <ros2_control_test_assets/descriptions.hpp>
 #include "controller_interface/controller_interface.hpp"
 #include "franka_robot_state_broadcaster/franka_robot_state_broadcaster.hpp"
 #include "franka_semantic_components/franka_robot_state.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "ros2_control_test_assets/descriptions.hpp"
 
 class MockFrankaRobotState : public franka_semantic_components::FrankaRobotState {
  public:
@@ -41,7 +41,10 @@ class TestFrankaRobotStateBroadcaster : public ::testing::Test {
     franka_robot_state_raw_ = franka_robot_state.get();  // Save raw pointer for mocking
 
     broadcaster_ = std::make_unique<FrankaRobotStateBroadcaster>(std::move(franka_robot_state));
-    broadcaster_->init("test_broadcaster");
+    broadcaster_->init("test_broadcaster", "",
+                       rclcpp::NodeOptions()
+                           .allow_undeclared_parameters(true)
+                           .automatically_declare_parameters_from_overrides(true));
     broadcaster_->get_node()->set_parameter(
         {"robot_description", ros2_control_test_assets::minimal_robot_urdf});
   }
@@ -55,14 +58,14 @@ TEST_F(TestFrankaRobotStateBroadcaster, test_init_return_success) {
 
 TEST_F(TestFrankaRobotStateBroadcaster, test_configure_return_success) {
   // Avoid the "Uninteresting mock function call - returning default value"
-  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(1);
+  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(3);
   EXPECT_EQ(broadcaster_->on_configure(rclcpp_lifecycle::State()),
             controller_interface::CallbackReturn::SUCCESS);
 }
 
 TEST_F(TestFrankaRobotStateBroadcaster, test_activate_return_success) {
   // Avoid the "Uninteresting mock function call - returning default value"
-  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(1);
+  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(3);
   EXPECT_EQ(broadcaster_->on_configure(rclcpp_lifecycle::State()),
             controller_interface::CallbackReturn::SUCCESS);
   EXPECT_EQ(broadcaster_->on_activate(rclcpp_lifecycle::State()),
@@ -71,7 +74,7 @@ TEST_F(TestFrankaRobotStateBroadcaster, test_activate_return_success) {
 
 TEST_F(TestFrankaRobotStateBroadcaster, test_deactivate_return_success) {
   // Avoid the "Uninteresting mock function call - returning default value"
-  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(1);
+  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(3);
   EXPECT_EQ(broadcaster_->on_configure(rclcpp_lifecycle::State()),
             controller_interface::CallbackReturn::SUCCESS);
   EXPECT_EQ(broadcaster_->on_deactivate(rclcpp_lifecycle::State()),
@@ -79,17 +82,12 @@ TEST_F(TestFrankaRobotStateBroadcaster, test_deactivate_return_success) {
 }
 
 TEST_F(TestFrankaRobotStateBroadcaster, test_update_without_franka_state_interface_returns_error) {
-  GTEST_SKIP()
-      << "Realtime publisher try_lock behaviour - used in FrankaRobotStateBroadcaster::update() - "
-         "is not deterministic - revisit when that changes";
+  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(3);
 
-  // Avoid the "Uninteresting mock function call - returning default value"
-  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(1);
-
-  // Since we're pretending to NOT have a valid state interface, we need to return false
+  // Simulate failure: no valid state interface
   EXPECT_CALL(*franka_robot_state_raw_, get_values_as_message(::testing::_))
       .Times(1)
-      .WillOnce(::testing::Return(false));  // Simulate failure
+      .WillOnce(::testing::Return(false));
 
   EXPECT_EQ(broadcaster_->on_configure(rclcpp_lifecycle::State()),
             controller_interface::CallbackReturn::SUCCESS);
@@ -102,16 +100,12 @@ TEST_F(TestFrankaRobotStateBroadcaster, test_update_without_franka_state_interfa
 }
 
 TEST_F(TestFrankaRobotStateBroadcaster, test_update_with_franka_state_returns_success) {
-  GTEST_SKIP()
-      << "Realtime publisher try_lock behaviour - used in FrankaRobotStateBroadcaster::update() - "
-         "is not deterministic - revisit when that changes";
-  // Avoid the "Uninteresting mock function call - returning default value"
-  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(1);
+  EXPECT_CALL(*franka_robot_state_raw_, initialize_robot_state_msg(::testing::_)).Times(3);
 
-  // Since we're pretending to have a valid state interface, we need to return true
+  // Simulate success: valid state interface
   EXPECT_CALL(*franka_robot_state_raw_, get_values_as_message(::testing::_))
       .Times(1)
-      .WillOnce(::testing::Return(true));  // Simulate success
+      .WillOnce(::testing::Return(true));
 
   EXPECT_EQ(broadcaster_->on_configure(rclcpp_lifecycle::State()),
             controller_interface::CallbackReturn::SUCCESS);
