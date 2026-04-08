@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cassert>
 #include <cstdint>
@@ -146,15 +147,15 @@ class AsyncBuffer {
 
  private:
   struct State {
-    bool is_consistent() const {
+    [[nodiscard]] bool is_consistent() const {
       return active_index < 3 && mailbox_index < 3 && free_index < 3 &&
              (active_index != mailbox_index) && (mailbox_index != free_index) &&
              (free_index != active_index);
     }
-    uint8_t active_index = 0;
-    uint8_t mailbox_index = 1;
-    uint8_t free_index = 2;
-    bool mailbox_full = false;
+    uint8_t active_index = 0;   // NOLINT(misc-non-private-member-variables-in-classes)
+    uint8_t mailbox_index = 1;  // NOLINT(misc-non-private-member-variables-in-classes)
+    uint8_t free_index = 2;     // NOLINT(misc-non-private-member-variables-in-classes)
+    bool mailbox_full = false;  // NOLINT(misc-non-private-member-variables-in-classes)
   };
 
   std::atomic<State> state_{State{0, 1, 2, false}};
@@ -162,5 +163,5 @@ class AsyncBuffer {
                 "AsyncBuffer::State must be lock-free atomically swappable");
   // Only accessed by the producer thread -- not atomic by design (single-producer contract).
   bool free_buffer_checked_out_ = false;
-  std::unique_ptr<T> buffers_[3];
+  std::array<std::unique_ptr<T>, 3> buffers_;
 };
