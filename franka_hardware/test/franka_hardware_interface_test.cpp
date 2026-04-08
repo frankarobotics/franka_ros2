@@ -829,6 +829,60 @@ TEST_F(FrankaHardwareInterfaceTest,
             hardware_interface::return_type::OK);
 }
 
+TEST_F(
+    FrankaHardwareInterfaceTest,
+    givenPositionInterfaceActiveAndUsed_whenOnActivateCalledAgain_expectWriteBlocksUntilRead) {
+  franka::RobotState robot_state;
+  robot_state.q = std::array<double, 7>{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7};
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+
+  auto expected_positions =
+      std::vector<double>{robot_state.q.begin(), robot_state.q.end()};
+
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, initializeJointPositionInterface()).Times(2);
+  EXPECT_CALL(*default_mock_robot, writeOnce(expected_positions)).Times(testing::AnyNumber());
+
+  std::vector<std::string> start_interface;
+  for (size_t i = 0; i < default_hardware_info.joints.size(); i++) {
+    start_interface.push_back(k_robot_type + "_" + k_joint_name + std::to_string(i + 1) + "/" +
+                              k_position_controller);
+  }
+  std::vector<std::string> stop_interface = {};
+
+  const auto time = rclcpp::Time(0, 0);
+  const auto duration = rclcpp::Duration(0, 0);
+
+  // Phase 1: normal activation cycle — read clears first_update, write sends command
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.read(time, duration);
+  default_franka_hardware_interface.write(time, duration);
+
+  // Phase 2: re-activate (simulates error recovery)
+  default_franka_hardware_interface.on_activate(rclcpp_lifecycle::State());
+
+  // Re-claim the position interface
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+
+  // Write before read should NOT call writeOnce (first_update must guard it)
+  EXPECT_CALL(*default_mock_robot, writeOnce(expected_positions)).Times(0);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  // After read, write should call writeOnce with current joint positions
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillOnce(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, writeOnce(expected_positions)).Times(1);
+  default_franka_hardware_interface.read(time, duration);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+}
+
 int main(int argc, char** argv) {
   rclcpp::init(0, nullptr);
   testing::InitGoogleTest(&argc, argv);

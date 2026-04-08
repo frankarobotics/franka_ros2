@@ -435,6 +435,114 @@ TEST_F(
             hardware_interface::return_type::OK);
 }
 
+TEST_F(
+    FrankaCartesianCommandInterfaceTest,
+    givenCartesianPoseActiveAndUsed_whenOnActivateCalledAgain_expectWriteBlocksUntilRead) {
+  franka::RobotState robot_state;
+  robot_state.O_T_EE = std::array<double, 16>{1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                                               0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0};
+  auto expected_pose =
+      std::vector<double>{robot_state.O_T_EE.cbegin(), robot_state.O_T_EE.cend()};
+
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, initializeCartesianPoseInterface()).Times(2);
+
+  std::vector<std::string> start_interface;
+  for (size_t i = 0; i < k_hw_cartesian_pose_names.size(); i++) {
+    start_interface.push_back(k_hw_cartesian_pose_names[i] + "/" +
+                              k_cartesian_pose_command_interface_name);
+  }
+  std::vector<std::string> stop_interface = {};
+
+  const auto time = rclcpp::Time(0, 0);
+  const auto duration = rclcpp::Duration(0, 0);
+
+  // Phase 1: normal cycle
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.read(time, duration);
+  default_franka_hardware_interface.write(time, duration);
+
+  // Phase 2: re-activate
+  default_franka_hardware_interface.on_activate(rclcpp_lifecycle::State());
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+
+  // Write before read — should NOT send command
+  EXPECT_CALL(*default_mock_robot, writeOnce(expected_pose)).Times(0);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+
+  // After read — should send current O_T_EE
+  EXPECT_CALL(*default_mock_robot, writeOnce(expected_pose)).Times(1);
+  default_franka_hardware_interface.read(time, duration);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+}
+
+TEST_F(
+    FrankaCartesianCommandInterfaceTest,
+    givenCartesianPoseWithElbowActiveAndUsed_whenOnActivateCalledAgain_expectWriteBlocksUntilRead) {
+  franka::RobotState robot_state;
+  robot_state.O_T_EE = std::array<double, 16>{1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                                               0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0};
+  robot_state.elbow = std::array<double, 2>{0.3, 1.0};
+
+  auto expected_pose =
+      std::vector<double>{robot_state.O_T_EE.cbegin(), robot_state.O_T_EE.cend()};
+  auto expected_elbow =
+      std::vector<double>{robot_state.elbow.cbegin(), robot_state.elbow.cend()};
+
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, initializeCartesianPoseInterface()).Times(2);
+
+  std::vector<std::string> start_interface;
+  for (size_t i = 0; i < k_hw_cartesian_pose_names.size(); i++) {
+    start_interface.push_back(k_hw_cartesian_pose_names[i] + "/" +
+                              k_cartesian_pose_command_interface_name);
+  }
+  for (size_t i = 0; i < k_hw_elbow_command_names.size(); i++) {
+    start_interface.push_back(k_hw_elbow_command_names[i] + "/" +
+                              k_elbow_command_interface_name);
+  }
+  std::vector<std::string> stop_interface = {};
+
+  const auto time = rclcpp::Time(0, 0);
+  const auto duration = rclcpp::Duration(0, 0);
+
+  // Phase 1: normal cycle
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.read(time, duration);
+  default_franka_hardware_interface.write(time, duration);
+
+  // Phase 2: re-activate
+  default_franka_hardware_interface.on_activate(rclcpp_lifecycle::State());
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+
+  // Write before read — should NOT send command
+  EXPECT_CALL(*default_mock_robot, writeOnce(expected_pose, expected_elbow)).Times(0);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+
+  // After read — should send current pose + elbow
+  EXPECT_CALL(*default_mock_robot, writeOnce(expected_pose, expected_elbow)).Times(1);
+  default_franka_hardware_interface.read(time, duration);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+}
+
 int main(int argc, char** argv) {
   rclcpp::init(0, nullptr);
   testing::InitGoogleTest(&argc, argv);
