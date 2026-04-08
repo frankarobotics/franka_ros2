@@ -40,6 +40,17 @@ using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
 
 namespace franka_hardware {
 
+enum class ControlInterface {
+  None,
+  Effort,
+  JointVelocity,
+  JointPosition,
+  CartesianVelocity,
+  CartesianVelocityWithElbow,
+  CartesianPose,
+  CartesianPoseWithElbow
+};
+
 class FrankaHardwareInterface : public hardware_interface::SystemInterface {
  public:
   explicit FrankaHardwareInterface(const std::shared_ptr<Robot>& robot,
@@ -80,11 +91,8 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   // Support Franka ros2 control interface version
   const int kSupportedControlInterfaceMajor = 1;
 
-  // Initialize joint position commands in the first pass
-  bool first_elbow_update_{true};
-  bool first_position_update_{true};
-  bool first_cartesian_pose_update_{true};
-  bool initial_robot_state_update_{true};
+  ControlInterface active_mode_{ControlInterface::None};
+  bool needs_initial_command_{true};
   double robot_time_state_{0.0};
 
   std::shared_ptr<Robot> robot_;
@@ -158,22 +166,11 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   franka::Duration robot_time_;
 
   bool effort_interface_claimed_ = false;
-  bool effort_interface_running_ = false;
-
   bool velocity_joint_interface_claimed_ = false;
-  bool velocity_joint_interface_running_ = false;
-
   bool position_joint_interface_claimed_ = false;
-  bool position_joint_interface_running_ = false;
-
   bool velocity_cartesian_interface_claimed_ = false;
-  bool velocity_cartesian_interface_running_ = false;
-
   bool pose_cartesian_interface_claimed_ = false;
-  bool pose_cartesian_interface_running_ = false;
-
   bool elbow_command_interface_claimed_ = false;
-  bool elbow_command_interface_running_ = false;
 
   static rclcpp::Logger getLogger();
 
