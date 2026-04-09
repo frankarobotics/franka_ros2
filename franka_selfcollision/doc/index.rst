@@ -14,9 +14,7 @@ Functionality
 
 This monitoring node is spawned by ``fr3_duo.launch.py`` or ``mobile_fr3_duo.launch.py`` in ``franka_bringup`` if the ``check_selfcollision`` argument is enabled.
 
-The node continuously monitors the robot's joint states to check for self-collisions between the robot links. It handles both ``fr3_duo`` and ``mobile_fr3_duo`` configurations using ``idx_q``-based
-joint indexing, so that multi-DOF joints (wheels, steering) are automatically skipped and stay at
-their neutral configuration.
+The node continuously monitors the robot's joint states to check for self-collisions between the robot links. It handles both ``fr3_duo`` and ``mobile_fr3_duo`` configurations.
 It performs two main actions upon detecting a collision (or violation of the security margin):
 
 1. **Publishes Status:** Sends a boolean to the topic ``/self_collision_node/collision_detected``.
