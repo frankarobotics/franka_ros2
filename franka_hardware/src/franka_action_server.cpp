@@ -62,13 +62,8 @@ auto ActionServer::errorRecoveryAction(
     robot_->automaticErrorRecovery();
     goal_handle->succeed(result);
     RCLCPP_INFO(this->get_logger(), "Automatic recovery succeeded");
-  } catch (const franka::CommandException& command_exception) {
-    RCLCPP_ERROR(this->get_logger(), "Command exception thrown during automatic error recovery %s",
-                 command_exception.what());
-    goal_handle->abort(result);
-  } catch (const franka::NetworkException& network_exception) {
-    RCLCPP_ERROR(this->get_logger(), "Network exception thrown automatic error recovery %s",
-                 network_exception.what());
+  } catch (const franka::Exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Exception during automatic error recovery: %s", e.what());
     goal_handle->abort(result);
   }
 }
@@ -76,49 +71,55 @@ auto ActionServer::errorRecoveryAction(
 auto ActionServer::ptpMotionAction(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<franka_msgs::action::PTPMotion>>&
         goal_handle) -> void {
-  // Start new PTP motion
-  auto command_result =
-      ptp_motion_handler_.startNewPTPMotion(robot_->getRobot(), goal_handle->get_goal());
-  if (command_result.result->target_status.status == franka_msgs::msg::TargetStatus::ABORTED) {
-    goal_handle->abort(command_result.result);
-    RCLCPP_ERROR(this->get_logger(), "Could not start new PTP motion: %s",
-                 command_result.result->error_message.c_str());
-    return;
-  }
+  try {
+    auto command_result =
+        ptp_motion_handler_.startNewPTPMotion(robot_->getRobot(), goal_handle->get_goal());
+    if (command_result.result->target_status.status == franka_msgs::msg::TargetStatus::ABORTED) {
+      goal_handle->abort(command_result.result);
+      RCLCPP_ERROR(this->get_logger(), "Could not start new PTP motion: %s",
+                   command_result.result->error_message.c_str());
+      return;
+    }
 
-  auto current_motion = command_result.motion_id;
+    auto current_motion = command_result.motion_id;
 
-  // Wait for motion to complete
-  auto is_finished = false;
-  auto feedback_message = std::make_shared<franka_msgs::action::PTPMotion::Feedback>();
-  while (!is_finished) {
-    rclcpp::sleep_for(std::chrono::milliseconds(1));
-    auto feedback = ptp_motion_handler_.getFeedback(current_motion);
-    switch (feedback.status) {
-      case franka::TargetStatus::kAborted:
-        RCLCPP_ERROR(this->get_logger(), "PTP motion aborted: %s",
-                     feedback.error_message.value_or("unknown reason").c_str());
-        command_result.result->target_status.status = franka_msgs::msg::TargetStatus::ABORTED;
-        command_result.result->error_message =
-            feedback.error_message.value_or("PTP motion aborted");
-        goal_handle->abort(command_result.result);
-        return;
-      case franka::TargetStatus::kIdle:
-      case franka::TargetStatus::kExecuting: {
-        feedback_message->target_status.status = static_cast<uint8_t>(feedback.status);
-        goal_handle->publish_feedback(feedback_message);
-        break;
-      }
-      case franka::TargetStatus::kTargetReached: {
-        is_finished = true;
-        break;
+    auto is_finished = false;
+    auto feedback_message = std::make_shared<franka_msgs::action::PTPMotion::Feedback>();
+    while (!is_finished) {
+      rclcpp::sleep_for(std::chrono::milliseconds(1));
+      auto feedback = ptp_motion_handler_.getFeedback(current_motion);
+      switch (feedback.status) {
+        case franka::TargetStatus::kAborted:
+          RCLCPP_ERROR(this->get_logger(), "PTP motion aborted: %s",
+                       feedback.error_message.value_or("unknown reason").c_str());
+          command_result.result->target_status.status = franka_msgs::msg::TargetStatus::ABORTED;
+          command_result.result->error_message =
+              feedback.error_message.value_or("PTP motion aborted");
+          goal_handle->abort(command_result.result);
+          return;
+        case franka::TargetStatus::kIdle:
+        case franka::TargetStatus::kExecuting: {
+          feedback_message->target_status.status = static_cast<uint8_t>(feedback.status);
+          goal_handle->publish_feedback(feedback_message);
+          break;
+        }
+        case franka::TargetStatus::kTargetReached: {
+          is_finished = true;
+          break;
+        }
       }
     }
-  }
 
-  RCLCPP_INFO(this->get_logger(), "PTP motion completed successfully");
-  command_result.result->target_status.status = franka_msgs::msg::TargetStatus::TARGET_REACHED;
-  goal_handle->succeed(command_result.result);
+    RCLCPP_INFO(this->get_logger(), "PTP motion completed successfully");
+    command_result.result->target_status.status = franka_msgs::msg::TargetStatus::TARGET_REACHED;
+    goal_handle->succeed(command_result.result);
+  } catch (const franka::Exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Exception during PTP motion: %s", e.what());
+    auto result = std::make_shared<franka_msgs::action::PTPMotion::Result>();
+    result->target_status.status = franka_msgs::msg::TargetStatus::ABORTED;
+    result->error_message = e.what();
+    goal_handle->abort(result);
+  }
 }
 
 }  // namespace franka_hardware

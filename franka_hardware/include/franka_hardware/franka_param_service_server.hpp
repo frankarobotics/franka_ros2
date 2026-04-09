@@ -58,16 +58,10 @@ class FrankaParamServiceServer : public rclcpp::Node {
     try {
       param_setter_function(request);
       response->success = true;
-    } catch (const franka::CommandException& command_exception) {
-      RCLCPP_ERROR(this->get_logger(), "Command exception thrown during parameter setting %s",
-                   command_exception.what());
+    } catch (const franka::Exception& e) {
+      RCLCPP_ERROR(this->get_logger(), "Exception during parameter setting: %s", e.what());
       response->success = false;
-      response->error = "command exception error";
-    } catch (const franka::NetworkException& network_exception) {
-      RCLCPP_ERROR(this->get_logger(), "Network exception thrown during parameter setting %s",
-                   network_exception.what());
-      response->success = false;
-      response->error = "network exception error";
+      response->error = e.what();
     }
   }
 

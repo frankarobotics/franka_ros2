@@ -130,6 +130,14 @@ INSTANTIATE_TEST_SUITE_P(
                                 .Times(1)
                                 .WillRepeatedly(testing::Throw(franka::NetworkException("")));
                           },
+                          rclcpp_action::ResultCode::ABORTED),
+                      std::make_pair(
+                          [](std::shared_ptr<MockRobot> mock_robot) {
+                            EXPECT_CALL(*mock_robot, automaticErrorRecovery())
+                                .Times(1)
+                                .WillRepeatedly(testing::Throw(
+                                    franka::InvalidOperationException("not in error state")));
+                          },
                           rclcpp_action::ResultCode::ABORTED)));
 
 class FrankaPTPMotionActionServerTests : public FrankaActionServerTests {
@@ -137,6 +145,36 @@ class FrankaPTPMotionActionServerTests : public FrankaActionServerTests {
   franka::RobotState default_robot_state{.robot_mode = franka::RobotMode::kMove};
   std::shared_ptr<MockFrankaRobot> default_franka_robot_mock = std::make_shared<MockFrankaRobot>();
 };
+
+TEST_F(FrankaPTPMotionActionServerTests,
+       whenPTPMotionThrowsFrankaException_thenActionAbortedNotCrash) {
+  EXPECT_CALL(*default_mock_robot, getRobot())
+      .Times(1)
+      .WillOnce(testing::Throw(franka::InvalidOperationException("robot in reflex")));
+
+  auto goal = franka_msgs::action::PTPMotion::Goal();
+  goal.goal_joint_configuration = {0.0, -1.0, 0.0, -2.0, 0.0, 1.5, 0.5};
+  goal.maximum_joint_velocities = std::vector<double>(7, 1.0);
+  goal.goal_tolerance = 0.01;
+
+  get_action_service_response<franka_msgs::action::PTPMotion>(
+      "action_server/ptp_motion", rclcpp_action::ResultCode::ABORTED, {}, goal);
+}
+
+TEST_F(FrankaPTPMotionActionServerTests,
+       whenPTPMotionThrowsNetworkException_thenActionAbortedNotCrash) {
+  EXPECT_CALL(*default_mock_robot, getRobot())
+      .Times(1)
+      .WillOnce(testing::Throw(franka::NetworkException("connection lost")));
+
+  auto goal = franka_msgs::action::PTPMotion::Goal();
+  goal.goal_joint_configuration = {0.0, -1.0, 0.0, -2.0, 0.0, 1.5, 0.5};
+  goal.maximum_joint_velocities = std::vector<double>(7, 1.0);
+  goal.goal_tolerance = 0.01;
+
+  get_action_service_response<franka_msgs::action::PTPMotion>(
+      "action_server/ptp_motion", rclcpp_action::ResultCode::ABORTED, {}, goal);
+}
 
 // TODO(#212): PTP motion tests disabled due to pre-existing segfault on teardown
 // TEST_F(FrankaPTPMotionActionServerTests,
