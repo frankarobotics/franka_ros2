@@ -4,8 +4,7 @@
   <xacro:include filename="$(find franka_description)/robots/fr3_duo/fr3_duo.xacro" />
   <xacro:include filename="$(find franka_description)/accessories/franka_head_v0_2/franka_head.xacro"/>
   <xacro:include filename="$(find franka_description)/robots/mobile_fr3_duo_v0_2/mobile_fr3_duo_v0_2.xacro" />
-  <xacro:include filename="$(find zed_description)/urdf/zed_macro.urdf.xacro"/>
-  <xacro:include filename="$(find franka_vision_and_manipulation_kit)/accessories/robotiq_gripper_with_realsense_camera.xacro" />
+  <xacro:include filename="$(find franka_vision_and_manipulation_kit)/robots/vision_kit_components.xacro" />
 
   <xacro:macro name="fr3_duo_with_vision_and_manipulation_kit"
     params="
@@ -99,18 +98,9 @@
     </xacro:unless>
 
 
-    <xacro:robotiq_gripper_with_realsense_camera parent="left_$(arg left_arm_type)_link8" prefix="$(arg prefix)left_" />
-    <xacro:robotiq_gripper_with_realsense_camera parent="right_$(arg right_arm_type)_link8" prefix="$(arg prefix)right_" />
-
-    <xacro:zed_camera name="$(arg prefix)head" model="zedm" custom_baseline="0.0" enable_gnss="false">
-        <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
-    </xacro:zed_camera>
-
-    <joint name="$(arg prefix)head_camera_mounting_point_to_head_camera_link" type="fixed">
-      <parent link="$(arg prefix)head_camera_mounting_point"/>
-      <child link="$(arg prefix)head_camera_link"/>
-      <origin xyz="0.0015 -0.011 -0.013" rpy="0 0 0"/>
-    </joint>
+    <!-- Attach vision kit components (wrist cameras + head camera) -->
+    <xacro:vision_kit_components left_arm_type="$(arg left_arm_type)" right_arm_type="$(arg right_arm_type)" 
+      prefix="$(arg prefix)" robotiq_use_fake_hardware="$(arg use_fake_hardware)" robotiq_include_ros2_control="$(arg ros2_control)" />
 
   </xacro:macro>
 </robot>

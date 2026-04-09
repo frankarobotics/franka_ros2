@@ -44,6 +44,8 @@ UNRELEASED
      from rclpy.qos import QoSProfile, ReliabilityPolicy
      qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
      self.create_subscription(PoseStamped, 'current_pose', callback, qos)
+     
+* feat: franka_vision_and_manipulation_kit package used in Gazebo to display the sensors of the kit
 
 v3.2.2 (2026-03-03)
 -------------------

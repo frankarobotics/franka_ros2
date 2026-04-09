@@ -39,12 +39,16 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
     franka_hand_str = context.perform_substitution(franka_hand)
     with_sensors_val = context.perform_substitution(with_sensors).lower()
 
+    # When using sensors, the Vision Kit already includes Robotiq grippers
+    # So we must disable the franka_hand to avoid conflicts
     if with_sensors_val == 'true':
         franka_xacro_file = os.path.join(
             get_package_share_directory('franka_gazebo_bringup'),
             'urdf',
             'mobile_fr3_duo_v0_2_with_sensors.gazebo.urdf.xacro'
         )
+        # Force load_gripper to false when using sensors (Vision Kit has Robotiq)
+        load_gripper_str = 'false'
     else:
         franka_xacro_file = os.path.join(
             get_package_share_directory('franka_gazebo_bringup'),
@@ -87,12 +91,17 @@ def set_gz_sim_resource_path(context, with_sensors):
     if with_sensors_val == 'true':
         sensors_share = os.path.dirname(
             get_package_share_directory('franka_mobile_sensors'))
+        vmk_share = os.path.dirname(
+            get_package_share_directory('franka_vision_and_manipulation_kit'))
         description_share = os.path.dirname(
             get_package_share_directory('franka_description'))
         olv_module_descriptions_share = os.path.dirname(
             get_package_share_directory('olv_module_descriptions'))
-        os.environ['GZ_SIM_RESOURCE_PATH'] = f"{sensors_share}:{
-            description_share}:{olv_module_descriptions_share}"
+        robotiq_description_share = os.path.dirname(
+            get_package_share_directory('robotiq_description'))
+        zed_description_share = os.path.dirname(
+            get_package_share_directory('zed_description'))
+        os.environ['GZ_SIM_RESOURCE_PATH'] = f"{sensors_share}:{vmk_share}:{description_share}:{olv_module_descriptions_share}:{robotiq_description_share}:{zed_description_share}"
     else:
         description_share = os.path.dirname(
             get_package_share_directory('franka_description'))
@@ -132,7 +141,7 @@ def get_bridge(context, with_sensors):
 
     if with_sensors_val == 'true':
         bridge_args.extend([
-            # Cameras
+            # Mobile Platform Cameras (D455)
             '/camera_front/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera_front/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/camera_rear/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
@@ -141,11 +150,19 @@ def get_bridge(context, with_sensors):
             '/camera_left/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/camera_right/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
             '/camera_right/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-            # LiDARs
+            # Mobile Platform LiDARs
             '/lidar_front/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
             '/lidar_rear/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
-            # IMU
+            # Mobile Platform IMU
             '/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU',
+            # Vision and Manipulation Kit Cameras (D405 + ZED)
+            '/left_wrist_camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/left_wrist_camera/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+            '/right_wrist_camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/right_wrist_camera/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+            # Head Camera (ZED)
+            '/head_camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/head_camera/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
         ])
         remappings.extend([
             ('/camera_front/image_raw', '/camera_front/color/image_raw'),
@@ -203,7 +220,7 @@ def generate_launch_description():
     with_sensors_launch_argument = DeclareLaunchArgument(
         with_sensors_name,
         default_value='false',
-        description='If true, use sensor-enhanced description package (franka_mobile_sensors)')
+        description='If true, use sensor-enhanced description with both mobile platform sensors (4x D455 cameras + 2x LiDARs) and Vision and Manipulation Kit sensors (2x D405 wrist cameras)')
     world_launch_argument = DeclareLaunchArgument(
         world_name,
         default_value='',

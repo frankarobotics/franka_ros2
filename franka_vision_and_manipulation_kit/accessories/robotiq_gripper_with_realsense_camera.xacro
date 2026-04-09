@@ -13,11 +13,11 @@
       use_fake_hardware:=false
       robotiq_adapter_rotation:=^|${-pi/2}
       robotiq_name:=RobotiqGripperHardwareInterface
-      robotiq_com_port:='/dev/ttyUSB0'
+      robotiq_com_port:=/dev/ttyUSB0
       robotiq_sim_isaac:=false
+      robotiq_sim_gazebo:=false
       robotiq_use_fake_hardware:=false
       robotiq_include_ros2_control:=true
-      robotiq_com_port:=/dev/ttyUSB0
       realsense_use_nominal_extrinsics:=true
       ">
       
@@ -30,6 +30,7 @@
         prefix="${prefix}"
         parent="${prefix}gripper_mount_link"
         com_port="${robotiq_com_port}"
+        sim_gazebo="${robotiq_sim_gazebo}"
         sim_isaac="${robotiq_sim_isaac}"
         use_fake_hardware="${robotiq_use_fake_hardware}"
         include_ros2_control="${robotiq_include_ros2_control}">
