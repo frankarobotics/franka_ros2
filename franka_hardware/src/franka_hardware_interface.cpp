@@ -188,12 +188,8 @@ CallbackReturn FrankaHardwareInterface::on_deactivate(
 
   robot_->stopRobot();
 
-  effort_interface_running_ = false;
-  velocity_joint_interface_running_ = false;
-  position_joint_interface_running_ = false;
-  velocity_cartesian_interface_running_ = false;
-  pose_cartesian_interface_running_ = false;
-  elbow_command_interface_running_ = false;
+  active_mode_ = ControlInterface::None;
+  needs_initial_command_ = true;
   return CallbackReturn::SUCCESS;
 }
 
@@ -232,9 +228,10 @@ hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time
     hw_franka_model_ptr_ = robot_->getModel();
   }
 
+  franka::RobotState robot_state;
   try {
     // Write new state into the RealtimeBuffer for thread-safe access by consumers
-    auto robot_state = robot_->readOnce();
+    robot_state = robot_->readOnce();
   } catch (const franka::ControlException& e) {
     RCLCPP_ERROR(getLogger(), "%s", e.what());
     robot_->stopRobot();
