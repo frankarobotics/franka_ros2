@@ -186,7 +186,9 @@ CallbackReturn FrankaHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   RCLCPP_INFO(getLogger(), "trying to Stop...");
   robot_->stopRobot();
-  RCLCPP_INFO(getLogger(), "Stopped");
+
+  active_mode_ = ControlInterface::None;
+  needs_initial_command_ = true;
   return CallbackReturn::SUCCESS;
 }
 
@@ -224,9 +226,10 @@ hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time
     hw_franka_model_ptr_ = robot_->getModel();
   }
 
+  franka::RobotState robot_state;
   try {
     // Write new state into the RealtimeBuffer for thread-safe access by consumers
-    auto robot_state = robot_->readOnce();
+    robot_state = robot_->readOnce();
   } catch (const franka::ControlException& e) {
     RCLCPP_ERROR(getLogger(), "%s", e.what());
     robot_->stopRobot();
