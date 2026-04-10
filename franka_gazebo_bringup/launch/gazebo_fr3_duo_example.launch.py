@@ -118,7 +118,7 @@ def get_gz_world(context: LaunchContext, with_sensors, world, gz_args):
     elif with_sensors_val == 'true':
         world_path = os.path.join(
             get_package_share_directory('franka_gazebo_bringup'),
-            'worlds', 'fr3_duo_sensors.sdf')
+            'worlds', 'robot_with_sensors.sdf')
     else:
         world_path = 'empty.sdf'
 
