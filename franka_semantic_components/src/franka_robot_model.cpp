@@ -16,6 +16,8 @@
 
 #include <cstring>
 #include <iostream>
+
+#include <realtime_tools/realtime_buffer.hpp>
 #include "rclcpp/logging.hpp"
 namespace {
 
@@ -47,7 +49,7 @@ FrankaRobotModel::FrankaRobotModel(const std::string& franka_model_interface_nam
   interface_names_.emplace_back(franka_state_interface_name);
 }
 
-void FrankaRobotModel::initialize() {
+auto FrankaRobotModel::initialize() -> void {
   auto franka_state_interface =
       std::find_if(state_interfaces_.begin(), state_interfaces_.end(), [&](const auto& interface) {
         return interface.get().get_name() == franka_state_interface_name_;
@@ -62,8 +64,8 @@ void FrankaRobotModel::initialize() {
       franka_model_interface != state_interfaces_.end()) {
     robot_model_ =
         bit_cast<franka_hardware::Model*>((*franka_model_interface).get().get_optional().value());
-    robot_state_ =
-        bit_cast<franka::RobotState*>((*franka_state_interface).get().get_optional().value());
+    robot_state_buffer_ = bit_cast<realtime_tools::RealtimeBuffer<franka::RobotState>*>(
+        (*franka_state_interface).get().get_optional().value());
   } else {
     RCLCPP_ERROR(rclcpp::get_logger("franka_model_semantic_component"),
                  "Franka interface does not exist! Did you assign the loaned state in the "
@@ -72,4 +74,63 @@ void FrankaRobotModel::initialize() {
   }
   initialized_ = true;
 }
+
+auto FrankaRobotModel::getMassMatrix() -> std::array<double, 49> {
+  if (!initialized_) {
+    initialize();
+  }
+  return robot_model_->mass(getCachedRobotState());
+}
+
+auto FrankaRobotModel::getCoriolisForceVector() -> std::array<double, 7> {
+  if (!initialized_) {
+    initialize();
+  }
+  return robot_model_->coriolis(getCachedRobotState());
+}
+
+auto FrankaRobotModel::getGravityForceVector() -> std::array<double, 7> {
+  if (!initialized_) {
+    initialize();
+  }
+  return robot_model_->gravity(getCachedRobotState());
+}
+
+auto FrankaRobotModel::getPoseMatrix(const franka::Frame& frame) -> std::array<double, 16> {
+  if (!initialized_) {
+    initialize();
+  }
+  return robot_model_->pose(frame, getCachedRobotState());
+}
+
+auto FrankaRobotModel::getBodyJacobian(const franka::Frame& frame) -> std::array<double, 42> {
+  if (!initialized_) {
+    initialize();
+  }
+  return robot_model_->bodyJacobian(frame, getCachedRobotState());
+}
+
+auto FrankaRobotModel::getZeroJacobian(const franka::Frame& frame) -> std::array<double, 42> {
+  if (!initialized_) {
+    initialize();
+  }
+  return robot_model_->zeroJacobian(frame, getCachedRobotState());
+}
+
+auto FrankaRobotModel::refreshRobotState() -> void {
+  if (!initialized_) {
+    initialize();
+  }
+  cached_robot_state_ = *robot_state_buffer_->readFromRT();
+  last_refresh_time_ = std::chrono::steady_clock::now();
+}
+
+auto FrankaRobotModel::getCachedRobotState() -> const franka::RobotState& {
+  auto now = std::chrono::steady_clock::now();
+  if (now - last_refresh_time_ > kCacheMaxAge) {
+    refreshRobotState();
+  }
+  return cached_robot_state_;
+}
+
 }  // namespace franka_semantic_components

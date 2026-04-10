@@ -15,6 +15,7 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -22,6 +23,7 @@
 #include "franka/robot_state.h"
 #include "franka_hardware/model.hpp"
 
+#include <realtime_tools/realtime_buffer.hpp>
 #include "semantic_components/semantic_component_interface.hpp"
 
 namespace franka_semantic_components {
@@ -47,12 +49,7 @@ class FrankaRobotModel
    *
    * @see franka::Model::mass
    */
-  std::array<double, 49> getMassMatrix() {
-    if (!initialized_) {
-      initialize();
-    }
-    return robot_model_->mass(*robot_state_);
-  }
+  auto getMassMatrix() -> std::array<double, 49>;
 
   /**
    * Calculates the Coriolis force vector (state-space equation) from the current robot state:
@@ -64,12 +61,7 @@ class FrankaRobotModel
    *
    * @see franka::Model::coriolis
    */
-  std::array<double, 7> getCoriolisForceVector() {
-    if (!initialized_) {
-      initialize();
-    }
-    return robot_model_->coriolis(*robot_state_);
-  }
+  auto getCoriolisForceVector() -> std::array<double, 7>;
 
   /**
    * Calculates the gravity vector from the current robot state. Unit: \f$[Nm]\f$.
@@ -79,12 +71,7 @@ class FrankaRobotModel
    * @throws Runtime error when state interfaces are not available
    * @see franka::Model::gravity
    */
-  std::array<double, 7> getGravityForceVector() {
-    if (!initialized_) {
-      initialize();
-    }
-    return robot_model_->gravity(*robot_state_);
-  }
+  auto getGravityForceVector() -> std::array<double, 7>;
 
   /**
    * Gets the 4x4 pose matrix for the given frame in base frame, calculated from the current
@@ -99,12 +86,7 @@ class FrankaRobotModel
    * @throws Runtime error when state interfaces are not available
    * @see franka::Model::pose
    */
-  std::array<double, 16> getPoseMatrix(const franka::Frame& frame) {
-    if (!initialized_) {
-      initialize();
-    }
-    return robot_model_->pose(frame, *robot_state_);
-  }
+  auto getPoseMatrix(const franka::Frame& frame) -> std::array<double, 16>;
 
   /**
    * Gets the 6x7 Jacobian for the given frame, relative to the given frame.
@@ -141,12 +123,7 @@ class FrankaRobotModel
    * @throws Runtime error when state interfaces are not available.
    * @see franka::Model::bodyJacobian
    */
-  std::array<double, 42> getBodyJacobian(const franka::Frame& frame) {
-    if (!initialized_) {
-      initialize();
-    }
-    return robot_model_->bodyJacobian(frame, *robot_state_);
-  }
+  auto getBodyJacobian(const franka::Frame& frame) -> std::array<double, 42>;
 
   /**
    * Gets the 6x7 Jacobian for the given joint relative to the base(zero) frame.
@@ -181,12 +158,7 @@ class FrankaRobotModel
    * @throws Runtime error when state interfaces are not available.
    * @see franka::Model::zeroJacobian
    */
-  std::array<double, 42> getZeroJacobian(const franka::Frame& frame) {
-    if (!initialized_) {
-      initialize();
-    }
-    return robot_model_->zeroJacobian(frame, *robot_state_);
-  }
+  auto getZeroJacobian(const franka::Frame& frame) -> std::array<double, 42>;
 
  protected:
   /**
@@ -194,12 +166,28 @@ class FrankaRobotModel
    *
    * @throws Runtime error when state interfaces are not available.
    */
-  void initialize();
+  auto initialize() -> void;
 
  private:
+  static constexpr std::chrono::microseconds kCacheMaxAge{1000};  // 1 ms
+
+  /**
+   * @brief Refreshes the cached robot state from the RealtimeBuffer.
+   */
+  auto refreshRobotState() -> void;
+
+  /**
+   * @brief Returns a reference to the cached robot state, refreshing if stale.
+   *
+   * @return Const reference to the cached franka::RobotState.
+   */
+  auto getCachedRobotState() -> const franka::RobotState&;
+
   bool initialized_{false};
+  std::chrono::steady_clock::time_point last_refresh_time_{};
+  franka::RobotState cached_robot_state_{};
   franka_hardware::Model* robot_model_;
-  franka::RobotState* robot_state_;
+  realtime_tools::RealtimeBuffer<franka::RobotState>* robot_state_buffer_;
 
   std::string robot_type_;
 

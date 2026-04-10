@@ -21,6 +21,7 @@ find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(Franka 0.19.0 REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(realtime_tools REQUIRED)
 
 add_library(franka_hardware SHARED
         src/franka_action_server.cpp
@@ -38,6 +39,8 @@ target_include_directories(
         include
 )
 
+target_compile_definitions(franka_hardware PRIVATE NON_POLLING)
+
 ament_target_dependencies(
         franka_hardware
         hardware_interface
@@ -46,6 +49,7 @@ ament_target_dependencies(
         rclcpp
         rclcpp_action
         franka_msgs
+        realtime_tools
 )
 
 pluginlib_export_plugin_description_file(hardware_interface franka_hardware.xml)
@@ -106,5 +110,6 @@ ament_export_dependencies(
         hardware_interface
         pluginlib
         rclcpp
+        realtime_tools
 )
 ament_package()

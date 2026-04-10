@@ -18,6 +18,7 @@
 #include <optional>
 #include <stack>
 
+#include <realtime_tools/realtime_buffer.hpp>
 #include "rclcpp/logging.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/header.hpp"
@@ -203,8 +204,9 @@ auto FrankaRobotState::get_values_as_message(franka_msgs::msg::FrankaRobotState&
         return interface.get().get_name() == full_robot_state_interface_name_;
       });
   if (franka_state_interface != state_interfaces_.end()) {
-    robot_state_ptr =
-        bit_cast<franka::RobotState*>((*franka_state_interface).get().get_optional().value());
+    auto* buffer_ptr = bit_cast<realtime_tools::RealtimeBuffer<franka::RobotState>*>(
+        (*franka_state_interface).get().get_optional().value());
+    robot_state_ptr = buffer_ptr->readFromRT();
   } else {
     RCLCPP_ERROR(rclcpp::get_logger("franka_state_semantic_component"),
                  "Franka state interface does not exist! Did you assign the loaned state in the "
@@ -221,28 +223,27 @@ auto FrankaRobotState::get_values_as_message(franka_msgs::msg::FrankaRobotState&
       robot_state_ptr->joint_collision, robot_state_ptr->joint_contact);
 
   // The joint states
-  std::copy(robot_state_ptr->q.cbegin(), robot_state_ptr->q.cend(),
-            message.measured_joint_state.position.begin());
-  std::copy(robot_state_ptr->dq.cbegin(), robot_state_ptr->dq.cend(),
-            message.measured_joint_state.velocity.begin());
-  std::copy(robot_state_ptr->tau_J.cbegin(), robot_state_ptr->tau_J.cend(),
-            message.measured_joint_state.effort.begin());
+  const auto n_joints = message.measured_joint_state.position.size();
+  std::copy_n(robot_state_ptr->q.cbegin(), n_joints, message.measured_joint_state.position.begin());
+  std::copy_n(robot_state_ptr->dq.cbegin(), n_joints,
+              message.measured_joint_state.velocity.begin());
+  std::copy_n(robot_state_ptr->tau_J.cbegin(), n_joints,
+              message.measured_joint_state.effort.begin());
 
-  std::copy(robot_state_ptr->q_d.cbegin(), robot_state_ptr->q_d.cend(),
-            message.desired_joint_state.position.begin());
-  std::copy(robot_state_ptr->dq_d.cbegin(), robot_state_ptr->dq_d.cend(),
-            message.desired_joint_state.velocity.begin());
-  std::copy(robot_state_ptr->tau_J_d.cbegin(), robot_state_ptr->tau_J_d.cend(),
-            message.desired_joint_state.effort.begin());
+  std::copy_n(robot_state_ptr->q_d.cbegin(), n_joints,
+              message.desired_joint_state.position.begin());
+  std::copy_n(robot_state_ptr->dq_d.cbegin(), n_joints,
+              message.desired_joint_state.velocity.begin());
+  std::copy_n(robot_state_ptr->tau_J_d.cbegin(), n_joints,
+              message.desired_joint_state.effort.begin());
 
-  std::copy(robot_state_ptr->theta.cbegin(), robot_state_ptr->theta.cend(),
-            message.measured_joint_motor_state.position.begin());
-  std::copy(robot_state_ptr->dtheta.cbegin(), robot_state_ptr->dtheta.cend(),
-            message.measured_joint_motor_state.velocity.begin());
+  std::copy_n(robot_state_ptr->theta.cbegin(), n_joints,
+              message.measured_joint_motor_state.position.begin());
+  std::copy_n(robot_state_ptr->dtheta.cbegin(), n_joints,
+              message.measured_joint_motor_state.velocity.begin());
 
-  std::copy(robot_state_ptr->tau_ext_hat_filtered.cbegin(),
-            robot_state_ptr->tau_ext_hat_filtered.cend(),
-            message.tau_ext_hat_filtered.effort.begin());
+  std::copy_n(robot_state_ptr->tau_ext_hat_filtered.cbegin(), n_joints,
+              message.tau_ext_hat_filtered.effort.begin());
 
   message.ddq_d = robot_state_ptr->ddq_d;
   message.dtau_j = robot_state_ptr->dtau_J;

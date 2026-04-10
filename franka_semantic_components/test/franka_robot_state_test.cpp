@@ -34,9 +34,10 @@ void FrankaRobotStateTest::SetUp() {
   robot_state.q_d = joint_velocities;
   robot_state.O_T_EE = end_effector_pose;
   robot_state.robot_mode = robot_mode;
+  robot_state_buffer.writeFromNonRT(robot_state);
 
   hardware_interface::StateInterface franka_hw_state{
-      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_address)};
+      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_buffer_ptr)};
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
 
   temp_state_interfaces.reserve(size);
@@ -64,7 +65,8 @@ TEST_F(FrankaRobotStateTest, validate_state_names_and_size) {
 
 TEST_F(FrankaRobotStateTest, robot_state_ptr_uncasted_correctly) {
   auto robot_state_ptr = franka_state_friend->get_robot_state();
-  ASSERT_EQ(robot_state_ptr, robot_state_address);
+  ASSERT_NE(robot_state_ptr, nullptr);
+  ASSERT_EQ(robot_state_ptr->q, robot_state.q);
   franka_state_friend->release_interfaces();
   // validate the count of state_interfaces_
   ASSERT_EQ(franka_state_friend->state_interfaces_.size(), 0u);

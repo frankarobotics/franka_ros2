@@ -44,7 +44,7 @@ UNRELEASED
      from rclpy.qos import QoSProfile, ReliabilityPolicy
      qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
      self.create_subscription(PoseStamped, 'current_pose', callback, qos)
-     
+
 * feat: franka_vision_and_manipulation_kit package used in Gazebo to display the sensors of the kit
 * fix: clang-tidy test duration reduced by applying a filter 
 * feat: added a gazebo example for fr3 duo using the franka vision and manipulation kit
@@ -56,6 +56,8 @@ UNRELEASED
 remove the standalone hardware_interface fork; keep manage_overruns for async hardware components via a small patch auto-applied in franka_entrypoint.sh). 
 **BREAKING**: existing workspaces must be cleaned before rebuilding: ``rm -rf build/ install/ && colcon build``
 * fix: Removed the `franka_robot_state_broadcaster` while using the TMR
+* fix: With async control, it could happen that the robot_state is teared while publishing. This fix provides a
+  lock-free intermediate buffer to allow mutual exclusive robot_state buffer data access.
 
 v3.2.2 (2026-03-03)
 -------------------

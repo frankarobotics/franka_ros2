@@ -230,7 +230,6 @@ TEST_F(
     FrankaHardwareInterfaceTest,
     given_that_the_robot_interfaces_are_set_when_call_export_state_interface_robot_state_interface_exists) {
   franka::RobotState robot_state;
-  franka::RobotState* robot_state_address = &robot_state;
 
   MockModel mock_model;
   MockModel* model_address = &mock_model;
@@ -245,10 +244,9 @@ TEST_F(
   ASSERT_EQ(states[21].get_name(),
             "fr3/robot_state");  // joint states (3*7) , then comes robot state
 
-  EXPECT_NEAR(states[21].get_optional().value_or(0.0),
-              *reinterpret_cast<double*>(&robot_state_address),  // NOLINT
-              k_EPS);  // testing that the casted robot state ptr
-                       // is correctly pushed to state interface
+  // The state interface exports a pointer to the RealtimeBuffer.
+  // Verify it is a valid (non-zero) pointer value.
+  ASSERT_NE(states[21].get_optional().value_or(0.0), 0.0);
 }
 
 TEST_P(FrankaHardwareInterfaceTest,
