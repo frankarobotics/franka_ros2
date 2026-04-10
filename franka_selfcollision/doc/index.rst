@@ -17,7 +17,8 @@ This monitoring node is spawned by ``fr3_duo.launch.py`` or ``mobile_fr3_duo.lau
 The node continuously monitors the robot's joint states to check for self-collisions between the robot links. It handles both ``fr3_duo`` and ``mobile_fr3_duo`` configurations.
 It performs two main actions upon detecting a collision (or violation of the security margin):
 
-1. **Publishes Status:** Sends a boolean to the topic ``/self_collision_node/collision_detected``.
+1. **Publishes Status:** Sends a boolean to the topic ``~/<node_name>/collision_detected``
+   (where ``<node_name>`` is set via the ``name`` parameter in the launch file, default: ``self_collision_node``).
 2. **Logs Warning:** Prints the specific colliding link pairs to the console if enabled (throttled to 1Hz to prevent spam).
 
 Configuration
