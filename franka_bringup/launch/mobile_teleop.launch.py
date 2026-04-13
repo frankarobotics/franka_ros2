@@ -77,12 +77,7 @@ def generate_robot_nodes(context):
                 name='teleop_twist_joy_node',
                 namespace=namespace,
                 parameters=[config_filepath],
-                remappings=[
-                    (
-                        '/' + namespace + '/cmd_vel',
-                        '/' + namespace + '/swerve_drive_controller/cmd_vel',
-                    )
-                ],
+                remappings=[('cmd_vel', 'swerve_drive_controller/cmd_vel')],
             ),
         )
     return additional_nodes
