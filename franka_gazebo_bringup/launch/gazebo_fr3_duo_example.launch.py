@@ -45,7 +45,7 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
         franka_xacro_file = os.path.join(
             get_package_share_directory('franka_gazebo_bringup'),
             'urdf',
-            'mobile_fr3_duo_v0_2_with_sensors.gazebo.urdf.xacro'
+            'fr3_duo_with_sensors.gazebo.urdf.xacro'
         )
         # Force load_gripper to false when using sensors (Vision Kit has Robotiq)
         load_gripper_str = 'false'
@@ -53,13 +53,13 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
         franka_xacro_file = os.path.join(
             get_package_share_directory('franka_gazebo_bringup'),
             'urdf',
-            'mobile_fr3_duo_v0_2.gazebo.urdf.xacro'
+            'fr3_duo.gazebo.urdf.xacro'
         )
 
     robot_description_config = xacro.process_file(
         franka_xacro_file,
         mappings={
-            'robot_types': "['tmrv0_2', 'fr3v2', 'fr3v2']",
+            'robot_types': "['fr3v2', 'fr3v2']",
             'hand': load_gripper_str,
             'ee_id': franka_hand_str,
             'ros2_control': 'true',
@@ -89,19 +89,15 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
 def set_gz_sim_resource_path(context, with_sensors):
     with_sensors_val = context.perform_substitution(with_sensors).lower()
     if with_sensors_val == 'true':
-        sensors_share = os.path.dirname(
-            get_package_share_directory('franka_mobile_sensors'))
         vmk_share = os.path.dirname(
             get_package_share_directory('franka_vision_and_manipulation_kit'))
         description_share = os.path.dirname(
             get_package_share_directory('franka_description'))
-        olv_module_descriptions_share = os.path.dirname(
-            get_package_share_directory('olv_module_descriptions'))
         robotiq_description_share = os.path.dirname(
             get_package_share_directory('robotiq_description'))
         zed_description_share = os.path.dirname(
             get_package_share_directory('zed_description'))
-        os.environ['GZ_SIM_RESOURCE_PATH'] = f"{sensors_share}:{vmk_share}:{description_share}:{olv_module_descriptions_share}:{robotiq_description_share}:{zed_description_share}"
+        os.environ['GZ_SIM_RESOURCE_PATH'] = f"{vmk_share}:{description_share}:{robotiq_description_share}:{zed_description_share}"
     else:
         description_share = os.path.dirname(
             get_package_share_directory('franka_description'))
@@ -141,20 +137,6 @@ def get_bridge(context, with_sensors):
 
     if with_sensors_val == 'true':
         bridge_args.extend([
-            # Mobile Platform Cameras (D455)
-            '/camera_front/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/camera_front/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-            '/camera_rear/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/camera_rear/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-            '/camera_left/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/camera_left/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-            '/camera_right/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/camera_right/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-            # Mobile Platform LiDARs
-            '/lidar_front/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
-            '/lidar_rear/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
-            # Mobile Platform IMU
-            '/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU',
             # Vision and Manipulation Kit Cameras (D405 + ZED)
             '/left_wrist_camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
             '/left_wrist_camera/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
@@ -163,20 +145,6 @@ def get_bridge(context, with_sensors):
             # Head Camera (ZED)
             '/head_camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
             '/head_camera/image_raw/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-        ])
-        remappings.extend([
-            ('/camera_front/image_raw', '/camera_front/color/image_raw'),
-            ('/camera_front/image_raw/camera_info',
-             '/camera_front/color/camera_info'),
-            ('/camera_rear/image_raw', '/camera_rear/color/image_raw'),
-            ('/camera_rear/image_raw/camera_info',
-             '/camera_rear/color/camera_info'),
-            ('/camera_left/image_raw', '/camera_left/color/image_raw'),
-            ('/camera_left/image_raw/camera_info',
-             '/camera_left/color/camera_info'),
-            ('/camera_right/image_raw', '/camera_right/color/image_raw'),
-            ('/camera_right/image_raw/camera_info',
-             '/camera_right/color/camera_info'),
         ])
 
     return [Node(
@@ -220,7 +188,7 @@ def generate_launch_description():
     with_sensors_launch_argument = DeclareLaunchArgument(
         with_sensors_name,
         default_value='false',
-        description='If true, use sensor-enhanced description with both mobile platform sensors (4x D455 cameras + 2x LiDARs) and Vision and Manipulation Kit sensors (2x D405 wrist cameras)')
+        description='If true, use sensor-enhanced description with Vision and Manipulation Kit sensors (2x D405 wrist cameras)')
     world_launch_argument = DeclareLaunchArgument(
         world_name,
         default_value='',
@@ -264,14 +232,12 @@ def generate_launch_description():
                      arguments=['--display-config', rviz_file, '-f', 'world'],
                      condition=IfCondition(rviz))
 
-    mobile_fr3_duo_controller = Node(
+    fr3_duo_controller = Node(
         package='controller_manager',
         executable='spawner',
         arguments=[
             'joint_state_broadcaster',
-            'swerve_ik_controller',
-            'swerve_drive_controller',
-            'mobile_fr3_duo_joint_impedance_example_controller',
+            'fr3_duo_joint_impedance_example_controller',
                    '--controller-manager-timeout', '120',
                    '--service-call-timeout', '60'],
         parameters=[PathJoinSubstitution([
@@ -299,7 +265,7 @@ def generate_launch_description():
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=spawn,
-                on_exit=[mobile_fr3_duo_controller],
+                on_exit=[fr3_duo_controller],
             )
         ),
     ])

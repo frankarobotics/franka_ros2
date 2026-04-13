@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<!-- Copyright (c) 2026 Franka Robotics GmbH
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+         http://www.apache.org/licenses/LICENSE-2.0 -->
+
+<!--
+  Gazebo entry point for the FR3 Duo v0.2 (without sensors).
+
+  Includes the Layer 1 macro with gazebo=true and applies
+  Gazebo-specific overrides (gravity, spring damping).
+-->
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro"
+       name="fr3_duo_gazebo">
+
+  <!-- ================================================================ -->
+  <!-- Macro includes                                                    -->
+  <!-- ================================================================ -->
+  <xacro:include filename="$(find franka_description)/robots/fr3_duo/fr3_duo.xacro"/>
+  <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
+
+  <!-- ================================================================ -->
+  <!-- Arguments                                                        -->
+  <!-- ================================================================ -->
+  <!-- For Gazebo, ros2_control must be false on individual robots, 
+       with a single unified ros2_control block instead -->
+  <xacro:property name="ros_control_flag" value="false"/>
+  
+  <xacro:arg name="robot_types" default="['fr3v2','fr3v2']" />
+  <xacro:property name="robot_types_list" value="${$(arg robot_types)}" />
+  <xacro:arg name="arm_prefixes" default="['left', 'right']" />
+  <xacro:property name="arm_prefixes_list" value="${$(arg arm_prefixes)}" />
+
+  <xacro:arg name="no_prefix"          default="false"/>
+  <xacro:arg name="hand"               default="true" />
+  <xacro:arg name="ee_id"              default="franka_hand" />
+  <xacro:arg name="special_connection" default="" />
+  <xacro:arg name="xyz_ee"             default="0 0 0" />
+  <xacro:arg name="rpy_ee"             default="0 0 ${-pi/4}" />
+  <xacro:arg name="tcp_xyz"            default="0 0 0.1034" />
+  <xacro:arg name="tcp_rpy"            default="0 0 0" />
+  <xacro:arg name="safety_distance"    default="0.03" />
+  <xacro:arg name="with_sc"            default="false" />
+  <xacro:arg name="ros2_control"       default="true" />
+  <xacro:arg name="robot_ips"          default="['172.16.0.1','172.16.0.2']" />
+  <xacro:property name="robot_ips_list" value="${$(arg robot_ips)}" />
+  <xacro:arg name="use_fake_hardware"    default="false" />
+  <xacro:arg name="fake_sensor_commands" default="false" />
+  <xacro:arg name="gazebo_effort"        default="false" />
+  <xacro:arg name="description_pkg"      default="franka_description" />
+  <xacro:arg name="base_mount"           default="world"/>
+  <xacro:arg name="connected_to"         default="world" />
+
+  <!-- ================================================================ -->
+  <!-- World link definition                                            -->
+  <!-- ================================================================ -->
+  <link name="world"/>
+
+  <!-- ================================================================ -->
+  <!-- Base robot instantiation (Layer 1 macro, gazebo always true)     -->
+  <!-- ================================================================ -->
+  <xacro:fr3_duo
+        name="fr3_duo"
+        robot_types="${robot_types_list}"
+        arm_prefixes="${arm_prefixes_list}"
+        hand="$(arg hand)"
+        ros2_control="${ros_control_flag}"
+        gazebo="true"
+        gazebo_effort="$(arg gazebo_effort)"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        robot_ips="$(arg robot_ips)"
+        description_pkg="$(arg description_pkg)"
+        base_mount="$(arg base_mount)"
+        connected_to="$(arg connected_to)"
+        no_prefix="$(arg no_prefix)"
+        ee_id="$(arg ee_id)"
+        special_connection="$(arg special_connection)"
+        xyz_ee="$(arg xyz_ee)"
+        rpy_ee="$(arg rpy_ee)"
+        tcp_xyz="$(arg tcp_xyz)"
+        tcp_rpy="$(arg tcp_rpy)"
+        safety_distance="$(arg safety_distance)"
+        with_sc="$(arg with_sc)"/>
+
+  <!-- ================================================================ -->
+  <!-- Gravity overrides                                                -->
+  <!-- ================================================================ -->
+  <xacro:disable_arm_gravity prefix="left_" robot_type="${robot_types_list[0]}"/>
+  <xacro:disable_arm_gravity prefix="right_" robot_type="${robot_types_list[1]}"/>
+  <xacro:disable_mobile_base_gravity/>
+
+</robot>
+
