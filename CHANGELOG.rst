@@ -46,6 +46,7 @@ UNRELEASED
      self.create_subscription(PoseStamped, 'current_pose', callback, qos)
      
 * feat: franka_vision_and_manipulation_kit package used in Gazebo to display the sensors of the kit
+* fix: clang-tidy test duration reduced by applying a filter 
 
 v3.2.2 (2026-03-03)
 -------------------
