@@ -59,7 +59,7 @@
         <child link="virtual_x" />
         <axis xyz="1 0 0" />
         <origin rpy="0 0 0" xyz="0 0 0" />
-        <limit lower="-1" upper="1" effort="1000" velocity="2" />
+        <limit lower="-10" upper="10" effort="1000" velocity="2" />
     </joint>
 
     <link name="virtual_x">
@@ -95,7 +95,7 @@
         <child link="virtual_y" />
         <axis xyz="0 1 0" />
         <origin rpy="0 0 0" xyz="0 0 0" />
-        <limit lower="-1" upper="1" effort="1000" velocity="2" />
+        <limit lower="-10" upper="10" effort="1000" velocity="2" />
     </joint>
     <joint name="planar_theta" type="revolute">
         <parent link="virtual_y" />

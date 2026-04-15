@@ -22,39 +22,6 @@ from franka_mobile_fr3_duo_moveit_config.description import get_robot_descriptio
 PACKAGE_NAME = 'franka_mobile_fr3_duo_moveit_config'
 
 
-def set_gz_sim_resource_path(context):
-    description_share = os.path.dirname(get_package_share_directory('franka_description'))
-    os.environ['GZ_SIM_RESOURCE_PATH'] = description_share
-    return []
-
-
-def get_gz_world(context):
-    """Return the Gazebo world include action."""
-    pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
-    return [
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
-            ),
-            launch_arguments={'gz_args': 'empty.sdf -r'}.items(),
-        )
-    ]
-
-
-def gazebo_nodes():
-    """Return the list of actions needed to start Gazebo simulation."""
-    return [
-        OpaqueFunction(function=set_gz_sim_resource_path),
-        OpaqueFunction(function=get_gz_world),
-        Node(
-            package='ros_gz_bridge',
-            executable='parameter_bridge',
-            arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
-            output='screen',
-        ),
-    ]
-
-
 def get_ros2_control_node(namespace, robot_description):
     ros2_controllers_path = PathJoinSubstitution(
         [
@@ -102,16 +69,13 @@ def activate_controller(controller_name, wait_time):
 
 def generate_nodes(context):
     """Generate infrastructure nodes (robot state, controllers, Gazebo)."""
-    use_fake_hardware = LaunchConfiguration('use_fake_hardware').perform(context)
     simulate_in_gazebo = LaunchConfiguration('simulate_in_gazebo').perform(context)
     simulate_in_gazebo_bool = simulate_in_gazebo == 'true' or simulate_in_gazebo == 'True'
 
     robot_name = 'mobile_fr3_duo_v0_2'
     namespace = LaunchConfiguration('namespace', default='')
 
-    robot_description, _ = get_robot_descriptions(
-        robot_name, use_fake_hardware, simulate_in_gazebo
-    )
+    robot_description, _ = get_robot_descriptions(robot_name, simulate_in_gazebo)
 
     nodes = [
         Node(
@@ -137,7 +101,6 @@ def generate_nodes(context):
     ]
 
     if simulate_in_gazebo_bool:
-        nodes += gazebo_nodes()
         controller_names = [
             'joint_state_broadcaster',
             'swerve_ik_controller',
@@ -154,7 +117,7 @@ def generate_nodes(context):
 
     nodes += [
         activate_controller(name, wait_time)
-        for (name, wait_time) in zip(controller_names, [5.0, 5.0, 5.0, 8.0])
+        for (name, wait_time) in zip(controller_names, [3.0, 5.0, 10.0, 12.0])
     ]
 
     return nodes
@@ -171,7 +134,6 @@ def generate_launch_description():
             )
         ),
         launch_arguments={
-            'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
             'simulate_in_gazebo': LaunchConfiguration('simulate_in_gazebo'),
             'rviz': LaunchConfiguration('rviz'),
         }.items(),
@@ -179,11 +141,6 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
-            DeclareLaunchArgument(
-                'use_fake_hardware',
-                default_value='false',
-                description='Fakes the hardware if true. If false, the real hardware is expected to be connected.',
-            ),
             DeclareLaunchArgument(
                 'simulate_in_gazebo',
                 default_value='false',

@@ -24,7 +24,7 @@ controller_manager:
 
 full_body_controller:
   ros__parameters:
-    cartesian_velocity_interface_prefix: swerve_drive_controller/ # do I need this or is it comming from the launch file?
+    cartesian_velocity_interface_prefix: swerve_drive_controller/
     update_rate: 1000
     joints:
       - planar_x
