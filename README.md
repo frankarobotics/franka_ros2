@@ -252,7 +252,7 @@ ros2 launch franka_bringup example.launch.py controller_names:="swerve_drive_con
 ```
 On another terminal launch:
 ```bash
-`ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p stamped:=true --remap /cmd_vel:=/swerve_drive_controller/cmd_vel`
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p stamped:=true --remap /cmd_vel:=/swerve_drive_controller/cmd_vel
 ```
 
 ### Run Gazebo examples with ROS 2

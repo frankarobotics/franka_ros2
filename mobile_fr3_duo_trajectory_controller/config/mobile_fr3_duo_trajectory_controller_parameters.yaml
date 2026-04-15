@@ -1,0 +1,11 @@
+mobile_fr3_duo_trajectory_controller:
+  joints: {
+    type: string_array,
+    default_value: [],
+    description: "Joint names of the system",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+    }
+  }

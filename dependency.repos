@@ -6,8 +6,8 @@ repositories:
   libfranka:
     type: git
     url: https://github.com/frankarobotics/libfranka.git
-    version: 0.20.4
-  gz-ros2-control:
+    version: 0.20.5
+  gz_ros2_control:
     type: git
     url: https://github.com/ros-controls/gz_ros2_control.git
     version: jazzy

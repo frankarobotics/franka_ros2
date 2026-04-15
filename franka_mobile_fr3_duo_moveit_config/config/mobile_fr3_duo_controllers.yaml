@@ -1,0 +1,115 @@
+# This config file is used by ros2_control
+controller_manager:
+  ros__parameters:
+    update_rate: 1000  # Hz
+    thread_priority: 98
+    overruns:
+      manage: false
+      print_warnings: false
+
+    full_body_controller:
+      type: mobile_fr3_duo_trajectory_controller/MobileFR3DuoTrajectoryController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    swerve_drive_controller:
+      type: franka_mobile/SwerveDriveController
+
+    left_state_broadcaster:
+      type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
+
+    right_state_broadcaster:
+      type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
+
+full_body_controller:
+  ros__parameters:
+    cartesian_velocity_interface_prefix: swerve_drive_controller/
+    update_rate: 1000
+    joints:
+      - planar_x
+      - planar_y
+      - planar_theta
+      - left_fr3v2_joint1
+      - left_fr3v2_joint2
+      - left_fr3v2_joint3
+      - left_fr3v2_joint4
+      - left_fr3v2_joint5
+      - left_fr3v2_joint6
+      - left_fr3v2_joint7
+      - right_fr3v2_joint1
+      - right_fr3v2_joint2
+      - right_fr3v2_joint3
+      - right_fr3v2_joint4
+      - right_fr3v2_joint5
+      - right_fr3v2_joint6
+      - right_fr3v2_joint7
+    robot_types: ['tmrv0_2', 'fr3v2', 'fr3v2']
+    robot_prefixes: ['', 'left', 'right']
+    k_gains:
+      - 24.0
+      - 24.0
+      - 24.0
+      - 24.0
+      - 10.0
+      - 6.0
+      - 2.0
+    d_gains:
+      - 2.0
+      - 2.0
+      - 2.0
+      - 1.0
+      - 1.0
+      - 1.0
+      - 0.5
+
+swerve_drive_controller:
+  ros__parameters:
+    base_link_frame_id: base
+    odom_frame_id: base
+    wheel_1_link_name: argo_drive_front_link
+    wheel_2_link_name: argo_drive_rear_link
+    tf_frame_id: world
+
+    linear:
+      x:
+        has_velocity_limits    : true
+        max_velocity           : 2.0  # m/s
+        min_velocity           : -2.0 # m/s
+        has_acceleration_limits: true
+        max_acceleration       : 2.5  # m/s^2
+        min_acceleration       : -2.5 # m/s^2
+        has_jerk_limits        : false
+        max_jerk               : 10.0  # m/s^3
+        min_jerk               : -10.0  # m/s^3
+      y:
+        has_velocity_limits    : true
+        max_velocity           : 2.0  # m/s
+        min_velocity           : -2.0 # m/s
+        has_acceleration_limits: true
+        max_acceleration       : 2.5  # m/s^2
+        min_acceleration       : -2.5 # m/s^2
+        has_jerk_limits        : false
+        max_jerk               : 10.0  # m/s^3
+        min_jerk               : -10.0  # m/s^3
+    angular:
+      z:
+        has_velocity_limits    : true
+        max_velocity           : 1.0  # rad/s
+        min_velocity           : -1.0 # rad/s
+        has_acceleration_limits: true
+        max_acceleration       : 7.5  # rad/s^2
+        min_acceleration       : -7.5  # rad/s^2
+        has_jerk_limits        : false
+        max_jerk               : 10.0  # rad/s^3
+        min_jerk               : -10.0  # rad/s^3
+
+left_state_broadcaster:
+  ros__parameters:
+    arm_prefix: "left"
+    robot_type: "fr3v2"
+
+right_state_broadcaster:
+  ros__parameters:
+    arm_prefix: "right"
+    robot_type: "fr3v2"

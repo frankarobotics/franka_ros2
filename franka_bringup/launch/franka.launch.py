@@ -156,7 +156,6 @@ def generate_robot_nodes(context):
                 {
                     'source_list': joint_state_publisher_sources,
                     'rate': joint_state_rate,
-                    'use_robot_description': False,
                 }
             ],
             output='screen',

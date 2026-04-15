@@ -1,0 +1,9 @@
+<library path="mobile_fr3_duo_trajectory_controller">
+    <class name="mobile_fr3_duo_trajectory_controller/MobileFR3DuoTrajectoryController"
+        type="mobile_fr3_duo_trajectory_controller::MobileFR3DuoTrajectoryController"
+        base_class_type="controller_interface::ControllerInterface">
+        <description>
+            The mobile FR3 duo joint trajectory controller combines dual-arm joint impedance control with mobile base cartesian velocity control to follow a joint trajectory.
+        </description>
+    </class>
+</library>

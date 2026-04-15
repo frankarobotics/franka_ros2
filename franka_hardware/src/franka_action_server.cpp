@@ -14,10 +14,28 @@
 
 #include "franka_hardware/franka_action_server.hpp"
 
+namespace {
+/// Convert a hardware prefix like "left_" to a ROS 2 namespace like "left".
+std::string prefixToNamespace(const std::string& prefix) {
+  if (prefix.empty()) {
+    return "";
+  }
+  // Strip trailing underscore if present
+  if (prefix.back() == '_') {
+    return prefix.substr(0, prefix.size() - 1);
+  }
+  return prefix;
+}
+}  // namespace
+
 namespace franka_hardware {
 
-ActionServer::ActionServer(const rclcpp::NodeOptions& options, std::shared_ptr<Robot> robot)
-    : rclcpp::Node("action_server", options), ptp_motion_handler_(robot), robot_(robot) {
+ActionServer::ActionServer(const rclcpp::NodeOptions& options,
+                           std::shared_ptr<Robot> robot,
+                           const std::string& robot_prefix)
+    : rclcpp::Node("action_server", prefixToNamespace(robot_prefix), options),
+      ptp_motion_handler_(robot),
+      robot_(robot) {
   error_recovery_action_server_ = rclcpp_action::create_server<franka_msgs::action::ErrorRecovery>(
       this, "~/error_recovery",
       [](auto /*uuid*/, auto /*goal*/) { return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE; },

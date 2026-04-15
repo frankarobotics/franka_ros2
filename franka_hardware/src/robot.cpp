@@ -114,6 +114,12 @@ void Robot::writeOnce(const std::vector<double>& command) {
     return;
   }
 
+  if (!joint_position_interface_active_ && !joint_velocity_interface_active_ &&
+      !effort_interface_active_ && !cartesian_velocity_interface_active_ &&
+      !cartesian_pose_interface_active_) {
+    throw std::runtime_error("writeOnce called when no control interface was active.");
+  }
+
   // This part should not be reached
   throw std::invalid_argument("Command has unknown size " + std::to_string(command.size()));
 }

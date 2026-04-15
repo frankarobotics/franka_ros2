@@ -1,0 +1,183 @@
+{
+    "planning_pipelines": [
+        "ompl"
+    ],
+    "default_planning_pipeline": "ompl",
+    "ompl": {
+        "planning_plugins": [
+            "ompl_interface/OMPLPlanner"
+        ],
+        "request_adapters": [
+            "default_planning_request_adapters/ResolveConstraintFrames",
+            "default_planning_request_adapters/ValidateWorkspaceBounds",
+            "default_planning_request_adapters/CheckStartStateBounds",
+            "default_planning_request_adapters/CheckStartStateCollision"
+        ],
+        "response_adapters": [
+            "default_planning_response_adapters/AddTimeOptimalParameterization",
+            "default_planning_response_adapters/ValidateSolution",
+            "default_planning_response_adapters/DisplayMotionPath"
+        ],
+        "planner_configs": {
+            "AnytimePathShortening": {
+                "type": "geometric::AnytimePathShortening",
+                "shortcut": 1,
+                "hybridize": 1,
+                "max_hybrid_paths": 24,
+                "num_planners": 4,
+                "planners": ""
+            },
+            "SBL": {
+                "type": "geometric::SBL",
+                "range": 0.0
+            },
+            "EST": {
+                "type": "geometric::EST",
+                "range": 0.0,
+                "goal_bias": 0.05
+            },
+            "LBKPIECE": {
+                "type": "geometric::LBKPIECE",
+                "range": 0.0,
+                "border_fraction": 0.9,
+                "min_valid_path_fraction": 0.5
+            },
+            "BKPIECE": {
+                "type": "geometric::BKPIECE",
+                "range": 0.0,
+                "border_fraction": 0.9,
+                "failed_expansion_score_factor": 0.5,
+                "min_valid_path_fraction": 0.5
+            },
+            "KPIECE": {
+                "type": "geometric::KPIECE",
+                "range": 0.0,
+                "goal_bias": 0.05,
+                "border_fraction": 0.9,
+                "failed_expansion_score_factor": 0.5,
+                "min_valid_path_fraction": 0.5
+            },
+            "RRT": {
+                "type": "geometric::RRT",
+                "range": 0.0,
+                "goal_bias": 0.05
+            },
+            "RRTConnect": {
+                "type": "geometric::RRTConnect",
+                "range": 0.0
+            },
+            "RRTstar": {
+                "type": "geometric::RRTstar",
+                "range": 0.0,
+                "goal_bias": 0.05,
+                "delay_collision_checking": 1
+            },
+            "TRRT": {
+                "type": "geometric::TRRT",
+                "range": 0.0,
+                "goal_bias": 0.05,
+                "max_states_failed": 10,
+                "temp_change_factor": 2.0,
+                "min_temperature": "10e-10",
+                "init_temperature": "10e-6",
+                "frountier_threshold": 0.0,
+                "frountierNodeRatio": 0.1,
+                "k_constant": 0.0
+            },
+            "PRM": {
+                "type": "geometric::PRM",
+                "max_nearest_neighbors": 10
+            },
+            "PRMstar": {
+                "type": "geometric::PRMstar"
+            },
+            "FMT": {
+                "type": "geometric::FMT",
+                "num_samples": 1000,
+                "radius_multiplier": 1.1,
+                "nearest_k": 1,
+                "cache_cc": 1,
+                "heuristics": 0,
+                "extended_fmt": 1
+            },
+            "BFMT": {
+                "type": "geometric::BFMT",
+                "num_samples": 1000,
+                "radius_multiplier": 1.0,
+                "nearest_k": 1,
+                "balanced": 0,
+                "optimality": 1,
+                "heuristics": 1,
+                "cache_cc": 1,
+                "extended_fmt": 1
+            },
+            "PDST": {
+                "type": "geometric::PDST"
+            },
+            "STRIDE": {
+                "type": "geometric::STRIDE",
+                "range": 0.0,
+                "goal_bias": 0.05,
+                "use_projected_distance": 0,
+                "degree": 16,
+                "max_degree": 18,
+                "min_degree": 12,
+                "max_pts_per_leaf": 6,
+                "estimated_dimension": 0.0,
+                "min_valid_path_fraction": 0.2
+            },
+            "BiTRRT": {
+                "type": "geometric::BiTRRT",
+                "range": 0.0,
+                "temp_change_factor": 0.1,
+                "init_temperature": 100,
+                "frountier_threshold": 0.0,
+                "frountier_node_ratio": 0.1,
+                "cost_threshold": "1e300"
+            },
+            "LBTRRT": {
+                "type": "geometric::LBTRRT",
+                "range": 0.0,
+                "goal_bias": 0.05,
+                "epsilon": 0.4
+            },
+            "BiEST": {
+                "type": "geometric::BiEST",
+                "range": 0.0
+            },
+            "ProjEST": {
+                "type": "geometric::ProjEST",
+                "range": 0.0,
+                "goal_bias": 0.05
+            },
+            "LazyPRM": {
+                "type": "geometric::LazyPRM",
+                "range": 0.0
+            },
+            "LazyPRMstar": {
+                "type": "geometric::LazyPRMstar"
+            },
+            "SPARS": {
+                "type": "geometric::SPARS",
+                "stretch_factor": 3.0,
+                "sparse_delta_fraction": 0.25,
+                "dense_delta_fraction": 0.001,
+                "max_failures": 1000
+            },
+            "SPARStwo": {
+                "type": "geometric::SPARStwo",
+                "stretch_factor": 3.0,
+                "sparse_delta_fraction": 0.25,
+                "dense_delta_fraction": 0.001,
+                "max_failures": 5000
+            }
+        }
+    },
+    "moveit_manage_controllers": true,
+    "cartesian_limits": {
+        "max_trans_vel": 1.0,
+        "max_trans_acc": 2.25,
+        "max_trans_dec": -5.0,
+        "max_rot_vel": 1.57
+    }
+}
