@@ -14,6 +14,7 @@
   <depend>franka_msgs</depend>
   <depend>pinocchio</depend>
   <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
   
   <test_depend>ament_cmake_clang_format</test_depend>
   <test_depend>ament_cmake_copyright</test_depend>

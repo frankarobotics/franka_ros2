@@ -160,10 +160,13 @@ The mobile dual-arm configuration is defined in ``franka_bringup/config/mobile_f
   * First entry: Mobile base IP address
   * Remaining entries: Arm IP addresses
 
+* ``check_selfcollision``:  Enables the self_collision_node (e.g., ``"true"``)
+
 .. note::
 
     All three arrays (``robot_types``, ``robot_ips``, ``arm_prefixes``) must have exactly **3 entries**
     (mobile base + 2 arms), and arm prefixes must be unique.
+
 
 Launching the Mobile FR3 Duo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

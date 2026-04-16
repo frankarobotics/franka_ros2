@@ -29,8 +29,7 @@ CollisionMonitorNode::CollisionMonitorNode(const rclcpp::NodeOptions& options)
   this->declare_parameter("print_collisions", false);
   this->declare_parameter("robot_description_semantic", "");
 
-  collision_pub_ = this->create_publisher<std_msgs::msg::Bool>(
-      "fr3_duo_self_collision_node/collision_detected", 1);
+  collision_pub_ = this->create_publisher<std_msgs::msg::Bool>("~/collision_detected", 1);
 }
 
 void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_description) {
@@ -43,13 +42,11 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
     RCLCPP_ERROR(this->get_logger(),
                  "Parameters 'robot_description' (URDF) or 'robot_description_semantic' (SRDF) "
                  "are empty.");
-
     throw std::runtime_error("Missing XML descriptions");
   }
 
   RCLCPP_INFO(this->get_logger(), "Loading robot model...");
 
-  // Initialize Collision checker
   try {
     collision_checker_ = std::make_shared<franka_selfcollision::SelfCollisionChecker>(
         urdf_xml, srdf_xml, security_margin, this->get_logger(), this->get_clock());
@@ -58,22 +55,35 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
     throw;
   }
 
-  const std::vector<std::string>& model_joint_names = collision_checker_->getModelJointNames();
+  Eigen::VectorXd q0 = collision_checker_->getNeutralConfiguration();
+  current_joint_positions_.assign(q0.data(), q0.data() + q0.size());
+
   joint_map_.clear();
-  size_t index_counter = 0;
-  for (const auto& name : model_joint_names) {
-    if (name == kBaseLink)
+  for (pinocchio::JointIndex i = 1;
+       i < (pinocchio::JointIndex)collision_checker_->getModelNjoints(); ++i) {
+    const std::string& name = collision_checker_->getModelJointName(i);
+    int idx_q = collision_checker_->getModelJointIdxQ(i);
+    int joint_dof = collision_checker_->getModelJointNq(i);
+
+    if (joint_dof != 1) {
+      RCLCPP_INFO(this->get_logger(),
+                  "Skipping joint [%s] (idx_q=%d, nq=%d) — multi-DOF, stays at neutral",
+                  name.c_str(), idx_q, joint_dof);
       continue;
-    joint_map_[name] = index_counter;
-    index_counter++;
+    }
+
+    joint_map_[name] = static_cast<size_t>(idx_q);
   }
 
-  current_joint_positions_.resize(joint_map_.size(), 0.0);
+  RCLCPP_INFO(this->get_logger(), "model_.nq=%zu | tracked joints=%zu",
+              collision_checker_->getModelNq(), joint_map_.size());
+
   joint_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
       "joint_states", rclcpp::SensorDataQoS(),
       [this](const sensor_msgs::msg::JointState::SharedPtr msg) {
         this->joint_state_callback(msg);
       });
+
   RCLCPP_INFO(this->get_logger(), "Self-Collision Monitor Active. (Margin: %.3f m)",
               security_margin);
 }
@@ -81,9 +91,9 @@ void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_desc
 void CollisionMonitorNode::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg) {
   for (size_t i = 0; i < msg->name.size(); ++i) {
     auto it = joint_map_.find(msg->name[i]);
-    if (it != joint_map_.end()) {
+    if (it != joint_map_.end() && i < msg->position.size()) {
       size_t idx = it->second;
-      if (i < msg->position.size() && idx < current_joint_positions_.size()) {
+      if (idx < current_joint_positions_.size()) {
         current_joint_positions_[idx] = msg->position[i];
       }
     }
