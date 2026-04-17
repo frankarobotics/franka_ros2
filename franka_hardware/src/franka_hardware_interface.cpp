@@ -162,6 +162,23 @@ CallbackReturn FrankaHardwareInterface::on_activate(
   return CallbackReturn::SUCCESS;
 }
 
+FrankaHardwareInterface::~FrankaHardwareInterface() {
+  // Ensure executor is fully stopped and nodes are removed before members are destroyed.
+  // This prevents races where executor worker threads are still running callbacks
+  // that reference nodes or robot_ during destruction.
+  if (executor_) {
+    if (action_node_) {
+      executor_->remove_node(action_node_);
+    }
+    if (service_node_) {
+      executor_->remove_node(service_node_);
+    }
+    executor_.reset();
+  }
+  action_node_.reset();
+  service_node_.reset();
+}
+
 CallbackReturn FrankaHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   std::lock_guard<std::mutex> lock(control_mutex_);

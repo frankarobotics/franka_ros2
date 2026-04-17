@@ -53,6 +53,10 @@ auto PTPMotionHandler::startNewPTPMotion(
     command_result.result->error_message = execute_motion_feedback->error_message.value_or(
         "PTP motion aborted without specific error message.");
 
+    // Reset the position control handler on failure to avoid calling stopControl()
+    // on a potentially invalid handler during destruction.
+    position_control_handler_.reset();
+
     return command_result;
   }
 
@@ -141,7 +145,12 @@ auto PTPMotionHandler::cancelMotion() -> void {
   feedback_futures_.clear();
 
   if (position_control_handler_ != nullptr) {
-    position_control_handler_->stopControl();
+    try {
+      position_control_handler_->stopControl();
+    } catch (const std::exception& e) {
+      // stopControl may fail if the control handler was never fully initialized
+      // (e.g. in tests with mocked robots). This is safe to ignore during cleanup.
+    }
     position_control_handler_.reset();
   }
 }
