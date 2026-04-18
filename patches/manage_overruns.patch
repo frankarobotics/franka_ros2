@@ -1,0 +1,52 @@
+diff --git a/hardware_interface/include/hardware_interface/hardware_info.hpp b/hardware_interface/include/hardware_interface/hardware_info.hpp
+index 4c23eb6..a3e3b25 100644
+--- a/hardware_interface/include/hardware_interface/hardware_info.hpp
++++ b/hardware_interface/include/hardware_interface/hardware_info.hpp
+@@ -356,6 +356,8 @@ struct HardwareAsyncParams
+   std::vector<int> cpu_affinity_cores = {};
+   /// Whether to print warnings when the async thread doesn't meet its deadline
+   bool print_warnings = true;
++  /// Whether to manage overruns by skipping missed cycles
++  bool manage_overruns = true;
+ };
+ 
+ /// This structure stores information about hardware defined in a robot's URDF.
+diff --git a/hardware_interface/src/component_parser.cpp b/hardware_interface/src/component_parser.cpp
+index 55625cf..2074628 100644
+--- a/hardware_interface/src/component_parser.cpp
++++ b/hardware_interface/src/component_parser.cpp
+@@ -74,6 +74,7 @@ constexpr const auto kThreadPriorityAttribute = "thread_priority";
+ constexpr const auto kAffinityCoresAttribute = "affinity";
+ constexpr const auto kSchedulingPolicyAttribute = "scheduling_policy";
+ constexpr const auto kPrintWarningsAttribute = "print_warnings";
++constexpr const auto kManageOverrunsAttribute = "manage_overruns";
+ 
+ }  // namespace
+ 
+@@ -754,6 +755,11 @@ HardwareInfo parse_resource_from_xml(
+             hardware.async_params.print_warnings =
+               parse_bool(get_attribute_value(async_it, kPrintWarningsAttribute, kAsyncTag));
+           }
++          if (async_it->FindAttribute(kManageOverrunsAttribute))
++          {
++            hardware.async_params.manage_overruns =
++              parse_bool(get_attribute_value(async_it, kManageOverrunsAttribute, kAsyncTag));
++          }
+         }
+         catch (const std::exception & e)
+         {
+diff --git a/hardware_interface/src/hardware_component_interface.cpp b/hardware_interface/src/hardware_component_interface.cpp
+index 7d6140a..3acd1f4 100644
+--- a/hardware_interface/src/hardware_component_interface.cpp
++++ b/hardware_interface/src/hardware_component_interface.cpp
+@@ -76,6 +76,10 @@ CallbackReturn HardwareComponentInterface::init(
+     async_thread_params.logger = get_logger();
+     async_thread_params.exec_rate = params.hardware_info.rw_rate;
+     async_thread_params.print_warnings = info_.async_params.print_warnings;
++    async_thread_params.manage_overruns = info_.async_params.manage_overruns;
++    RCLCPP_INFO(
++      get_logger(), "AsyncFunctionHandler: manage_overruns is set to %s",
++      async_thread_params.manage_overruns ? "true" : "false");
+     RCLCPP_INFO(
+       get_logger(), "Starting async handler with scheduler priority: %d and policy : %s",
+       info_.async_params.thread_priority,

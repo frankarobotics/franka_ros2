@@ -51,6 +51,10 @@ UNRELEASED
 * fix: teleop node is publishing correctly if there is no namespace
 * feat: Added moveit support for mobile fr3 duo
 * feat: Updated franka_selfcollision package to support mobile_fr3_duo in addition to fr3_duo
+* fix: resolve segfault caused by ABI mismatch between hardware_interface and controller_manager **C++ (rclcpp)**
+* chore: Unify ros2_control (Jazzy) sources to avoid ABI mismatches (add ros2_control to dependency.repos so hardware_interface/controller_manager build from the same ABI; 
+remove the standalone hardware_interface fork; keep manage_overruns for async hardware components via a small patch auto-applied in franka_entrypoint.sh). 
+**BREAKING**: existing workspaces must be cleaned before rebuilding: ``rm -rf build/ install/ && colcon build``
 
 v3.2.2 (2026-03-03)
 -------------------
