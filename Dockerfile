@@ -57,6 +57,8 @@ RUN sudo apt-get update \
         ros-jazzy-controller-manager \
         ros-jazzy-ros2-control-test-assets \
         ros-jazzy-hardware-interface \
+        ros-jazzy-example-interfaces \
+        ros-jazzy-ros2-control-cmake \
         ros-jazzy-control-msgs \
         ros-jazzy-backward-ros \
         ros-jazzy-generate-parameter-library \
