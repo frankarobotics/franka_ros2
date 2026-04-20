@@ -60,17 +60,48 @@ echo "      -> FCI Active."
 sleep 5
 
 # ---------------------------------------------------------------------------
-# Run Hardware Tests
+# Run Hardware Tests with Retry Logic
 # ---------------------------------------------------------------------------
 echo "Running franka_ros2 hardware tests..."
-rm -f reports/*.xml
-colcon test \
-    --base-paths src \
-    --packages-select franka_bringup \
-    --event-handlers console_direct+ \
-    --ctest-args --tests-regex test_hardware
-colcon test-result --verbose
-TEST_EXIT_CODE=$?
+
+MAX_RETRIES=2  # Only retry once if constraint violations detected
+RETRY_DELAY=5  # seconds between retries
+TEST_SUCCESS=false
+
+for attempt in $(seq 1 $MAX_RETRIES); do
+    echo "Test attempt $attempt/$MAX_RETRIES..."
+    
+    rm -f reports/*.xml
+    colcon test \
+        --base-paths src \
+        --packages-select franka_bringup \
+        --event-handlers console_direct+ \
+        --ctest-args --tests-regex test_hardware
+    colcon test-result --verbose
+    TEST_EXIT_CODE=$?
+    
+    if [ $TEST_EXIT_CODE -eq 0 ]; then
+        echo "Tests passed on attempt $attempt"
+        TEST_SUCCESS=true
+        break
+    else
+        echo "Tests failed on attempt $attempt (exit code: $TEST_EXIT_CODE)"
+        
+        # Check if this is a retriable failure (communication constraints violation)
+        if colcon test-result --verbose | grep -q "communication.*constraint"; then
+            if [ $attempt -lt $MAX_RETRIES ]; then
+                echo "Detected communication constraint violation. Retrying in $RETRY_DELAY seconds..."
+                sleep $RETRY_DELAY
+                continue
+            else
+                echo "Max retries reached. Giving up."
+            fi
+        else
+            echo "Non-retriable failure detected. Not retrying."
+            break
+        fi
+    fi
+done
 
 # ---------------------------------------------------------------------------
 # Teardown
@@ -85,6 +116,6 @@ call_api "/api/arm/joints:lock" ''
 echo "[6/6] Releasing Control Token..."
 call_api "/api/system/control-token:release" ''
 
-if [ $TEST_EXIT_CODE -ne 0 ]; then
+if [ "$TEST_SUCCESS" = false ]; then
     exit 1
 fi
