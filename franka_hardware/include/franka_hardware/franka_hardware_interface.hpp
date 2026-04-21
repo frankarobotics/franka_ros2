@@ -14,12 +14,15 @@
 
 #pragma once
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+#include <realtime_tools/realtime_buffer.hpp>
 
 #include <hardware_interface/hardware_info.hpp>
 #include <hardware_interface/system_interface.hpp>
@@ -48,7 +51,7 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   FrankaHardwareInterface& operator=(const FrankaHardwareInterface& other) = delete;
   FrankaHardwareInterface& operator=(FrankaHardwareInterface&& other) = delete;
   FrankaHardwareInterface(FrankaHardwareInterface&& other) = delete;
-  ~FrankaHardwareInterface() override = default;
+  ~FrankaHardwareInterface() override;
 
   hardware_interface::return_type prepare_command_mode_switch(
       const std::vector<std::string>& start_interfaces,
@@ -151,8 +154,11 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
 
   const std::vector<InterfaceInfo> command_interfaces_info_;
 
-  franka::RobotState hw_franka_robot_state_;
-  franka::RobotState* hw_franka_robot_state_addr_ = &hw_franka_robot_state_;
+  // Thread-safe buffer for RobotState shared with consumers (e.g. broadcaster).
+  // Hardware read() writes via writeFromNonRT(), consumers read via readFromRT().
+  realtime_tools::RealtimeBuffer<franka::RobotState> rt_robot_state_buffer_;
+  realtime_tools::RealtimeBuffer<franka::RobotState>* rt_robot_state_buffer_ptr_ =
+      &rt_robot_state_buffer_;
   Model* hw_franka_model_ptr_ = nullptr;
   franka::Duration robot_time_;
 

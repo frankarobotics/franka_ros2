@@ -37,7 +37,7 @@ TEST_F(FrankaRobotModelTest, given_franka_semantic_model_initialized_when_get_co
   hardware_interface::StateInterface franka_hw_model{robot_name, franka_model_interface_name,
                                                      reinterpret_cast<double*>(&model_address)};
   hardware_interface::StateInterface franka_hw_state{
-      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_address)};
+      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_buffer_ptr)};
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
   temp_state_interfaces.reserve(size);
   temp_state_interfaces.emplace_back(franka_hw_state);
@@ -58,7 +58,7 @@ TEST_F(FrankaRobotModelTest, validate_state_names_and_size) {
   hardware_interface::StateInterface franka_hw_model{robot_name, franka_model_interface_name,
                                                      reinterpret_cast<double*>(&model_address)};
   hardware_interface::StateInterface franka_hw_state{
-      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_address)};
+      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_buffer_ptr)};
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
   temp_state_interfaces.reserve(size);
   temp_state_interfaces.emplace_back(franka_hw_state);
@@ -84,7 +84,7 @@ TEST_F(FrankaRobotModelTest, given_franka_semantic_model_initialized_when_get_gr
   hardware_interface::StateInterface franka_hw_model{robot_name, franka_model_interface_name,
                                                      reinterpret_cast<double*>(&model_address)};
   hardware_interface::StateInterface franka_hw_state{
-      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_address)};
+      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_buffer_ptr)};
 
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
   temp_state_interfaces.reserve(size);
@@ -108,7 +108,7 @@ TEST_F(FrankaRobotModelTest, given_franka_semantic_model_initialized_when_get_po
   hardware_interface::StateInterface franka_hw_model{robot_name, franka_model_interface_name,
                                                      reinterpret_cast<double*>(&model_address)};
   hardware_interface::StateInterface franka_hw_state{
-      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_address)};
+      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_buffer_ptr)};
 
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
   temp_state_interfaces.reserve(size);
@@ -132,7 +132,7 @@ TEST_F(FrankaRobotModelTest, given_franka_semantic_model_initialized_when_get_ma
   hardware_interface::StateInterface franka_hw_model{robot_name, franka_model_interface_name,
                                                      reinterpret_cast<double*>(&model_address)};
   hardware_interface::StateInterface franka_hw_state{
-      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_address)};
+      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_buffer_ptr)};
 
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
   temp_state_interfaces.reserve(size);

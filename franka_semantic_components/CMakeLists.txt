@@ -18,6 +18,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
     franka_hardware
     franka_msgs
     geometry_msgs
+    realtime_tools
     sensor_msgs
     hardware_interface
     rclcpp_lifecycle

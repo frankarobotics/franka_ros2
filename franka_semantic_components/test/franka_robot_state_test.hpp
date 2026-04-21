@@ -20,6 +20,7 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <fstream>
+#include <realtime_tools/realtime_buffer.hpp>
 #include <sstream>
 #include "franka/robot_state.h"
 #include "franka_semantic_components/franka_robot_state.hpp"
@@ -69,7 +70,8 @@ class FrankaRobotStateTest : public ::testing::Test {
   const std::string robot_name = "fr3";
   const std::string franka_state_interface_name = "robot_state";
   franka::RobotState robot_state;
-  franka::RobotState* robot_state_address = &robot_state;
+  realtime_tools::RealtimeBuffer<franka::RobotState> robot_state_buffer;
+  realtime_tools::RealtimeBuffer<franka::RobotState>* robot_state_buffer_ptr = &robot_state_buffer;
 
   std::array<double, 7> joint_angles = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
   std::array<double, 7> joint_velocities = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};

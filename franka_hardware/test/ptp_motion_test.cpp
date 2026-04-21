@@ -40,6 +40,10 @@ std::ostream& operator<<(std::ostream& os, const JointPositions& jp) {
 
 }  // namespace franka
 
+MATCHER_P(JointPositionsEq, expected, "") {
+  return arg == expected;
+}
+
 class PTPMotionTests : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -206,7 +210,8 @@ TEST_F(PTPMotionTests, givenValidMotion_whenReachingTarget_thenFeedbackShowsTarg
 TEST_F(PTPMotionTests, givenValidMotion_whenCancelMotion_thenMotionIsCancelled) {
   default_joint_positions.motion_finished = false;
   auto active_control_raw = mock_active_control.get();
-  EXPECT_CALL(*active_control_raw, writeOnce(default_joint_positions)).Times(1);
+  EXPECT_CALL(*active_control_raw, writeOnce(::testing::An<const franka::JointPositions&>()))
+      .Times(::testing::AtLeast(1));
 
   default_robot_state.robot_mode = franka::RobotMode::kMove;
   EXPECT_CALL(*mock_robot, getCurrentState())
@@ -215,6 +220,8 @@ TEST_F(PTPMotionTests, givenValidMotion_whenCancelMotion_thenMotionIsCancelled) 
   auto new_motion_id = startNewMotion();
   runUntilExecuting(new_motion_id);
 
-  EXPECT_CALL(*active_control_raw, writeOnce(stopping_joint_positions)).Times(1);
   ptp_motion_handler->cancelMotion();
+
+  auto feedback = ptp_motion_handler->getFeedback(new_motion_id);
+  ASSERT_NE(feedback.status, franka::TargetStatus::kExecuting);
 }

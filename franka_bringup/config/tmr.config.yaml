@@ -8,7 +8,7 @@
 # Not all parameters are currently used but are included for future compatibility.
 # Ensure each robot has a unique namespace to prevent topic conflicts.
 
-ROBOT1: # Arbitrary identifier for the first robot (a Mnemonic) 
+ROBOT1: # Arbitrary identifier for the first robot (a Mnemonic)
   robot_type: "tmrv0_2" # Reserved for future use, unique arm (i.e. robot model) identifier
   arm_prefix: "" # Reserved for future use (e.g., robot unique prefix)
   fake_sensor_commands: "false" # Enable fake sensor commands for simulation
@@ -17,4 +17,5 @@ ROBOT1: # Arbitrary identifier for the first robot (a Mnemonic)
   namespace: "" # Namespace for robot, any string (empty string allowed - meaningful names recommended)
   robot_ip: "172.16.16.10" # Robot’s IP address or hostname
   use_fake_hardware: "false" # Use simulated hardware ("true" or "false")
+  load_franka_robot_state_broadcaster: "false" # Not supported for TMR robots
   use_rviz: "true" # Launch RViz if "true" (single instance for all namespaces)

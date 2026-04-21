@@ -96,7 +96,7 @@ std::vector<StateInterface> FrankaHardwareInterface::export_state_interfaces() {
   state_interfaces.emplace_back(StateInterface(
       prefix_ + robot_type_, k_robot_state_interface_name,
       reinterpret_cast<double*>(  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-          &hw_franka_robot_state_addr_)));
+          &rt_robot_state_buffer_ptr_)));
   state_interfaces.emplace_back(StateInterface(
       prefix_ + robot_type_, k_robot_model_interface_name,
       reinterpret_cast<double*>(  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -162,6 +162,23 @@ CallbackReturn FrankaHardwareInterface::on_activate(
   return CallbackReturn::SUCCESS;
 }
 
+FrankaHardwareInterface::~FrankaHardwareInterface() {
+  // Ensure executor is fully stopped and nodes are removed before members are destroyed.
+  // This prevents races where executor worker threads are still running callbacks
+  // that reference nodes or robot_ during destruction.
+  if (executor_) {
+    if (action_node_) {
+      executor_->remove_node(action_node_);
+    }
+    if (service_node_) {
+      executor_->remove_node(service_node_);
+    }
+    executor_.reset();
+  }
+  action_node_.reset();
+  service_node_.reset();
+}
+
 CallbackReturn FrankaHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   std::lock_guard<std::mutex> lock(control_mutex_);
@@ -207,15 +224,17 @@ hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time
   if (hw_franka_model_ptr_ == nullptr) {
     hw_franka_model_ptr_ = robot_->getModel();
   }
-  hw_franka_robot_state_ = robot_->readOnce();
-  robot_time_state_ = hw_franka_robot_state_.time.toSec();
-  initializePositionCommands(hw_franka_robot_state_);
+  // Write new state into the RealtimeBuffer for thread-safe access by consumers
+  auto robot_state = robot_->readOnce();
+  rt_robot_state_buffer_.writeFromNonRT(robot_state);
+  robot_time_state_ = robot_state.time.toSec();
+  initializePositionCommands(robot_state);
 
-  hw_positions_ = hw_franka_robot_state_.q;
-  hw_velocities_ = hw_franka_robot_state_.dq;
-  hw_efforts_ = hw_franka_robot_state_.tau_J;
-  elbow_state_ = hw_franka_robot_state_.elbow;
-  cartesian_pose_state_ = hw_franka_robot_state_.O_T_EE;
+  hw_positions_ = robot_state.q;
+  hw_velocities_ = robot_state.dq;
+  hw_efforts_ = robot_state.tau_J;
+  elbow_state_ = robot_state.elbow;
+  cartesian_pose_state_ = robot_state.O_T_EE;
 
   return hardware_interface::return_type::OK;
 }

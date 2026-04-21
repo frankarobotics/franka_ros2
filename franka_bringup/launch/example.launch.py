@@ -51,9 +51,7 @@ import os
 import sys
 
 from ament_index_python.packages import get_package_share_directory
-
 import franka_bringup.launch_utils as launch_utils
-
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -122,10 +120,11 @@ def generate_robot_nodes(context):
                     'robot_ip': robot_ip,
                     'load_gripper': str(config['load_gripper']),
                     'use_fake_hardware': str(config['use_fake_hardware']),
-                    'fake_sensor_commands': str(
-                        config['fake_sensor_commands']
-                    ),
+                    'fake_sensor_commands': str(config['fake_sensor_commands']),
                     'joint_state_rate': str(config['joint_state_rate']),
+                    'load_franka_robot_state_broadcaster': str(
+                        config.get('load_franka_robot_state_broadcaster', 'true')
+                    ),
                 }.items(),
             )
         )
@@ -175,10 +174,7 @@ def generate_robot_nodes(context):
                 )
             )
 
-    if any(
-        str(config.get('use_rviz', 'false')).lower() == 'true'
-        for config in configs.values()
-    ):
+    if any(str(config.get('use_rviz', 'false')).lower() == 'true' for config in configs.values()):
         nodes.append(
             Node(
                 package='rviz2',
