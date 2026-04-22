@@ -41,6 +41,8 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 (not released yet) 
      qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
      self.create_subscription(PoseStamped, 'current_pose', callback, qos)
 
+* fix: fr3 urdf updated
+
 v2.3.0 (2026-03-10)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 1.6.1 requires ROS 2 Humble

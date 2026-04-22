@@ -29,7 +29,7 @@ pipeline {
            description: 'SSH URL to clone franka_description.')
 
     string(name: 'frankaDescriptionBranch',
-           defaultValue: 'humble',
+           defaultValue: 'main',
            description: 'Branch or tag to checkout for franka_description. Defaults to the same ROS_DISTRO branch of franka_ros2.')
 
     booleanParam(name: 'executeHardwareTestsOnRobot',
