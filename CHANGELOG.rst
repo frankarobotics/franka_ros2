@@ -58,6 +58,7 @@ remove the standalone hardware_interface fork; keep manage_overruns for async ha
 * fix: Removed the `franka_robot_state_broadcaster` while using the TMR
 * fix: With async control, it could happen that the robot_state is teared while publishing. This fix provides a
   lock-free intermediate buffer to allow mutual exclusive robot_state buffer data access.
+* fix: improved integration test reliability
 
 v3.2.2 (2026-03-03)
 -------------------
