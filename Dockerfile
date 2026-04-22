@@ -87,6 +87,7 @@ RUN sudo chown -R $USERNAME:$USERNAME /ros2_ws \
     && sudo apt-get update \
     && rosdep update \
     && rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y \
+       --skip-keys="franka_selfcollision gz_sim_vendor parallel_gripper_controller gz_plugin_vendor" \
     && sudo apt-get clean \
     && sudo rm -rf /var/lib/apt/lists/* \
     && rm -rf /home/$USERNAME/.ros \
