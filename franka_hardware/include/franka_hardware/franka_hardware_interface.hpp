@@ -49,7 +49,7 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   FrankaHardwareInterface& operator=(const FrankaHardwareInterface& other) = delete;
   FrankaHardwareInterface& operator=(FrankaHardwareInterface&& other) = delete;
   FrankaHardwareInterface(FrankaHardwareInterface&& other) = delete;
-  ~FrankaHardwareInterface() override = default;
+  ~FrankaHardwareInterface() override;
 
   hardware_interface::return_type prepare_command_mode_switch(
       const std::vector<std::string>& start_interfaces,

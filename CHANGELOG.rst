@@ -41,7 +41,7 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 (not released yet) 
      qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
      self.create_subscription(PoseStamped, 'current_pose', callback, qos)
 
-* fix: fr3 urdf updated
+* fix: test fr3 urdf updated and segmentation fault errors from unit tests fixed
 
 v2.3.0 (2026-03-10)
 -------------------
