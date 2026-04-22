@@ -89,11 +89,5 @@
             The Gripper example controller demonstrates the use of the Robot gripper.
         </description>
     </class>
-    <class name="franka_example_controllers/Fr3DuoSelfCollisionExampleController"
-           type="franka_example_controllers::SelfCollisionFR3DuoExampleController" base_class_type="controller_interface::ControllerInterface">
-        <description>
-            The self collision FR3 duo example controller moves the robot arms from a start position into a collision configuration and back.
-        </description>
-    </class>
 
 </library>

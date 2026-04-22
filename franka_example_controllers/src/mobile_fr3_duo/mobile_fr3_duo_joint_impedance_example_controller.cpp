@@ -66,6 +66,18 @@ controller_interface::return_type MobileFr3DuoJointImpedanceExampleController::u
     const rclcpp::Time&,
     const rclcpp::Duration& period) {
   updateJointStates();
+
+  auto time_since_last_collision_msg =
+      (this->get_node()->now() - last_collision_msg_time_).seconds();
+  if (time_since_last_collision_msg > 0.5) {
+    RCLCPP_FATAL(get_node()->get_logger(), "Connection to collision node timed out!");
+    return controller_interface::return_type::ERROR;
+  }
+  if (collision_detected_) {
+    RCLCPP_FATAL(get_node()->get_logger(), "Collision detected! Stopping controller.");
+    return controller_interface::return_type::ERROR;
+  }
+
   elapsed_time_ += period.seconds();
 
   for (size_t arm = 0; arm < 2; ++arm) {
@@ -139,6 +151,14 @@ CallbackReturn MobileFr3DuoJointImpedanceExampleController::on_configure(
     d_gains_(i) = d[i];
   }
 
+  collision_sub_ = get_node()->create_subscription<std_msgs::msg::Bool>(
+      kCollisionTopic, 1, [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        this->collision_detected_ = msg->data;
+        this->last_collision_msg_time_ = this->get_node()->now();
+      });
+  RCLCPP_INFO(get_node()->get_logger(), "Self-collision checking enabled on topic: %s",
+              kCollisionTopic);
+
   return CallbackReturn::SUCCESS;
 }
 
@@ -154,6 +174,14 @@ CallbackReturn MobileFr3DuoJointImpedanceExampleController::on_activate(
   updateJointStates();
   initial_q_ = q_;
   elapsed_time_ = 0.0;
+
+  if (get_node()->count_publishers(kCollisionTopic) == 0) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Self Collision Node not detected on %s",
+                 kCollisionTopic);
+    return CallbackReturn::FAILURE;
+  }
+  last_collision_msg_time_ = this->get_node()->now();
+  collision_detected_ = false;
 
   return CallbackReturn::SUCCESS;
 }

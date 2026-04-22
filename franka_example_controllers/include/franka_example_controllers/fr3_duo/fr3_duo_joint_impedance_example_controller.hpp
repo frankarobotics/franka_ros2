@@ -19,6 +19,7 @@
 #include <Eigen/Eigen>
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
@@ -54,6 +55,13 @@ class JointImpedanceFr3DuoExampleController : public controller_interface::Contr
   Vector7d k_gains_;
   Vector7d d_gains_;
   double elapsed_time_{0.0};
+
+  // Self-collision checking
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr collision_sub_;
+  bool collision_detected_{false};
+  rclcpp::Time last_collision_msg_time_;
+  static constexpr auto kCollisionTopic = "collision_detected";
+
   void updateJointStates();
 };
 

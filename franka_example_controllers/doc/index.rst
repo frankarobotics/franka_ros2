@@ -175,24 +175,10 @@ This example uses the CartesianElbow interface to send periodic elbow commands t
 
     ros2 launch franka_bringup example.launch.py controller_names:=elbow_example_controller
 
-Self Collision FR3 Duo Example
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-This example is designed for the FR3 Duo (dual-arm) setup. First they move to a start configuration, then they move toward a collision configuration, 
-and if a collision is detected they immediately retreat back to the start position.
-
-.. code-block:: shell
-
-    ros2 launch franka_bringup fr3_duo.launch.py \
-        controller_name:=fr3_duo_self_collision_example_controller
-
-.. important::
-
-    You must set ``check_selfcollision: true`` in ``fr3_duo.config.yaml`` before running this command.
-
 Mobile Cartesian Velocity Example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This controller subscribes to a topic that publishes cartesian velocities and forwards them to the 
+This controller subscribes to a topic that publishes cartesian velocities and forwards them to the
 robot after going through a rate limiter.
 
 .. code-block:: shell
