@@ -60,6 +60,9 @@ remove the standalone hardware_interface fork; keep manage_overruns for async ha
   lock-free intermediate buffer to allow mutual exclusive robot_state buffer data access.
 * fix: improved integration test reliability
 * chore: Removed the explicit self collision example and added it by default to the fr3 duo and mobile fr3 duo examples
+* fix: make FrankaHardwareInterface error recoverable
+* refactor: FrankaHardwareInterface to use enums for the control mode
+* fix: ActionServers crashing when exception is not caught
 
 v3.2.2 (2026-03-03)
 -------------------
