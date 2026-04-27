@@ -29,7 +29,7 @@ class SpineApiClient:
         :param spine_ip: IP address or hostname of the spine device.
         :param timeout: HTTP request timeout in seconds.
         """
-        self.base_url = f'https://{spine_ip}/api/spine'
+        self.base_url = f'https://{spine_ip}/spine/api'
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({'Content-Type': 'application/json'})
