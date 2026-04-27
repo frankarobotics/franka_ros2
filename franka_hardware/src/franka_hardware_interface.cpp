@@ -236,7 +236,7 @@ hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time
     return hardware_interface::return_type::ERROR;
   }
 
-  rt_robot_state_buffer_.writeFromNonRT(robot_state);
+  hw_franka_robot_state_ = robot_state;
   robot_time_state_ = robot_state.time.toSec();
   initializePositionCommands(robot_state);
 
@@ -399,16 +399,6 @@ rclcpp::Logger FrankaHardwareInterface::getLogger() {
 hardware_interface::return_type FrankaHardwareInterface::perform_command_mode_switch(
     const std::vector<std::string>& /*start_interfaces*/,
     const std::vector<std::string>& /*stop_interfaces*/) {
-  if (!effort_interface_running_ && effort_interface_claimed_) {
-    std::fill(hw_effort_commands_.begin(), hw_effort_commands_.end(), 0);
-    robot_->stopRobot();
-    robot_->initializeTorqueInterface();
-    effort_interface_running_ = true;
-  } else if (effort_interface_running_ && !effort_interface_claimed_) {
-    robot_->stopRobot();
-    effort_interface_running_ = false;
-  }
-
   if (elbow_command_interface_claimed_ &&
       !(velocity_cartesian_interface_claimed_ || pose_cartesian_interface_claimed_)) {
     RCLCPP_FATAL(getLogger(),

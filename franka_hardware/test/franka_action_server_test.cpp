@@ -189,7 +189,8 @@ TEST_F(FrankaPTPMotionActionServerTests,
       .WillOnce(testing::Return(default_franka_robot_mock));
   EXPECT_CALL(*default_franka_robot_mock,
               startAsyncJointPositionControl(::testing::_, ::testing::_))
-      .WillOnce(::testing::Return(std::move(mock_active_control)));
+      .WillOnce(::testing::Return(::testing::ByMove(
+          std::unique_ptr<franka::ActiveControlBase>(std::move(mock_active_control)))));
 
   std::copy(goal.goal_joint_configuration.cbegin(), goal.goal_joint_configuration.cend(),
             std::begin(default_robot_state.q_d));
