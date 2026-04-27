@@ -25,6 +25,7 @@ import launch_testing
 import launch_testing.actions
 import rclpy
 import subprocess
+import time
 
 TEST_DURATION = 5.0  # sec
 ROBOT_TYPES = [
@@ -44,15 +45,30 @@ params = [(robot_type, controller)
 
 
 def ensure_gz_sim_not_running():
-    # Kill any remaining Gazebo processes
-    # See https://github.com/ros2/launch/issues/545 for details
-    shell_cmd = ['pkill', '-9', '-f', '^gz sim']
-    subprocess.run(shell_cmd, check=False)
+    """Kill any remaining Gazebo and related ROS processes between tests.
+
+    On CI, gz sim and the controller_manager may not shut down in time
+    between parametrized tests, causing the next test to fail because
+    controllers are still active. We forcefully kill them here.
+    See https://github.com/ros2/launch/issues/545 for details.
+    """
+    # First try SIGINT for graceful shutdown
+    subprocess.run(['pkill', '-2', '-f', '^gz sim'], check=False)
+    time.sleep(2)
+    # Then SIGKILL to ensure they are gone
+    subprocess.run(['pkill', '-9', '-f', '^gz sim'], check=False)
+    subprocess.run(['pkill', '-9', '-f', 'ruby.*gz'], check=False)
+    # Also kill any lingering controller_manager nodes
+    subprocess.run(['pkill', '-9', '-f', 'controller_manager'], check=False)
+    subprocess.run(['pkill', '-9', '-f', 'robot_state_publisher'], check=False)
+    time.sleep(2)  # Allow OS to release resources (ports, shared memory)
 
 
 @launch_testing.parametrize('robot_type, controller', params)
 def generate_test_description(robot_type, controller):
     """Generate the test launch descriptions."""
+    # Ensure no leftover gz sim from a previous test run
+    ensure_gz_sim_not_running()
 
     launch_description = actions.IncludeLaunchDescription(
         launch_description_sources.PythonLaunchDescriptionSource(
