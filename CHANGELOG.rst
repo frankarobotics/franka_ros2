@@ -42,6 +42,9 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 (not released yet) 
      self.create_subscription(PoseStamped, 'current_pose', callback, qos)
 
 * fix: test fr3 urdf updated and segmentation fault errors from unit tests fixed
+* fix: make FrankaHardwareInterface error recoverable
+* refactor: FrankaHardwareInterface to use enums for the control mode
+* fix: ActionServers crashing when exception is not caught
 
 v2.3.0 (2026-03-10)
 -------------------
