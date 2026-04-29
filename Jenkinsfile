@@ -190,7 +190,8 @@ pipeline {
                '--ulimit rtprio=99 ' +
                '--ulimit rttime=-1 ' +
                '--ulimit memlock=8428281856 ' +
-               '--security-opt=seccomp=unconfined'
+               '--security-opt=seccomp=unconfined ' +
+               '-v /home/rcu/.ssh:/home/jenkins/.ssh:ro'
         }
       }
 
@@ -198,6 +199,16 @@ pipeline {
         script {
           echo "Checking connectivity to Master Controller..."
           sh "ping -c 5 ${params.robotIp}"
+
+          echo "Rebooting Master Controller before hardware tests..."
+          sh """
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@${params.robotIp} /usr/lib/admin-server/restart || true
+            echo 'Waiting for controller to go down and come back...'
+            sleep 70
+            until ping -c1 -W1 ${params.robotIp} >/dev/null 2>&1; do sleep 2; done
+            echo 'Controller is reachable again.'
+          """
+
           sh """
             . install/setup.sh
             chmod +x ./src/franka_ros2/scripts/*.sh
