@@ -63,6 +63,7 @@ remove the standalone hardware_interface fork; keep manage_overruns for async ha
 * fix: make FrankaHardwareInterface error recoverable
 * refactor: FrankaHardwareInterface to use enums for the control mode
 * fix: ActionServers crashing when exception is not caught
+* fix: re-enable franka_gazebo_bringup launch tests with robust gz sim cleanup between tests
 
 v3.2.2 (2026-03-03)
 -------------------
