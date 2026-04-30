@@ -195,7 +195,8 @@ TEST_F(FrankaPTPMotionActionServerTests,
             std::begin(default_robot_state.q_d));
   default_robot_state.dq_d = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   EXPECT_CALL(*default_mock_robot, getCurrentState())
-      .WillRepeatedly(::testing::ReturnRef(default_robot_state));
+      .WillRepeatedly(::testing::Invoke(
+          [this]() { return default_robot_state; }));
 
   get_action_service_response<franka_msgs::action::PTPMotion>(
       "action_server/ptp_motion", rclcpp_action::ResultCode::SUCCEEDED, {}, goal);

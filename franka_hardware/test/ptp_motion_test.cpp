@@ -86,7 +86,8 @@ class PTPMotionTests : public ::testing::Test {
 
     auto robot_state = franka::RobotState{};
     auto expected_optional = std::optional<std::vector<double>>(maximum_joint_velocities);
-    EXPECT_CALL(*mock_robot, getCurrentState()).WillRepeatedly(::testing::ReturnRef(robot_state));
+    EXPECT_CALL(*mock_robot, getCurrentState())
+        .WillRepeatedly(::testing::Invoke([&robot_state]() { return robot_state; }));
     EXPECT_CALL(*mock_libfranka_robot,
                 startAsyncJointPositionControl(::testing::_, ::testing::Eq(expected_optional)))
         .WillOnce(::testing::Return(::testing::ByMove(std::move(mock_active_control))));
@@ -105,7 +106,7 @@ class PTPMotionTests : public ::testing::Test {
     std::copy(std::begin(not_goal_joint_configuration), std::end(not_goal_joint_configuration),
               std::begin(default_robot_state.q_d));
     EXPECT_CALL(*mock_robot, getCurrentState())
-        .WillRepeatedly(::testing::ReturnRef(default_robot_state));
+        .WillRepeatedly(::testing::Invoke([this]() { return default_robot_state; }));
 
     size_t counter = 0;
     while (counter < kMaxCounter) {
@@ -125,7 +126,7 @@ class PTPMotionTests : public ::testing::Test {
     std::copy(std::begin(default_goal_joint_configuration),
               std::end(default_goal_joint_configuration), std::begin(default_robot_state.q_d));
     EXPECT_CALL(*mock_robot, getCurrentState())
-        .WillRepeatedly(::testing::ReturnRef(default_robot_state));
+        .WillRepeatedly(::testing::Invoke([this]() { return default_robot_state; }));
 
     size_t counter = 0;
     while (counter < kMaxCounter) {
@@ -149,7 +150,8 @@ TEST_F(PTPMotionTests, givenValidGoal_whenStartNewPTPMotion_thenMotionStartsSucc
   goal.goal_tolerance = 0.01;
 
   auto robot_state = franka::RobotState{};
-  EXPECT_CALL(*mock_robot, getCurrentState()).WillRepeatedly(::testing::ReturnRef(robot_state));
+  EXPECT_CALL(*mock_robot, getCurrentState())
+      .WillRepeatedly(::testing::Invoke([&robot_state]() { return robot_state; }));
   auto expected_optional = std::optional<std::vector<double>>(maximum_joint_velocities);
   EXPECT_CALL(*mock_libfranka_robot,
               startAsyncJointPositionControl(::testing::_, ::testing::Eq(expected_optional)))
@@ -202,7 +204,7 @@ TEST_F(PTPMotionTests, givenValidMotion_whenReachingTarget_thenFeedbackShowsTarg
 
   default_robot_state.robot_mode = franka::RobotMode::kMove;
   EXPECT_CALL(*mock_robot, getCurrentState())
-      .WillRepeatedly(::testing::ReturnRef(default_robot_state));
+      .WillRepeatedly(::testing::Invoke([this]() { return default_robot_state; }));
 
   runUntilTargetReached(new_motion_id);
 }
@@ -215,7 +217,7 @@ TEST_F(PTPMotionTests, givenValidMotion_whenCancelMotion_thenMotionIsCancelled) 
 
   default_robot_state.robot_mode = franka::RobotMode::kMove;
   EXPECT_CALL(*mock_robot, getCurrentState())
-      .WillRepeatedly(::testing::ReturnRef(default_robot_state));
+      .WillRepeatedly(::testing::Invoke([this]() { return default_robot_state; }));
 
   auto new_motion_id = startNewMotion();
   runUntilExecuting(new_motion_id);

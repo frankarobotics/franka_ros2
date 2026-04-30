@@ -22,6 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <realtime_tools/mutex.hpp>
 #include <realtime_tools/realtime_buffer.hpp>
 
 #include <hardware_interface/hardware_info.hpp>
@@ -186,7 +187,7 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   const std::string k_robot_state_interface_name{"robot_state"};
   const std::string k_robot_model_interface_name{"robot_model"};
   const size_t max_number_start_interfaces = 45;
-  std::mutex control_mutex_;
+  realtime_tools::prio_inherit_mutex control_mutex_;
 
   std::unordered_set<std::string> exported_command_interfaces_;
 };

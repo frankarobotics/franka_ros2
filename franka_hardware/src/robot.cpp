@@ -54,7 +54,7 @@ Robot::~Robot() {
 }
 
 franka::RobotState Robot::readOnce() {
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
   if (!active_control_) {
     current_state_ = robot_->readOnce();
   } else {
@@ -163,7 +163,7 @@ void Robot::writeOnce(const std::vector<double>& cartesian_command,
 }
 
 void Robot::writeOnceJointEfforts(const std::array<double, 7>& efforts) {
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   auto torque_command = franka::Torques(efforts);
   if (torque_command_rate_limiter_active_) {
@@ -174,7 +174,7 @@ void Robot::writeOnceJointEfforts(const std::array<double, 7>& efforts) {
 }
 
 void Robot::writeOnceJointVelocities(const std::array<double, 7>& velocities) {
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   auto velocity_command = franka::JointVelocities(velocities);
 
@@ -191,7 +191,7 @@ void Robot::writeOnceJointVelocities(const std::array<double, 7>& velocities) {
 }
 
 void Robot::writeOnceJointPositions(const std::array<double, 7>& positions) {
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   auto position_command = franka::JointPositions(positions);
 
@@ -265,7 +265,7 @@ void Robot::writeOnceCartesianVelocity(const std::array<double, 6>& cartesian_ve
     throw std::runtime_error("Control hasn't been started");
   }
 
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   auto velocity_command =
       elbow_command.has_value()
@@ -281,7 +281,7 @@ void Robot::writeOnceCartesianPose(const std::array<double, 16>& cartesian_pose,
     throw std::runtime_error("Control hasn't been started");
   }
 
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   auto pose_command = elbow_command.has_value()
                           ? franka::CartesianPose(cartesian_pose, elbow_command.value())

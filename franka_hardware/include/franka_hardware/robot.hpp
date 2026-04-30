@@ -19,6 +19,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <realtime_tools/mutex.hpp>
 #include <string>
 #include <thread>
 
@@ -245,8 +246,8 @@ class Robot {
    * @return Returns the last pulled robot state. Important: This state is only updated when in
    *    'someone' is calling readOnce().
    */
-  virtual auto getCurrentState() -> const franka::RobotState& {
-    std::lock_guard<std::mutex> lock(control_mutex_);
+  virtual auto getCurrentState() -> franka::RobotState {
+    std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
     return current_state_;
   }
 
@@ -316,7 +317,7 @@ class Robot {
   franka::CartesianPose preProcessCartesianPose(const franka::CartesianPose& cartesian_pose);
 
   std::mutex write_mutex_;
-  std::mutex control_mutex_;
+  realtime_tools::prio_inherit_mutex control_mutex_;
 
   std::shared_ptr<franka::Robot> robot_;
   std::unique_ptr<franka::ActiveControlBase> active_control_ = nullptr;

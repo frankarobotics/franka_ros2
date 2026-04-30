@@ -184,7 +184,7 @@ FrankaHardwareInterface::~FrankaHardwareInterface() {
 
 CallbackReturn FrankaHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   robot_->stopRobot();
 
@@ -223,7 +223,7 @@ void FrankaHardwareInterface::initializePositionCommands(const franka::RobotStat
 
 hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time& /*time*/,
                                                               const rclcpp::Duration& /*period*/) {
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
   if (hw_franka_model_ptr_ == nullptr) {
     hw_franka_model_ptr_ = robot_->getModel();
   }
@@ -264,7 +264,7 @@ hardware_interface::return_type FrankaHardwareInterface::write(const rclcpp::Tim
       hasInfinite(hw_elbow_command_) || hasInfinite(hw_cartesian_pose_commands_)) {
     return hardware_interface::return_type::ERROR;
   }
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   if (needs_initial_command_) {
     return hardware_interface::return_type::OK;
@@ -403,7 +403,7 @@ rclcpp::Logger FrankaHardwareInterface::getLogger() {
 hardware_interface::return_type FrankaHardwareInterface::perform_command_mode_switch(
     const std::vector<std::string>& /*start_interfaces*/,
     const std::vector<std::string>& /*stop_interfaces*/) {
-  std::lock_guard<std::mutex> lock(control_mutex_);
+  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   if (elbow_command_interface_claimed_ &&
       !(velocity_cartesian_interface_claimed_ || pose_cartesian_interface_claimed_)) {

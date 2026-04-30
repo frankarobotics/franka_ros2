@@ -48,5 +48,5 @@ class MockRobot : public franka_hardware::Robot {
               (override));
   MOCK_METHOD(void, automaticErrorRecovery, (), (override));
   MOCK_METHOD(std::shared_ptr<franka::Robot>, getRobot, (), (override));
-  MOCK_METHOD(const franka::RobotState&, getCurrentState, (), (override));
+  MOCK_METHOD(franka::RobotState, getCurrentState, (), (override));
 };
