@@ -86,6 +86,25 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
     return [robot_state_publisher]
 
 
+def get_self_collision_node(context: LaunchContext, load_gripper, franka_hand, with_sensors):
+    # It publishes a constant `false` to avoid false-positive 
+    # self collisions at startup due to unsupported mimic constraints
+
+    constant_false_collision_publisher = ExecuteProcess(
+        cmd=[
+            'ros2', 'topic', 'pub',
+            '-r', '10',
+            '/collision_detected',
+            'std_msgs/msg/Bool',
+            'data: false',
+        ],
+        name='gazebo_collision_detected_stub',
+        output='log',
+    )
+
+    return [constant_false_collision_publisher]
+
+
 def set_gz_sim_resource_path(context, with_sensors):
     with_sensors_val = context.perform_substitution(with_sensors).lower()
     if with_sensors_val == 'true':
@@ -208,6 +227,10 @@ def generate_launch_description():
         function=get_robot_description,
         args=[load_gripper, franka_hand, with_sensors])
 
+    self_collision_node = OpaqueFunction(
+        function=get_self_collision_node,
+        args=[load_gripper, franka_hand, with_sensors])
+
     set_gz_sim_resource_path_action = OpaqueFunction(
         function=set_gz_sim_resource_path, args=[with_sensors])
     gazebo_world = OpaqueFunction(function=get_gz_world, args=[
@@ -259,6 +282,7 @@ def generate_launch_description():
         set_gz_sim_resource_path_action,
         gazebo_world,
         robot_state_publisher,
+        self_collision_node,
         rviz_node,
         spawn,
         bridge,

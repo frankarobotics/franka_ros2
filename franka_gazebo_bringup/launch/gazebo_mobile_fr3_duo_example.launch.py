@@ -87,10 +87,9 @@ def get_robot_description(context: LaunchContext, load_gripper, franka_hand, wit
 
 
 def get_self_collision_node(context: LaunchContext, load_gripper, franka_hand, with_sensors):
-    # Gazebo handles self-collisions itself, so the pinocchio-based monitor is
-    # skipped here (it would also false-positive at startup due to unsupported
-    # mimic constraints). We publish a constant `false` to keep the impedance
-    # controller's `collision_detected` subscription satisfied.
+    # It publishes a constant `false` to avoid false-positive 
+    # self collisions at startup due to unsupported mimic constraints
+    
     constant_false_collision_publisher = ExecuteProcess(
         cmd=[
             'ros2', 'topic', 'pub',
