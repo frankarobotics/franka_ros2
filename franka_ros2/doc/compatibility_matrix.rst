@@ -20,6 +20,10 @@ with Ubuntu 22.04.
      - libfranka Version
      - franka_description Version
 
+   * - >=v2.4.0
+     - >=0.20.4
+     - >=2.7.0
+
    * - >=v2.3.0
      - >=0.20.4
      - >=1.6.1

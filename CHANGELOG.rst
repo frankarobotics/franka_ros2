@@ -1,9 +1,9 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-UNRELEASED
+v2.4.0 (2026-05-04)
 ----------
-Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 (not released yet) requires ROS 2 Humble
+Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Humble
 
 * breaking change: Switching franka_description common package both for humble and jazzy -> 2.7.0
 * chore: refactored cartesian velocity example controller to be gazebo independent by chaining `swerve_ik_controller`
