@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>franka_spine_server</name>
-  <version>3.2.2</version>
+  <version>4.0.0</version>
   <description>Action server for the Franka Spine, providing ROS 2 services and actions to control the spine via its
     REST API</description>
   <maintainer email="support@franka.de">Franka Robotics GmbH</maintainer>

@@ -1,8 +1,9 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-UNRELEASED
-----------
+v4.0.0 (2026-05-04)
+-------------------
+Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Jazzy
 
 * feat: Added the spline action server and examples for the Franka Spine
 * chore: refactored gazebo launch files, added integration tests

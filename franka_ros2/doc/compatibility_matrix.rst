@@ -20,6 +20,10 @@ Ubuntu 24.04.
      - libfranka Version
      - franka_description Version
 
+   * - >=v4.0.0
+     - >=0.20.4
+     - >=2.7.0
+
    * - >=v3.2.2
      - >=0.20.4
      - >=2.6.0
