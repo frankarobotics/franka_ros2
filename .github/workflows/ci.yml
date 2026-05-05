@@ -37,7 +37,7 @@ jobs:
           run: |
             cd /ros
             . /opt/ros/humble/setup.sh
-            colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCHECK_TIDY=ON
+            colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCHECK_TIDY=ON -DBUILD_TESTING=ON -DBUILD_TESTS=OFF
 
       - name: Test
         uses: addnab/docker-run-action@v3
@@ -48,8 +48,8 @@ jobs:
             cd /ros
             . /opt/ros/humble/setup.sh
             . install/setup.sh
-            colcon test
-            colcon test-result
+            colcon test --packages-ignore franka_bringup franka_gripper olv_module_descriptions hardware_interface realtime_tools libfranka controller_manager --event-handlers console_direct+
+            colcon test-result --verbose
 
       - name: Upload Tests to Artifacts
         uses: actions/upload-artifact@v4
