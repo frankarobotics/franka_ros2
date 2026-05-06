@@ -14,10 +14,10 @@ jobs:
 
       - uses: actions/checkout@v2
         with:
-          path: src/franka_ros2
+          path: src
 
       - name: VCS Import Dependencies
-        working-directory: src/franka_ros2
+        working-directory: src
         run: |
           sudo pip install vcstool
           vcs import < dependency.repos --recursive
@@ -48,7 +48,10 @@ jobs:
             cd /ros
             . /opt/ros/humble/setup.sh
             . install/setup.sh
-            colcon test --packages-ignore franka_bringup franka_gripper olv_module_descriptions hardware_interface realtime_tools libfranka controller_manager --event-handlers console_direct+
+            colcon test \
+              --packages-select-regex '^franka_(?!bringup$|gripper$)' \
+              --event-handlers console_direct+ \
+              --ctest-args --exclude-regex test_hardware
             colcon test-result --verbose
 
       - name: Upload Tests to Artifacts
