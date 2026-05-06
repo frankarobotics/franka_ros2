@@ -1,9 +1,9 @@
 name: CI
 on:
   push:
-    branches: [ jazzy, develop ]
+    branches: [ jazzy, jazzy-dev, develop ]
   pull_request:
-    branches: [ jazzy, develop ]
+    branches: [ jazzy, jazzy-dev, develop ]
 jobs:
   CI:
     runs-on: ubuntu-latest
@@ -48,7 +48,10 @@ jobs:
             cd /ros
             . /opt/ros/jazzy/setup.sh
             . install/setup.sh
-            colcon test --packages-ignore franka_bringup franka_gripper olv_module_descriptions hardware_interface realtime_tools libfranka controller_manager --event-handlers console_direct+
+            colcon test \
+              --packages-select-regex '^franka_(?!bringup$|gripper$)' \
+              --event-handlers console_direct+ \
+              --ctest-args --exclude-regex test_hardware
             colcon test-result --verbose
 
       - name: Upload Tests to Artifacts
