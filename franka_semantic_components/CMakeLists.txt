@@ -15,13 +15,14 @@ option(CHECK_TIDY "Adds clang-tidy tests" OFF)
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
     Franka
+    controller_interface
     franka_hardware
     franka_msgs
     geometry_msgs
-    sensor_msgs
     hardware_interface
     controller_interface
     rclcpp_lifecycle
+    sensor_msgs
     urdf)
 
 # find dependencies
@@ -62,7 +63,6 @@ if(BUILD_TESTING)
   find_package(ament_cmake_lint_cmake REQUIRED)
   find_package(ament_cmake_pep257 REQUIRED)
   find_package(ament_cmake_xmllint REQUIRED)
-  find_package(franka_msgs REQUIRED)
   find_package(ament_cmake_gmock REQUIRED)
 
   set(CPP_DIRECTORIES src include)
