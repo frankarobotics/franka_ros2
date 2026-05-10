@@ -16,6 +16,8 @@
   <depend>hardware_interface</depend>
   <depend>controller_interface</depend>
   <depend>franka_hardware</depend>
+  <depend>urdf</depend>
+  <depend>eigen</depend>
 
   <test_depend>ament_cmake_clang_format</test_depend>
   <test_depend>ament_cmake_copyright</test_depend>
