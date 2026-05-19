@@ -14,10 +14,10 @@ jobs:
 
       - uses: actions/checkout@v2
         with:
-          path: src/franka_ros2
+          path: src
 
       - name: VCS Import Dependencies
-        working-directory: src/franka_ros2
+        working-directory: src
         run: |
           sudo pip install vcstool
           vcs import < dependency.repos --recursive
