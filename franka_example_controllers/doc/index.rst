@@ -61,6 +61,10 @@ Joint Impedance FR3 Duo Example
 This example is designed for the FR3 Duo (dual-arm) setup. It moves joints 4 and 5 on both arms
 in a periodic, compliant movement. Only the torque (effort) command interface is supported.
 
+The controller subscribes to the ``collision_detected`` topic (best effort QoS) published by
+the self-collision monitor node. If no message is received within 0.5 s the controller aborts.
+Ensure ``check_selfcollision:=true`` is set in the launch file.
+
 .. code-block:: shell
 
     ros2 launch franka_bringup fr3_duo.launch.py \
@@ -80,6 +84,10 @@ It combines:
 * **Mobile base**: Cartesian velocity control for periodic forward/backward motion
 
 The controller integrates both arm and mobile base control in a single unified controller.
+
+The controller subscribes to the ``collision_detected`` topic (best effort QoS) published by
+the self-collision monitor node. If no message is received within 0.5 s the controller aborts.
+Ensure ``check_selfcollision:=true`` is set in the launch file.
 
 .. code-block:: shell
 

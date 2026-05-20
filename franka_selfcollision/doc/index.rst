@@ -19,6 +19,9 @@ It performs two main actions upon detecting a collision (or violation of the sec
 
 1. **Publishes Status:** Sends a boolean to the topic ``~/<node_name>/collision_detected``
    (where ``<node_name>`` is set via the ``name`` parameter in the launch file, default: ``self_collision_node``).
+   The topic uses **best effort** QoS (``rclcpp::SensorDataQoS``). Subscribers must use a
+   compatible QoS profile (e.g. ``rclcpp::SensorDataQoS()`` in C++ or
+   ``qos_profile_sensor_data`` in Python) to receive messages.
 2. **Logs Warning:** Prints the specific colliding link pairs to the console if enabled (throttled to 1Hz to prevent spam).
 
 Configuration

@@ -15,6 +15,7 @@
 #include <franka_example_controllers/mobile_fr3_duo/mobile_fr3_duo_joint_impedance_example_controller.hpp>
 #include <franka_example_controllers/robot_utils.hpp>
 
+#include <chrono>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -68,12 +69,15 @@ controller_interface::return_type MobileFr3DuoJointImpedanceExampleController::u
   updateJointStates();
 
   auto time_since_last_collision_msg =
-      (this->get_node()->now() - last_collision_msg_time_).seconds();
+      std::chrono::duration<double>(
+          std::chrono::nanoseconds(this->get_node()->now().nanoseconds()) -
+          std::chrono::nanoseconds(last_collision_msg_time_ns_.load()))
+          .count();
   if (time_since_last_collision_msg > 0.5) {
     RCLCPP_FATAL(get_node()->get_logger(), "Connection to collision node timed out!");
     return controller_interface::return_type::ERROR;
   }
-  if (collision_detected_) {
+  if (collision_detected_.load()) {
     RCLCPP_FATAL(get_node()->get_logger(), "Collision detected! Stopping controller.");
     return controller_interface::return_type::ERROR;
   }
@@ -152,9 +156,9 @@ CallbackReturn MobileFr3DuoJointImpedanceExampleController::on_configure(
   }
 
   collision_sub_ = get_node()->create_subscription<std_msgs::msg::Bool>(
-      kCollisionTopic, 1, [this](const std_msgs::msg::Bool::SharedPtr msg) {
-        this->collision_detected_ = msg->data;
-        this->last_collision_msg_time_ = this->get_node()->now();
+      kCollisionTopic, rclcpp::SensorDataQoS(), [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        this->collision_detected_.store(msg->data);
+        this->last_collision_msg_time_ns_.store(this->get_node()->now().nanoseconds());
       });
   RCLCPP_INFO(get_node()->get_logger(), "Self-collision checking enabled on topic: %s",
               kCollisionTopic);
@@ -180,8 +184,8 @@ CallbackReturn MobileFr3DuoJointImpedanceExampleController::on_activate(
                  kCollisionTopic);
     return CallbackReturn::FAILURE;
   }
-  last_collision_msg_time_ = this->get_node()->now();
-  collision_detected_ = false;
+  last_collision_msg_time_ns_.store(this->get_node()->now().nanoseconds());
+  collision_detected_.store(false);
 
   return CallbackReturn::SUCCESS;
 }
