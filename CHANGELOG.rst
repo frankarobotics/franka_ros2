@@ -1,6 +1,25 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+UNRELEASED
+----------
+Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Jazzy
+
+* BREAKING CHANGE: collision_detected topic now uses best_effort QoS (SensorDataQoS);
+  thread-safe atomics for collision state in example controllers.
+  Subscribers using the default ``reliable`` QoS will no longer receive messages.
+  To migrate, set the subscriber QoS to ``best_effort`` (``SensorDataQoS``):
+
+  .. code-block:: cpp
+
+     // Before (default reliable QoS — no longer receives messages):
+     auto sub = node->create_subscription<std_msgs::msg::Bool>(
+         "collision_detected", 1, callback);
+
+     // After (best_effort QoS):
+     auto sub = node->create_subscription<std_msgs::msg::Bool>(
+         "collision_detected", rclcpp::SensorDataQoS(), callback);
+
 v3.3.0 (2026-05-04)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Jazzy
@@ -65,7 +84,7 @@ remove the standalone hardware_interface fork; keep manage_overruns for async ha
 * refactor: FrankaHardwareInterface to use enums for the control mode
 * fix: ActionServers crashing when exception is not caught
 * fix: re-enable franka_gazebo_bringup launch tests with robust gz sim cleanup between tests
-* feat: replace std::mutex with prio_inherit_mutex in franka_hardware for RT safety 
+* feat: replace std::mutex with prio_inherit_mutex in franka_hardware for RT safety
 
 v3.2.2 (2026-03-03)
 -------------------
@@ -210,7 +229,7 @@ Requires libfranka >= 0.15.0 and franka_description >= 0.3.0 requires ROS 2 Humb
 
 
 0.1.15 (2024-06-21)
-----------------------
+-------------------
 
 Requires libfranka >= 0.13.2 and franka_description >= 0.3.0 requires ROS 2 Humble
 
@@ -219,7 +238,7 @@ Requires libfranka >= 0.13.2 and franka_description >= 0.3.0 requires ROS 2 Humb
 * fix: the joint-impedance-with-IK example to work without a gripper
 
 0.1.14 (2024-05-13)
-----------------------
+-------------------
 
 Requires libfranka >= 0.13.2, and franka_description >= 0.2.0 requires ROS 2 Humble
 
@@ -231,7 +250,7 @@ Requires libfranka >= 0.13.2, and franka_description >= 0.2.0 requires ROS 2 Hum
 * fix: franka_hardware prefixes the robot_state and robot model state interfaces with the read robot name from the urdf.
 
 0.1.13 (2024-01-18)
-----------------------
+-------------------
 
 Requires libfranka >= 0.13.2, requires ROS 2 Humble
 
@@ -239,7 +258,7 @@ Requires libfranka >= 0.13.2, requires ROS 2 Humble
 * fix: devcontainer typo
 
 0.1.12 (2024-01-12)
-----------------------
+-------------------
 
 Requires libfranka >= 0.13.2, requires ROS 2 Humble
 
@@ -247,7 +266,7 @@ Requires libfranka >= 0.13.2, requires ROS 2 Humble
 * feat: franka_state_broadcaster: Publish visualizable topics seperately.
 
 0.1.11 (2023-12-20)
-----------------------
+-------------------
 
 Requires libfranka >= 0.13.2, requires ROS 2 Humble
 
@@ -255,7 +274,7 @@ Requires libfranka >= 0.13.2, requires ROS 2 Humble
 * feat: franka_hardware: Register initial joint positions and cartesian pose state interface without having running command interfaces.
 
 0.1.10 (2023-12-04)
-----------------------
+-------------------
 
 Requires libfranka >= 0.13.0, required ROS 2 Humble
 
