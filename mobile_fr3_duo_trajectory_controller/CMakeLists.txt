@@ -67,7 +67,6 @@ pluginlib_export_plugin_description_file(controller_interface ${PROJECT_NAME}.xm
 install(
         TARGETS
         ${PROJECT_NAME}
-        ${PROJECT_NAME}_parameters
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
