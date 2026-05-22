@@ -52,7 +52,6 @@ def load_controller(context: LaunchContext, controller_name):
     )]
 
 
-
 def get_robot_description(context: LaunchContext, robot_type, load_gripper, franka_hand):
     robot_type_str = context.perform_substitution(robot_type)
     load_gripper_str = context.perform_substitution(load_gripper)
@@ -88,6 +87,7 @@ def get_robot_description(context: LaunchContext, robot_type, load_gripper, fran
         output='both',
         parameters=[robot_description],
     )]
+
 
 def generate_launch_description():
     # Configure ROS nodes for launch
@@ -129,7 +129,7 @@ def generate_launch_description():
         description='The controller name to be used. You can choose one from the franka_example_controllers.')
     gz_args_launch_argument = DeclareLaunchArgument(
         gz_args_name,
-        default_value='-r empty.sdf',
+        default_value='-r worlds/empty_no_gravity.sdf',
         description='Extra args to be forwared to gazebo')
     rviz_launch_argument = DeclareLaunchArgument(
         rviz_name,
@@ -142,8 +142,9 @@ def generate_launch_description():
         args=[robot_type, load_gripper, franka_hand])
 
     # Gazebo Sim
-    os.environ['GZ_SIM_RESOURCE_PATH'] = os.path.dirname(
-        get_package_share_directory('franka_description'))
+    os.environ['GZ_SIM_RESOURCE_PATH'] = os.pathsep.join([
+        os.path.dirname(get_package_share_directory('franka_description')),
+        get_package_share_directory('franka_gazebo_bringup')])
     gazebo_empty_world = IncludeLaunchDescription(
         PathJoinSubstitution([
             FindPackageShare('ros_gz_sim'),
@@ -166,7 +167,7 @@ def generate_launch_description():
                      executable='rviz2',
                      name='rviz2',
                      namespace=namespace,
-                     arguments=['--display-config', rviz_file, '-f', 'base_link'],
+                     arguments=['--display-config', rviz_file, '-f', 'world'],
                      condition=IfCondition(rviz))
 
     launch_controller = OpaqueFunction(

@@ -1,6 +1,11 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+UNRELEASED
+----------
+
+* fix: franka_gazebo_bringup: fix launch file for gazebo (use world without gravity by default for example controllers)
+
 v2.4.0 (2026-05-04)
 ----------
 Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Humble
