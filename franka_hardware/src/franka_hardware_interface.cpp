@@ -21,6 +21,7 @@
 #include <franka/logging/logger.hpp>
 #include <hardware_interface/handle.hpp>
 #include <hardware_interface/hardware_info.hpp>
+#include <hardware_interface/introspection.hpp>
 #include <hardware_interface/system_interface.hpp>
 #include <hardware_interface/types/hardware_interface_return_values.hpp>
 
@@ -190,6 +191,16 @@ CallbackReturn FrankaHardwareInterface::on_deactivate(
 
   active_mode_ = ControlInterface::None;
   needs_initial_command_ = true;
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn FrankaHardwareInterface::on_shutdown(
+    const rclcpp_lifecycle::State& /*previous_state*/) {
+  // The controller_manager's pal_statistics publisher threads outlive the ROS context on SIGINT,
+  // causing "context cannot be slept with because it's invalid!" errors. This callback runs
+  // inside the pre-shutdown sequence (context still valid), so destroying the registries here
+  // cleanly joins those threads before the context is invalidated.
+  CLEAR_ALL_ROS2_CONTROL_INTROSPECTION_REGISTRIES();
   return CallbackReturn::SUCCESS;
 }
 
