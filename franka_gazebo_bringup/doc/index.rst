@@ -104,16 +104,16 @@ also build ``franka_vision_and_manipulation_kit``:
 
     colcon build --packages-select franka_vision_and_manipulation_kit
     source install/setup.bash
-    ros2 launch franka_gazebo_bringup gazebo_fr3_duo_example.launch.py with_sensors:=true 
+    ros2 launch franka_gazebo_bringup gazebo_fr3_duo_example.launch.py with_sensors:=true
 
 .. note::
 
    The sensor suite integrates:
 
    - **franka_vision_and_manipulation_kit** provides 3 sensors (2 wrist D405 cameras, 1 ZED Mini head camera)
-   
+
    All sensors are properly attached to the robot kinematic tree, ensuring proper simulation and sensor data streaming.
-   
+
    **Important**: When using ``with_sensors:=true``, the Vision and Manipulation Kit includes Robotiq grippers.
 
 **Sensor Configuration with** ``with_sensors:=true``:
@@ -134,13 +134,13 @@ Head camera (ZED Mini):
 
 **Arguments:**
 
-- ``with_sensors``: If set to ``true``, uses the complete sensor-enhanced description from the Vision and Manipulation Kit sensors (``franka_vision_and_manipulation_kit``) 
+- ``with_sensors``: If set to ``true``, uses the complete sensor-enhanced description from the Vision and Manipulation Kit sensors (``franka_vision_and_manipulation_kit``)
   with Gazebo sensor plugins. Defaults to ``false``.
 - ``world``: SDF world filename inside ``franka_gazebo_bringup/worlds/`` to load.
   Overrides the default world selection.
 
 This will spawn two FR3 arms with gripper and wrist cameras, and start the joint impedance controller
-for both arms. RViz will also launch for visualization. 
+for both arms. RViz will also launch for visualization.
 
 Mobile FR3 Duo Example with Gazebo
 -----------------------------------
@@ -159,6 +159,12 @@ Now you can launch the mobile FR3 duo example with Gazebo:
 
     ros2 launch franka_gazebo_bringup gazebo_mobile_fr3_duo_example.launch.py
 
+.. note::
+
+   In simulation, a stub publisher sends ``false`` on ``/collision_detected`` with **best effort**
+   QoS at 10 Hz, replacing the real self-collision node. This prevents the impedance controller
+   from timing out on the collision topic.
+
 To launch with the complete sensor suite including both the mobile platform sensors and the Vision and Manipulation Kit sensors,
 also build ``franka_mobile_sensors`` and ``franka_vision_and_manipulation_kit``:
 
@@ -166,17 +172,17 @@ also build ``franka_mobile_sensors`` and ``franka_vision_and_manipulation_kit``:
 
     colcon build --packages-select franka_mobile_sensors franka_vision_and_manipulation_kit
     source install/setup.bash
-    ros2 launch franka_gazebo_bringup gazebo_mobile_fr3_duo_example.launch.py with_sensors:=true 
+    ros2 launch franka_gazebo_bringup gazebo_mobile_fr3_duo_example.launch.py with_sensors:=true
 
 .. note::
 
    The sensor suite integrates 10 sensors total from two packages:
-   
+
    - **franka_mobile_sensors** provides 7 sensors (4 RGB cameras, 2 LiDARs, 1 IMU)
    - **franka_vision_and_manipulation_kit** provides 3 sensors (2 wrist D405 cameras, 1 ZED Mini head camera)
-   
+
    All sensors are properly attached to the robot kinematic tree, ensuring proper simulation and sensor data streaming.
-   
+
    **Important**: When using ``with_sensors:=true``, the Vision and Manipulation Kit includes Robotiq grippers.
 
 **Sensor Configuration with** ``with_sensors:=true``:
@@ -211,8 +217,8 @@ Head camera (ZED Mini):
 
 **Arguments:**
 
-- ``with_sensors``: If set to ``true``, uses the complete sensor-enhanced description with both mobile platform sensors 
-  (``franka_mobile_sensors``) and Vision and Manipulation Kit sensors (``franka_vision_and_manipulation_kit``) 
+- ``with_sensors``: If set to ``true``, uses the complete sensor-enhanced description with both mobile platform sensors
+  (``franka_mobile_sensors``) and Vision and Manipulation Kit sensors (``franka_vision_and_manipulation_kit``)
   with Gazebo sensor plugins. Defaults to ``false``.
 - ``world``: SDF world filename inside ``franka_gazebo_bringup/worlds/`` to load.
   Overrides the default world selection.

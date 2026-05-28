@@ -9,6 +9,21 @@
 > **Small, surgical edits only.** Never rewrite this file wholesale. Use targeted
 > insertions or replacements to add or update individual entries. This keeps diffs
 > reviewable and avoids accidentally dropping existing content.
+>
+> **Keep skills fresh.** When you discover a significant finding during a task
+> (new command, changed workflow, gotcha, or fix) that falls within the scope of
+> an existing skill in `.github/skills/`, ask the user whether to update that
+> skill's `SKILL.md` with the new knowledge. Treat skills as living references —
+> stale skills are worse than no skills.
+>
+> **Changelog discipline.** Before concluding a conversation that involved code
+> changes, check the current git branch name (`git rev-parse --abbrev-ref HEAD`)
+> to infer the task scope. One changelog entry per branch is expected. Follow the
+> format and placement rules in `.github/skills/audit-docs/SKILL.md` §Changelog
+> Verification. If no matching entry exists, ask the user whether to add one.
+> **Only check once per conversation** — if you notice you have already checked
+> or are repeatedly checking the changelog in the same session, stop and propose
+> updating this instruction or the `audit-docs` skill to reduce redundancy.
 
 ## Project Overview
 

@@ -94,6 +94,7 @@ def get_self_collision_node(context: LaunchContext, load_gripper, franka_hand, w
         cmd=[
             'ros2', 'topic', 'pub',
             '-r', '10',
+            '--qos-reliability', 'best_effort',
             '/collision_detected',
             'std_msgs/msg/Bool',
             'data: false',

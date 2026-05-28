@@ -6,6 +6,7 @@
     "service": "franka_ros2_jazzy",
     "workspaceFolder": "/ros2_ws",
     "initializeCommand": "echo \"USER_UID=$(id -u $USER)\nUSER_GID=$(id -g $USER)\" > .env",
+    "postCreateCommand": "ln -sfn src/.github /ros2_ws/.github",
     "customizations": {
         "vscode": {
             "extensions": [

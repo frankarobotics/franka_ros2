@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <string>
 
 #include <Eigen/Eigen>
@@ -58,8 +59,8 @@ class JointImpedanceFr3DuoExampleController : public controller_interface::Contr
 
   // Self-collision checking
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr collision_sub_;
-  bool collision_detected_{false};
-  rclcpp::Time last_collision_msg_time_;
+  std::atomic<bool> collision_detected_{false};
+  std::atomic<int64_t> last_collision_msg_time_ns_{0};
   static constexpr auto kCollisionTopic = "collision_detected";
 
   void updateJointStates();

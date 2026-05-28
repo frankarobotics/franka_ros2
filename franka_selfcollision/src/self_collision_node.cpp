@@ -29,7 +29,8 @@ CollisionMonitorNode::CollisionMonitorNode(const rclcpp::NodeOptions& options)
   this->declare_parameter("print_collisions", false);
   this->declare_parameter("robot_description_semantic", "");
 
-  collision_pub_ = this->create_publisher<std_msgs::msg::Bool>("collision_detected", 1);
+  collision_pub_ =
+      this->create_publisher<std_msgs::msg::Bool>("collision_detected", rclcpp::SensorDataQoS());
 }
 
 void CollisionMonitorNode::setup_collision_monitor(const std::string& robot_description) {
