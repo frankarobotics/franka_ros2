@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<!--
+  fr3_vision_env.urdf.xacro  — Phase 4 "Gazebo Physics" (world-link-collision fix)
+
+  ROOT CAUSE of previous crash:
+    When gazebo:=true, franka_description's franka_robot.xacro already emits:
+        <link name="world"/>
+        <joint name="world_joint" type="fixed">
+          <parent link="world"/> <child link="base"/>
+        </joint>
+    Our file was also declaring <link name="world"/>, making it non-unique.
+    URDF is strict: duplicate link names are a fatal parse error.
+
+  FIX:
+    Remove our <link name="world"/> and <joint name="robot_to_world"> entirely.
+    The upstream xacro provides the world anchor when gazebo:=true.
+    The camera is attached to fr3_link0 (unchanged).
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fr3_vision">
+
+  <!-- ── Parameters forwarded to franka_description ──────────────────────── -->
+  <xacro:arg name="hand"                 default="true"/>
+  <xacro:arg name="ros2_control"         default="true"/>
+  <xacro:arg name="use_fake_hardware"    default="false"/>
+  <xacro:arg name="fake_sensor_commands" default="false"/>
+  <xacro:arg name="gazebo"               default="true"/>
+  <xacro:arg name="gazebo_effort"        default="false"/>
+
+  <!--
+    This include, with gazebo:=true, injects:
+      • All FR3 links/joints/meshes/inertials
+      • <link name="world"/> + world→base fixed joint  ← DO NOT duplicate
+      • <ros2_control> block using ign_ros2_control/IgnitionSystem
+      • <gazebo> plugin tag for IgnitionROS2ControlPlugin
+  -->
+  <xacro:include filename="$(find franka_description)/robots/fr3/fr3.urdf.xacro"/>
+
+  <!--
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  NO <link name="world"/> here — franka_description owns it  ║
+    ╚══════════════════════════════════════════════════════════════╝
+
+    Camera is parented to fr3_link0 (the robot's base footprint link)
+    which is already connected to world via the upstream xacro.
+  -->
+
+  <!-- ── Overhead camera link ───────────────────────────────────────────────
+    Must have <inertial> — Ignition collapses mass-less links into their
+    parent during URDF→SDF conversion, silently deleting any sensor on them.
+  -->
+  <link name="camera_link">
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0"
+                          iyy="1e-4" iyz="0"
+                                     izz="1e-4"/>
+    </inertial>
+    <visual>
+      <geometry><box size="0.025 0.090 0.025"/></geometry>
+      <material name="black"><color rgba="0.1 0.1 0.1 1"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.025 0.090 0.025"/></geometry>
+    </collision>
+  </link>
+
+  <!-- 0.5 m forward, 1.0 m up from robot base, pitched 90° to look straight down -->
+  <joint name="camera_joint" type="fixed">
+    <parent link="fr3_link0"/>
+    <child  link="camera_link"/>
+    <origin xyz="0.5 0.0 1.0" rpy="0 ${pi/2} 0"/>
+  </joint>
+
+  <!-- ── Ignition Gazebo RGBD camera sensor ────────────────────────────────
+    Bridged topics (via ros_gz_bridge in launch file):
+      /camera/image          RGB frames
+      /camera/depth_image    float32 depth in metres
+      /camera/camera_info    intrinsic matrix K
+      /camera/points         PointCloud2
+  -->
+  <gazebo reference="camera_link">
+    <sensor type="rgbd_camera" name="overhead_rgbd">
+      <ignition_frame_id>camera_link</ignition_frame_id>
+      <always_on>1</always_on>
+      <update_rate>30</update_rate>
+      <visualize>1</visualize>
+      <topic>/camera</topic>
+      <camera name="overhead_rgbd_cam">
+        <horizontal_fov>1.2</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>5.0</far>
+        </clip>
+      </camera>
+      <plugin filename="libignition-gazebo-sensors-system.so"
+              name="ignition::gazebo::systems::Sensors">
+        <render_engine>ogre2</render_engine>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>

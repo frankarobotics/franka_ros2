@@ -1,0 +1,64 @@
+# fr3_gazebo_controllers.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# This file is used by the gz_ros2_control Gazebo plugin (injected by
+# franka_description when gazebo:=true).  It REPLACES franka_fr3_moveit_config's
+# fr3_ros_controllers.yaml for the Gazebo context because:
+#
+#   1. The hardware exposes position/velocity interfaces, NOT effort.
+#      (effort interfaces are disabled in gz_ros2_control for FR3 due to a
+#       known upstream bug: github.com/ros-controls/gz_ros2_control/issues/343)
+#
+#   2. JointTrajectoryController must use the same interface type that the
+#      hardware actually claims — using "effort" here causes the controller
+#      to fail to activate silently.
+#
+# MoveIt will send JointTrajectory messages to /fr3_arm_controller/
+# joint_trajectory which this controller forwards to Gazebo physics.
+# ─────────────────────────────────────────────────────────────────────────────
+
+/**:
+  controller_manager:
+    ros__parameters:
+      update_rate: 500  # Hz — lower than real robot, stable for Gazebo
+
+      joint_state_broadcaster:
+        type: joint_state_broadcaster/JointStateBroadcaster
+
+      fr3_arm_controller:
+        type: joint_trajectory_controller/JointTrajectoryController
+
+/**:
+  fr3_arm_controller:
+    ros__parameters:
+      # ── CRITICAL: must match available hardware command interfaces ──────────
+      # The gz_ros2_control GazeboSimSystem exposes position and velocity.
+      # Effort is NOT available (upstream bug — see comment above).
+      command_interfaces:
+        - position
+
+      state_interfaces:
+        - position
+        - velocity
+
+      joints:
+        - fr3_joint1
+        - fr3_joint2
+        - fr3_joint3
+        - fr3_joint4
+        - fr3_joint5
+        - fr3_joint6
+        - fr3_joint7
+
+      # Allow trajectory goals without explicit time constraints
+      allow_nonzero_velocity_at_trajectory_end: false
+
+      # These PID gains tune the position controller in Gazebo.
+      # If the arm oscillates, lower the p values.
+      gains:
+        fr3_joint1: { p: 500.0, d: 25.0, i: 0.0, i_clamp: 1.0 }
+        fr3_joint2: { p: 500.0, d: 25.0, i: 0.0, i_clamp: 1.0 }
+        fr3_joint3: { p: 500.0, d: 25.0, i: 0.0, i_clamp: 1.0 }
+        fr3_joint4: { p: 500.0, d: 25.0, i: 0.0, i_clamp: 1.0 }
+        fr3_joint5: { p: 200.0, d:  8.0, i: 0.0, i_clamp: 1.0 }
+        fr3_joint6: { p: 120.0, d:  8.0, i: 0.0, i_clamp: 1.0 }
+        fr3_joint7: { p:  40.0, d:  4.0, i: 0.0, i_clamp: 1.0 }
