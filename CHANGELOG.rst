@@ -5,6 +5,9 @@ UNRELEASED
 ----------
 
 * fix: franka_gazebo_bringup: fix launch file for gazebo (use world without gravity by default for example controllers)
+Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Humble
+
+* feat: Added franka_spine packages (franka_spine_msgs, franka_spine_server, franka_spine_examples) — ROS 2 action/service server for controlling the Franka Spine module
 
 v2.4.0 (2026-05-04)
 ----------
