@@ -195,11 +195,7 @@ class TestExampleController(unittest.TestCase):
         rclpy.shutdown()
 
     def test_has_no_error(self, proc_output):
-        """Check if any error messages have been logged.
-        
-        Note: Ignores harmless shutdown errors from pal_statistics module which occur
-        during ROS context shutdown and do not affect controller operation.
-        """
+        """Check if any error messages have been logged."""
         # Collect all output text from all processes
         output_lines = []
         for event in proc_output:
@@ -209,10 +205,9 @@ class TestExampleController(unittest.TestCase):
 
         all_output = '\n'.join(output_lines)
 
-        # Filter out the expected pal_statistics shutdown error
         lines_with_errors = [
             line for line in all_output.split('\n')
-            if '[ERROR]' in line and 'pal_statistics' not in line
+            if '[ERROR]' in line
         ]
 
         assert len(lines_with_errors) == 0, \
