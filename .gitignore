@@ -1,6 +1,7 @@
 .env
 .idea
 .vscode
+.devcontainer/devcontainer-lock.json
 *.pyc
 COLCON_IGNORE
 AMENT_IGNORE
