@@ -120,6 +120,9 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   std::array<double, 16> cartesian_pose_state_{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
   std::array<double, 2> elbow_state_{0, 0};
 
+  // External wrench estimated in stiffness frame (K_F_ext_hat_K)
+  std::array<double, 6> force_torque_sensor_state_{0, 0, 0, 0, 0, 0};
+
   /**
    * Desired Cartesian velocity with respect to the o-frame
    * "base frame O" with (vx, vy, vz)\ in [m/s] and

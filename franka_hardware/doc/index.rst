@@ -35,10 +35,18 @@ In addition to joint interfaces, the hardware plugin provides:
 
 * a ``franka_robot_state`` that contains the robot state information, `franka_robot_state <https://shorturl.at/wajZV>`_.
 * a ``franka_robot_model_interface`` that contains the pointer to the model object.
+* a ``ForceTorqueSensor`` (``<arm_prefix><robot_type>_tcp``) that exposes the estimated
+  external wrench in the stiffness frame (``K_F_ext_hat_K`` from libfranka) as six state
+  interfaces: ``force.x``, ``force.y``, ``force.z``, ``torque.x``, ``torque.y``, ``torque.z``.
 
 .. important::
     ``franka_robot_state`` and ``franka_robot_model_interface`` state interfaces should not be used directly from hardware state interface.
     Rather, they should be utilized by the :doc:`franka_semantic_components <../../franka_semantic_components/doc/index>` interface.
+
+    The ``ForceTorqueSensor`` interfaces follow the standard ``ros2_control`` sensor convention
+    and can be consumed directly via the ``semantic_components::ForceTorqueSensor`` component
+    in any controller (e.g. the admittance controller) without requiring a topic bridge.
+    See the gravity compensation example controller for usage.
 
 Configuration
 -------------
