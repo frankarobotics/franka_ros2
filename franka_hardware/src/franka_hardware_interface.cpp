@@ -117,6 +117,14 @@ std::vector<StateInterface> FrankaHardwareInterface::export_state_interfaces() {
   state_interfaces.emplace_back(
       StateInterface(prefix_ + robot_type_, "robot_time", &robot_time_state_));
 
+  // Force/torque sensor state interfaces (loaded from URDF sensor declarations)
+  for (const auto& sensor : info_.sensors) {
+    for (size_t i = 0; i < sensor.state_interfaces.size(); i++) {
+      state_interfaces.emplace_back(StateInterface(sensor.name, sensor.state_interfaces[i].name,
+                                                   &force_torque_sensor_state_[i]));
+    }
+  }
+
   return state_interfaces;
 }
 
@@ -245,6 +253,7 @@ hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time
   hw_efforts_ = hw_franka_robot_state_.tau_J;
   elbow_state_ = hw_franka_robot_state_.elbow;
   cartesian_pose_state_ = hw_franka_robot_state_.O_T_EE;
+  force_torque_sensor_state_ = hw_franka_robot_state_.K_F_ext_hat_K;
 
   return hardware_interface::return_type::OK;
 }

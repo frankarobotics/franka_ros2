@@ -32,7 +32,11 @@ GravityCompensationExampleController::command_interface_configuration() const {
 
 controller_interface::InterfaceConfiguration
 GravityCompensationExampleController::state_interface_configuration() const {
-  return {};
+  controller_interface::InterfaceConfiguration config;
+  config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+  auto ft_interface_names = force_torque_sensor_->get_state_interface_names();
+  config.names.insert(config.names.end(), ft_interface_names.begin(), ft_interface_names.end());
+  return config;
 }
 
 controller_interface::return_type GravityCompensationExampleController::update(
@@ -41,6 +45,18 @@ controller_interface::return_type GravityCompensationExampleController::update(
   for (auto& command_interface : command_interfaces_) {
     command_interface.set_value(0);
   }
+
+  constexpr size_t kLogEveryN = 100;
+  if (++log_counter_ >= kLogEveryN) {
+    log_counter_ = 0;
+    geometry_msgs::msg::Wrench wrench;
+    force_torque_sensor_->get_values_as_message(wrench);
+    RCLCPP_INFO(get_node()->get_logger(),
+                "External wrench (stiffness frame): F=[%.2f, %.2f, %.2f] T=[%.2f, %.2f, %.2f]",
+                wrench.force.x, wrench.force.y, wrench.force.z, wrench.torque.x, wrench.torque.y,
+                wrench.torque.z);
+  }
+
   return controller_interface::return_type::OK;
 }
 
@@ -49,6 +65,22 @@ CallbackReturn GravityCompensationExampleController::on_configure(
   robot_type_ = get_node()->get_parameter("robot_type").as_string();
   arm_prefix_ = get_node()->get_parameter("arm_prefix").as_string();
   arm_prefix_ = arm_prefix_.empty() ? "" : arm_prefix_ + "_";
+
+  force_torque_sensor_ =
+      std::make_unique<semantic_components::ForceTorqueSensor>(arm_prefix_ + robot_type_ + "_tcp");
+
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn GravityCompensationExampleController::on_activate(
+    const rclcpp_lifecycle::State& /*previous_state*/) {
+  force_torque_sensor_->assign_loaned_state_interfaces(state_interfaces_);
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn GravityCompensationExampleController::on_deactivate(
+    const rclcpp_lifecycle::State& /*previous_state*/) {
+  force_torque_sensor_->release_interfaces();
   return CallbackReturn::SUCCESS;
 }
 
