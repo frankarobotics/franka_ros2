@@ -1,52 +1,48 @@
 <?xml version="1.0"?>
 <!--
-  fr3_vision_env.urdf.xacro  — Phase 4 "Gazebo Physics" (world-link-collision fix)
+  fr3_vision_env.urdf.xacro  —  Phase 4 FINAL
+  =============================================
+  Adds the overhead RGBD camera to the standard FR3 description.
 
-  ROOT CAUSE of previous crash:
-    When gazebo:=true, franka_description's franka_robot.xacro already emits:
-        <link name="world"/>
-        <joint name="world_joint" type="fixed">
-          <parent link="world"/> <child link="base"/>
-        </joint>
-    Our file was also declaring <link name="world"/>, making it non-unique.
-    URDF is strict: duplicate link names are a fatal parse error.
+  IMPORTANT — world link:
+    When gazebo:=true (which we always pass from sim.launch.py), the included
+    franka_description xacro ALREADY generates:
+      <link name="world"/>
+      <joint name="world_joint" type="fixed"> world → base </joint>
+    Do NOT redeclare world here — that causes a fatal "link is not unique" error.
+    The camera joint is parented to fr3_link0, which is already in the tree.
 
-  FIX:
-    Remove our <link name="world"/> and <joint name="robot_to_world"> entirely.
-    The upstream xacro provides the world anchor when gazebo:=true.
-    The camera is attached to fr3_link0 (unchanged).
+  Args passed from sim.launch.py:
+    hand:=true
+    ros2_control:=true
+    gazebo:=true        ← triggers world link + Gazebo plugin in franka_description
+    use_fake_hardware:=false
+    fake_sensor_commands:=false
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fr3_vision">
 
-  <!-- ── Parameters forwarded to franka_description ──────────────────────── -->
+  <!-- ── Declare all args so xacro doesn't warn about undeclared overrides ── -->
   <xacro:arg name="hand"                 default="true"/>
   <xacro:arg name="ros2_control"         default="true"/>
+  <xacro:arg name="gazebo"               default="true"/>
   <xacro:arg name="use_fake_hardware"    default="false"/>
   <xacro:arg name="fake_sensor_commands" default="false"/>
-  <xacro:arg name="gazebo"               default="true"/>
-  <xacro:arg name="gazebo_effort"        default="false"/>
+  <xacro:arg name="robot_ip"             default="dont-care"/>
+  <xacro:arg name="robot_type"           default="fr3"/>
 
-  <!--
-    This include, with gazebo:=true, injects:
-      • All FR3 links/joints/meshes/inertials
-      • <link name="world"/> + world→base fixed joint  ← DO NOT duplicate
-      • <ros2_control> block using ign_ros2_control/IgnitionSystem
-      • <gazebo> plugin tag for IgnitionROS2ControlPlugin
+  <!-- ── Official FR3 arm description ──────────────────────────────────────
+       All args are forwarded through to fr3.urdf.xacro via the command-line
+       xacro argument mechanism (xacro shares args across includes).
+       With gazebo:=true this also generates:
+         - <ros2_control> hardware block  (gz_ros2_control/GazeboSimSystem)
+         - <gazebo><plugin>               (ign_ros2_control/IgnitionROS2ControlPlugin)
+         - <link name="world"/>  +  world_joint
   -->
   <xacro:include filename="$(find franka_description)/robots/fr3/fr3.urdf.xacro"/>
 
-  <!--
-    ╔══════════════════════════════════════════════════════════════╗
-    ║  NO <link name="world"/> here — franka_description owns it  ║
-    ╚══════════════════════════════════════════════════════════════╝
-
-    Camera is parented to fr3_link0 (the robot's base footprint link)
-    which is already connected to world via the upstream xacro.
-  -->
-
   <!-- ── Overhead camera link ───────────────────────────────────────────────
-    Must have <inertial> — Ignition collapses mass-less links into their
-    parent during URDF→SDF conversion, silently deleting any sensor on them.
+       MUST have <inertial> — Ignition Gazebo collapses massless links into
+       their parent during URDF→SDF conversion, silently deleting the sensor.
   -->
   <link name="camera_link">
     <inertial>
@@ -65,28 +61,28 @@
     </collision>
   </link>
 
-  <!-- 0.5 m forward, 1.0 m up from robot base, pitched 90° to look straight down -->
+  <!--
+    Mount the camera 0.5 m forward and 1.0 m above fr3_link0,
+    pitched 90° so it looks straight down.
+  -->
   <joint name="camera_joint" type="fixed">
     <parent link="fr3_link0"/>
     <child  link="camera_link"/>
     <origin xyz="0.5 0.0 1.0" rpy="0 ${pi/2} 0"/>
   </joint>
 
-  <!-- ── Ignition Gazebo RGBD camera sensor ────────────────────────────────
-    Bridged topics (via ros_gz_bridge in launch file):
-      /camera/image          RGB frames
-      /camera/depth_image    float32 depth in metres
-      /camera/camera_info    intrinsic matrix K
-      /camera/points         PointCloud2
+  <!-- ── Ignition Gazebo RGBD sensor ───────────────────────────────────────
+       Publishes on /camera/{image,depth_image,points,camera_info}.
+       Bridged to ROS 2 topics by ros_gz_bridge in sim.launch.py.
   -->
   <gazebo reference="camera_link">
-    <sensor type="rgbd_camera" name="overhead_rgbd">
+    <sensor type="rgbd_camera" name="realsense_d435">
       <ignition_frame_id>camera_link</ignition_frame_id>
       <always_on>1</always_on>
       <update_rate>30</update_rate>
       <visualize>1</visualize>
       <topic>/camera</topic>
-      <camera name="overhead_rgbd_cam">
+      <camera name="overhead_rgbd">
         <horizontal_fov>1.2</horizontal_fov>
         <image>
           <width>640</width>

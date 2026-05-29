@@ -1,0 +1,30 @@
+# fr3_gazebo_position_controller.yaml
+#
+# Passed via spawner --param-file. The controller manager reads this to configure
+# fr3_arm_controller's own parameters AFTER the type is provided via --controller-type.
+# Do NOT put controller_manager.ros__parameters here — that section is ignored
+# when passed to an already-running controller_manager via --param-file.
+#
+# open_loop_control: true — sends position setpoints directly to hardware,
+# no PID feedback loop. No gains needed. Correct for Gazebo position interface.
+
+fr3_arm_controller:
+  ros__parameters:
+    joints:
+      - fr3_joint1
+      - fr3_joint2
+      - fr3_joint3
+      - fr3_joint4
+      - fr3_joint5
+      - fr3_joint6
+      - fr3_joint7
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_partial_joints_goal: true
+    open_loop_control: true
+    constraints:
+      stopped_velocity_tolerance: 0.05
+      goal_time: 0.0
