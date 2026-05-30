@@ -1,18 +1,12 @@
 #!groovy
+@Library('fe-gitlab-pipeline-steps@lts-2.2') _
+import de.franka.jenkins.FePipelineOptionDefaults
 pipeline {
-
-  libraries {
-    lib('fe-pipeline-steps')
-  }
 
   agent {
     node {
       label 'fepc-lx010'
     }
-  }
-
-  triggers {
-    pollSCM('H/5 * * * *')
   }
 
   parameters {
@@ -41,10 +35,16 @@ pipeline {
             description: "The static IP of the robot to run tests onto")
   }
 
-
   stages {
     stage('Get Ready') {
-      options { skipDefaultCheckout true }
+      options { skipDefaultCheckout true           gitLabConnection(FePipelineOptionDefaults.GITLAB_CONNECTION)
+          buildDiscarder(logRotator(
+              numToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.numToKeepStr,
+              daysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.daysToKeepStr,
+              artifactNumToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.artifactNumToKeepStr,
+              artifactDaysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.artifactDaysToKeepStr
+          ))
+}
       steps {
         script{
           cleanWs()
@@ -58,7 +58,6 @@ pipeline {
             ]
         ])
         script {
-          notifyBitbucket()
           currentBuild.displayName = "[libfranka: ${params.libfrankaBranch}, franka_description: ${params.frankaDescriptionBranch}]"
         }
       }
@@ -222,7 +221,7 @@ pipeline {
       always {
           script {
               cleanWs()
-              notifyBitbucket()
+              feNotifySCM(currentBuild.result)
           }
       }
   }
