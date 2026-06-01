@@ -79,7 +79,7 @@ swerve_drive_controller:
         has_acceleration_limits: true
         max_acceleration       : 2.5  # m/s^2
         min_acceleration       : -2.5 # m/s^2
-        has_jerk_limits        : false
+        has_jerk_limits        : true
         max_jerk               : 10.0  # m/s^3
         min_jerk               : -10.0  # m/s^3
       y:
@@ -89,7 +89,7 @@ swerve_drive_controller:
         has_acceleration_limits: true
         max_acceleration       : 2.5  # m/s^2
         min_acceleration       : -2.5 # m/s^2
-        has_jerk_limits        : false
+        has_jerk_limits        : true
         max_jerk               : 10.0  # m/s^3
         min_jerk               : -10.0  # m/s^3
     angular:
@@ -100,7 +100,7 @@ swerve_drive_controller:
         has_acceleration_limits: true
         max_acceleration       : 7.5  # rad/s^2
         min_acceleration       : -7.5  # rad/s^2
-        has_jerk_limits        : false
+        has_jerk_limits        : true
         max_jerk               : 10.0  # rad/s^3
         min_jerk               : -10.0  # rad/s^3
 

@@ -8,6 +8,11 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 J
 * feat: expose ``K_F_ext_hat_K`` as ``ForceTorqueSensor`` state interfaces (force.x/y/z,
   torque.x/y/z) on the ``<arm_prefix><robot_type>_tcp`` sensor, enabling direct wrench
   consumption at control frequency without a topic bridge.
+* fix(franka_mobile): enable jerk limiting on the swerve_drive_controller velocity
+  limiter (linear x/y, angular z) so the commanded base velocity ramps with a bounded
+  acceleration onset, preventing the firmware ``cartesian_motion_generator_velocity_discontinuity``
+  reflex from aborting base motion when switching between whole-body and base-only control.
+  The rate-limiter timestep is fixed at the nominal 1 kHz control period.
 * BREAKING CHANGE: collision_detected topic now uses best_effort QoS (SensorDataQoS);
   thread-safe atomics for collision state in example controllers.
   Subscribers using the default ``reliable`` QoS will no longer receive messages.

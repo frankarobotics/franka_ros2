@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
       args:
         - USER_UID=${USER_UID}
         - USER_GID=${USER_GID}

@@ -98,11 +98,11 @@ swerve_drive_controller:
       }
       has_acceleration_limits: {
         type: bool,
-        default_value: false,
+        default_value: true,
       }
       has_jerk_limits: {
         type: bool,
-        default_value: false,
+        default_value: true,
       }
       max_velocity: {
         type: double,
@@ -114,11 +114,11 @@ swerve_drive_controller:
       }
       max_acceleration: {
         type: double,
-        default_value: .NAN,
+        default_value: 3.0,
       }
       min_acceleration: {
         type: double,
-        default_value: .NAN,
+        default_value: -3.0,
       }
       max_jerk: {
         type: double,
@@ -135,11 +135,11 @@ swerve_drive_controller:
       }
       has_acceleration_limits: {
         type: bool,
-        default_value: false,
+        default_value: true,
       }
       has_jerk_limits: {
         type: bool,
-        default_value: false,
+        default_value: true,
       }
       max_velocity: {
         type: double,
@@ -151,11 +151,11 @@ swerve_drive_controller:
       }
       max_acceleration: {
         type: double,
-        default_value: .NAN,
+        default_value: 3.0,
       }
       min_acceleration: {
         type: double,
-        default_value: .NAN,
+        default_value: -3.0,
       }
       max_jerk: {
         type: double,
@@ -173,11 +173,11 @@ swerve_drive_controller:
       }
       has_acceleration_limits: {
         type: bool,
-        default_value: false,
+        default_value: true,
       }
       has_jerk_limits: {
         type: bool,
-        default_value: false,
+        default_value: true,
       }
       max_velocity: {
         type: double,
@@ -189,11 +189,11 @@ swerve_drive_controller:
       }
       max_acceleration: {
         type: double,
-        default_value: .NAN,
+        default_value: 5.0,
       }
       min_acceleration: {
         type: double,
-        default_value: .NAN,
+        default_value: -5.0,
       }
       max_jerk: {
         type: double,
