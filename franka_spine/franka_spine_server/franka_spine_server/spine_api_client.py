@@ -22,7 +22,7 @@ import requests
 class SpineApiClient:
     """Client for the Franka Spine REST API."""
 
-    def __init__(self, spine_ip: str, timeout: float = 5.0):
+    def __init__(self, spine_ip: str, timeout: float):
         """
         Initialize the Spine API client.
 
