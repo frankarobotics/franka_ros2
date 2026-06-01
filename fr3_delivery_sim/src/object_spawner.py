@@ -14,8 +14,11 @@ from ros_gz_interfaces.msg import EntityFactory
 from geometry_msgs.msg import Pose
 
 # ── Workspace bounds ──────────────────────────────────────────────────────────
-X_MIN, X_MAX =  0.30,  0.70   # metres forward from robot base
-Y_MIN, Y_MAX = -0.25,  0.25   # metres lateral
+# Pulled 5 cm inside the arm's reachable workspace on every side so that
+# small depth-image measurement errors near the image edges never push the
+# reconstructed block position beyond the arm's comfortable reach.
+X_MIN, X_MAX =  0.35,  0.60   # metres forward from robot base
+Y_MIN, Y_MAX = -0.20,  0.20   # metres lateral
 CUBE_HALF_HEIGHT = 0.025      # cube is 0.05 m, so z = 0.025 sits on the floor
 
 # ── SDF template for the red cube ─────────────────────────────────────────────

@@ -19,6 +19,7 @@ install(PROGRAMS
   src/object_spawner.py
   src/vision_detector.py
   src/pick_and_place.py
+  src/arm_mover.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

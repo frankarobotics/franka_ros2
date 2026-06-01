@@ -53,10 +53,16 @@ APPROACH_HEIGHT = 0.15
 PICK_HEIGHT     = 0.01
 
 # Camera pose in fr3_link0 frame (URDF: xyz="0.5 0 1.0" rpy="0 pi/2 0")
+# Ignition Gazebo camera looks along camera_link +X axis (not +Z).
+# Camera K-frame: +x=image-right=camera_link+Y, +y=image-down=camera_link+Z, +z=depth=camera_link+X
+# CAM_R columns = each K-frame axis expressed in fr3_link0 (using Ry(pi/2)):
+#   K+x (right)  = cam_link +Y → fr3  [0, 1, 0]
+#   K+y (down)   = cam_link +Z → fr3  [1, 0, 0]
+#   K+z (depth)  = cam_link +X → fr3  [0, 0,-1]  (camera looks DOWN = fr3 -Z)
 CAM_POS = np.array([0.5, 0.0, 1.0])
-CAM_R   = np.array([[ 0.,  0.,  1.],
-                     [ 0.,  1.,  0.],
-                     [-1.,  0.,  0.]])
+CAM_R   = np.array([[ 0.,  1.,  0.],
+                     [ 1.,  0.,  0.],
+                     [ 0.,  0., -1.]])
 FLOOR_Z = 0.025
 
 
@@ -223,7 +229,7 @@ class PickAndPlace(Node):
             pt = self._ray_floor_3d(px.x, px.y)
         if pt is None:
             return None
-        if not (0.05 < pt[0] < 1.5 and -0.8 < pt[1] < 0.8 and -0.1 < pt[2] < 0.6):
+        if not (0.05 < pt[0] < 1.5 and -0.8 < pt[1] < 0.8 and -0.1 < pt[2] < 0.15):
             self.get_logger().warn(f'Block at {pt} outside workspace')
             return None
         return pt
@@ -265,7 +271,7 @@ class PickAndPlace(Node):
                 continue
 
             rf = f.result().get_result_async()
-            if not self._poll(rf, 30.0):
+            if not self._poll(rf, 60.0):
                 self.get_logger().error('Planning timed out')
                 continue
 
@@ -335,8 +341,8 @@ class PickAndPlace(Node):
     def _pose_req(self, x, y, z, vel=0.2) -> MotionPlanRequest:
         req = MotionPlanRequest()
         req.group_name = 'fr3_arm'
-        req.num_planning_attempts = 10
-        req.allowed_planning_time = 15.0
+        req.num_planning_attempts = 15
+        req.allowed_planning_time = 20.0
         req.max_velocity_scaling_factor = vel
         req.max_acceleration_scaling_factor = 0.15
         req.workspace_parameters.header.frame_id = 'fr3_link0'
