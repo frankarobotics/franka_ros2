@@ -1,0 +1,20 @@
+# This file is passed to the move_group process as a --params-file.
+# Because moveit_simple_controller_manager is a standalone rclcpp::Node
+# created inside move_group's process, params files passed to move_group
+# are visible to it — and ROS 2 matches by node name.
+moveit_simple_controller_manager:
+  ros__parameters:
+    controller_names:
+      - fr3_arm_controller
+    fr3_arm_controller:
+      action_ns: follow_joint_trajectory
+      type: FollowJointTrajectory
+      default: true
+      joints:
+        - fr3_joint1
+        - fr3_joint2
+        - fr3_joint3
+        - fr3_joint4
+        - fr3_joint5
+        - fr3_joint6
+        - fr3_joint7
