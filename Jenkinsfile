@@ -35,18 +35,19 @@ pipeline {
             description: "The static IP of the robot to run tests onto")
   }
 
+  options {
+    gitLabConnection(FePipelineOptionDefaults.GITLAB_CONNECTION)
+    buildDiscarder(logRotator(
+      numToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.numToKeepStr,
+      daysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.daysToKeepStr,
+      artifactNumToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.artifactNumToKeepStr,
+      artifactDaysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.artifactDaysToKeepStr
+    ))
+  }
+
   stages {
     stage('Get Ready') {
-      options {
-          skipDefaultCheckout true
-          gitLabConnection(FePipelineOptionDefaults.GITLAB_CONNECTION)
-          buildDiscarder(logRotator(
-              numToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.numToKeepStr,
-              daysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.daysToKeepStr,
-              artifactNumToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.artifactNumToKeepStr,
-              artifactDaysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.artifactDaysToKeepStr
-          ))
-}
+      options { skipDefaultCheckout true }
       steps {
         script{
           cleanWs()
