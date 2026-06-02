@@ -11,7 +11,7 @@ pipeline {
 
   parameters {
     string(name: 'libfrankaRepoUrl',
-           defaultValue: 'ssh://git@bitbucket.fe.lan:7999/moctrl/libfranka.git',
+           defaultValue: 'ssh://git@gitlab.franka.de/frankadev/moctrl/libfranka.git',
            description: 'SSH URL to clone libfranka')
 
     string(name: 'libfrankaBranch',
@@ -19,7 +19,7 @@ pipeline {
            description: 'Branch or tag to checkout for libfranka.')
 
     string(name: 'frankaDescriptionRepoUrl',
-           defaultValue: 'ssh://git@bitbucket.fe.lan:7999/moctrl/franka_description.git',
+           defaultValue: 'ssh://git@gitlab.franka.de/frankadev/moctrl/franka_description.git',
            description: 'SSH URL to clone franka_description.')
 
     string(name: 'frankaDescriptionBranch',
@@ -37,7 +37,9 @@ pipeline {
 
   stages {
     stage('Get Ready') {
-      options { skipDefaultCheckout true           gitLabConnection(FePipelineOptionDefaults.GITLAB_CONNECTION)
+      options {
+          skipDefaultCheckout true
+          gitLabConnection(FePipelineOptionDefaults.GITLAB_CONNECTION)
           buildDiscarder(logRotator(
               numToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.numToKeepStr,
               daysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.daysToKeepStr,
@@ -103,7 +105,7 @@ pipeline {
               else
                 git clone --branch ${params.libfrankaBranch} ${params.libfrankaRepoUrl}
                 cd libfranka 
-                git config submodule.common.url ssh://git@bitbucket.fe.lan:7999/moctrl/libfranka-common.git
+                git config submodule.common.url ssh://git@gitlab.franka.de/frankadev/moctrl/libfranka-common.git
                 git submodule update --init --recursive --depth 1 
                 cd ..
               fi
