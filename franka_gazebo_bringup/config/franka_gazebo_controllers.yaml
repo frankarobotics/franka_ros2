@@ -3,6 +3,9 @@
     ros__parameters:
       update_rate: 1000  # Hz
 
+      model_example_controller:
+        type: franka_example_controllers/ModelExampleController
+
       joint_position_example_controller:
         type: franka_example_controllers/JointPositionExampleController
 
@@ -26,6 +29,13 @@
       
       swerve_drive_controller:
         type: franka_mobile/SwerveDriveController
+
+/**:
+  model_example_controller:
+    ros__parameters:
+      robot_type: "fr3"
+      gazebo: true
+
 
 /**:
   joint_velocity_example_controller:

@@ -19,7 +19,7 @@
 
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include "franka_semantic_components/franka_robot_model.hpp"
+#include "franka_example_controllers/robot_model_interface.hpp"
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
@@ -50,7 +50,9 @@ class ModelExampleController : public controller_interface::ControllerInterface 
  private:
   std::string robot_type_;
   std::string arm_prefix_;
-  std::unique_ptr<franka_semantic_components::FrankaRobotModel> franka_robot_model_;
+  bool gazebo{false};
+  std::string robot_description_;
+  std::unique_ptr<robot_model_interface::RobotModelInterface> robot_model_;
 
   const std::string k_robot_state_interface_name{"robot_state"};
   const std::string k_robot_model_interface_name{"robot_model"};
