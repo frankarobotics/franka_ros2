@@ -143,14 +143,24 @@ class GripperInterface:
         goal.command.position = float(position)
         goal.command.max_effort = float(self._max_effort)
         fut = self._client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(self._node, fut)
+        rclpy.spin_until_future_complete(self._node, fut, timeout_sec=5.0)
         gh = fut.result()
         if gh is None or not gh.accepted:
             self._node.get_logger().error(f"[gripper] {label}: goal rejected.")
             return False
         rfut = gh.get_result_async()
-        rclpy.spin_until_future_complete(self._node, rfut)
-        self._node.get_logger().info(f"[gripper] {label}: done.")
+        # Timeout on result — GripperActionController in Humble can hang if
+        # allow_stalling is false or the finger hits its limit unexpectedly.
+        rclpy.spin_until_future_complete(self._node, rfut, timeout_sec=5.0)
+        if not rfut.done():
+            self._node.get_logger().warn(
+                f"[gripper] {label}: result timed out — assuming success and continuing.")
+        else:
+            self._node.get_logger().info(f"[gripper] {label}: done.")
+        # Spin 0.5 s so joint_state callbacks run before the next MoveIt plan.
+        deadline = time.time() + 0.5
+        while time.time() < deadline:
+            rclpy.spin_once(self._node, timeout_sec=0.05)
         return True
 
     def open(self) -> bool:
@@ -198,7 +208,7 @@ class PickAndPlace(Node):
 
         # Grasp geometry
         self.declare_parameter('approach_height', 0.15)   # pre-grasp clearance
-        self.declare_parameter('grasp_z', 0.025)          # TCP target z at grasp
+        self.declare_parameter('grasp_z', 0.08)           # TCP z: finger tips reach cube mid-height
         self.declare_parameter('lift_height', 0.20)
         self.declare_parameter('grasp_yaw', 0.0)          # rotate fingers if needed
 
@@ -210,8 +220,8 @@ class PickAndPlace(Node):
         # Gripper
         self.declare_parameter('gripper_action_name', '/fr3_gripper/gripper_cmd')
         self.declare_parameter('gripper_open_pos', 0.04)
-        self.declare_parameter('gripper_close_pos', 0.0)
-        self.declare_parameter('gripper_max_effort', 40.0)
+        self.declare_parameter('gripper_close_pos', 0.022)  # 22 mm per side = light grip on 5 cm cube
+        self.declare_parameter('gripper_max_effort', 70.0)  # enough to grip 0.1 kg cube firmly
 
         # Planning quality
         self.declare_parameter('vel_scale', 0.2)
@@ -437,8 +447,15 @@ class PickAndPlace(Node):
         q = Quaternion(); q.x, q.y, q.z, q.w = x, y, z, w
         return q
 
-    def _pose_constraints(self, position_xyz, quat: Quaternion):
-        """Build position + orientation goal constraints for a Cartesian target."""
+    def _pose_constraints(self, position_xyz, quat: Quaternion,
+                          path_orient: bool = False):
+        """
+        Build position + orientation goal constraints for a Cartesian target.
+
+        path_orient=True also adds the orientation as a PATH constraint so
+        the planner keeps the TCP pointing down THROUGHOUT the motion, not
+        just at the goal. Use this for descent/ascent to prevent snake motion.
+        """
         c = Constraints()
         # Position: a tight sphere around the target point.
         pc = PositionConstraint()
@@ -464,12 +481,64 @@ class PickAndPlace(Node):
         oc.header.frame_id = self.planning_frame
         oc.link_name = self.ee_link
         oc.orientation = quat
-        oc.absolute_x_axis_tolerance = 0.1
-        oc.absolute_y_axis_tolerance = 0.1
-        oc.absolute_z_axis_tolerance = 0.1
+        oc.absolute_x_axis_tolerance = 0.15
+        oc.absolute_y_axis_tolerance = 0.15
+        oc.absolute_z_axis_tolerance = 0.15
         oc.weight = 1.0
         c.orientation_constraints.append(oc)
         return c
+
+    def _plan_constrained(self, constraints, path_orient_quat=None):
+        """
+        Plan with an optional orientation PATH constraint so the TCP stays
+        pointing down throughout the motion (prevents snake-like behaviour).
+        """
+        req = MotionPlanRequest()
+        req.group_name = self.group_name
+        req.allowed_planning_time = self.planning_time
+        req.max_velocity_scaling_factor = self.vel_scale
+        req.max_acceleration_scaling_factor = self.acc_scale
+        req.goal_constraints.append(constraints)
+
+        if path_orient_quat is not None:
+            path_oc = OrientationConstraint()
+            path_oc.header.frame_id = self.planning_frame
+            path_oc.link_name = self.ee_link
+            path_oc.orientation = path_orient_quat
+            path_oc.absolute_x_axis_tolerance = 0.2
+            path_oc.absolute_y_axis_tolerance = 0.2
+            path_oc.absolute_z_axis_tolerance = 0.2
+            path_oc.weight = 1.0
+            path_constraints = Constraints()
+            path_constraints.orientation_constraints.append(path_oc)
+            req.path_constraints = path_constraints
+
+        goal = MoveGroupAction.Goal()
+        goal.request = req
+        goal.planning_options.plan_only = True
+
+        fut = self._move_client.send_goal_async(goal)
+        rclpy.spin_until_future_complete(self, fut, timeout_sec=10.0)
+        gh = fut.result()
+        if gh is None or not gh.accepted:
+            self.get_logger().error('Plan request rejected or timed out.')
+            return None
+        rfut = gh.get_result_async()
+        # Hard timeout so a hung planner can never freeze the whole node.
+        # planning_time + margin; if MoveIt cannot return in this window we
+        # treat it as a failure and let the caller fall back.
+        rclpy.spin_until_future_complete(self, rfut, timeout_sec=self.planning_time + 5.0)
+        if not rfut.done():
+            self.get_logger().error('Plan result timed out — planner did not return.')
+            return None
+        res = rfut.result().result
+        if res.error_code.val != MOVEIT_SUCCESS:
+            self.get_logger().error(
+                f'Planning failed (MoveItErrorCode {res.error_code.val}).')
+            return None
+        traj = res.planned_trajectory.joint_trajectory
+        self.get_logger().info(f'Plan OK ({len(traj.points)} waypoints).')
+        return traj
 
     def _joint_constraints(self, joints):
         """Build a joint-space goal (used for HOME)."""
@@ -486,34 +555,8 @@ class PickAndPlace(Node):
 
     # ── Plan (MoveIt) + execute (JTC bypass) ──────────────────────────────────
     def _plan(self, constraints):
-        """Ask MoveIt to PLAN ONLY. Returns a JointTrajectory or None."""
-        req = MotionPlanRequest()
-        req.group_name = self.group_name
-        req.allowed_planning_time = self.planning_time
-        req.max_velocity_scaling_factor = self.vel_scale
-        req.max_acceleration_scaling_factor = self.acc_scale
-        req.goal_constraints.append(constraints)
-
-        goal = MoveGroupAction.Goal()
-        goal.request = req
-        goal.planning_options.plan_only = True
-
-        fut = self._move_client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(self, fut)
-        gh = fut.result()
-        if gh is None or not gh.accepted:
-            self.get_logger().error('Plan request rejected by MoveIt.')
-            return None
-        rfut = gh.get_result_async()
-        rclpy.spin_until_future_complete(self, rfut)
-        res = rfut.result().result
-        if res.error_code.val != MOVEIT_SUCCESS:
-            self.get_logger().error(
-                f'Planning failed (MoveItErrorCode {res.error_code.val}).')
-            return None
-        traj = res.planned_trajectory.joint_trajectory
-        self.get_logger().info(f'Plan OK ({len(traj.points)} waypoints).')
-        return traj
+        """Ask MoveIt to PLAN ONLY (no path constraints). Returns a JointTrajectory or None."""
+        return self._plan_constrained(constraints, path_orient_quat=None)
 
     def _execute(self, traj):
         """Execute a JointTrajectory directly on the JTC action server."""
@@ -540,15 +583,60 @@ class PickAndPlace(Node):
         self.get_logger().error(f'Execution failed (code {code}).')
         return False
 
-    def move_to_pose(self, xyz, label=''):
+    def move_to_pose_retry(self, xyz, label='', tries=3):
+        """
+        Plan+execute a Cartesian move, retrying the plan up to `tries` times.
+        RRTConnect is randomized, so a plan that hangs/fails on one attempt
+        often succeeds on the next. Each attempt has its own timeout via
+        _plan_constrained, so this can never freeze the node.
+        """
+        q = self._down_quat()
+        goal_c = self._pose_constraints(xyz, q)
+        for attempt in range(1, tries + 1):
+            self.get_logger().info(
+                f'--> Moving to {label} {tuple(round(c, 3) for c in xyz)} '
+                f'(attempt {attempt}/{tries})')
+            traj = self._plan_constrained(goal_c, path_orient_quat=None)
+            if traj is not None:
+                return self._execute(traj)
+            self.get_logger().warn(f'{label}: plan attempt {attempt} failed; retrying...')
+            # brief spin so move_group state monitor refreshes before retry
+            deadline = time.time() + 0.5
+            while time.time() < deadline:
+                rclpy.spin_once(self, timeout_sec=0.05)
+        self.get_logger().error(f'{label}: all {tries} plan attempts failed.')
+        return False
+
+    def move_to_pose(self, xyz, label='', keep_orientation=False):
+        """
+        Plan and execute a Cartesian move.
+        keep_orientation=True adds a path constraint so the TCP stays pointing
+        down THROUGHOUT the motion — use for descent/ascent to avoid snake paths.
+        """
         self.get_logger().info(f'--> Moving to {label} {tuple(round(c, 3) for c in xyz)}')
-        traj = self._plan(self._pose_constraints(xyz, self._down_quat()))
+        q = self._down_quat()
+        goal_c = self._pose_constraints(xyz, q)
+        path_q = q if keep_orientation else None
+        traj = self._plan_constrained(goal_c, path_orient_quat=path_q)
+        # Fallback: if constrained planning fails, retry without path constraint.
+        if traj is None and keep_orientation:
+            self.get_logger().warn(
+                "Constrained plan failed — retrying without path constraint.")
+            traj = self._plan_constrained(goal_c, path_orient_quat=None)
         return self._execute(traj)
 
     def move_to_joints(self, joints, label=''):
         self.get_logger().info(f'--> Moving to {label} (joint space)')
         traj = self._plan(self._joint_constraints(joints))
         return self._execute(traj)
+
+    def _settle(self) -> bool:
+        """Spin 1 s after gripper so joint_states refresh before next MoveIt plan."""
+        self.get_logger().info('Settling (1 s)...')
+        deadline = time.time() + 1.0
+        while rclpy.ok() and time.time() < deadline:
+            rclpy.spin_once(self, timeout_sec=0.05)
+        return True
 
     # ── Orchestration ──────────────────────────────────────────────────────────
     def run(self):
@@ -576,15 +664,18 @@ class PickAndPlace(Node):
         # 4. Execute the full sequence. Abort if any arm motion fails.
         self.gripper.open()
         steps = [
+            # Free planning for large repositioning moves (pre-grasp, drop approach).
             ('pre-grasp (above block)', lambda: self.move_to_pose(pre_grasp, 'pre-grasp')),
-            ('descend to grasp',        lambda: self.move_to_pose(grasp, 'grasp')),
-            ('close gripper',           self.gripper.close),
-            ('lift object',             lambda: self.move_to_pose(lift, 'lift')),
-            ('above drop',              lambda: self.move_to_pose(drop_above, 'drop-above')),
-            ('descend to drop',         lambda: self.move_to_pose(drop, 'drop')),
-            ('open gripper',            self.gripper.open),
-            ('retreat from drop',       lambda: self.move_to_pose(drop_above, 'retreat')),
-            ('return home',             lambda: self.move_to_joints(HOME, 'home')),
+            # keep_orientation=True: TCP stays pointing down during all vertical moves.
+            ('descend to grasp',  lambda: self.move_to_pose_retry(grasp,      'grasp')),
+            ('close gripper',     self.gripper.close),
+            ('settle gripper',    self._settle),
+            ('lift object',       lambda: self.move_to_pose_retry(lift,       'lift')),
+            ('above drop',        lambda: self.move_to_pose_retry(drop_above, 'drop-above')),
+            ('descend to drop',   lambda: self.move_to_pose_retry(drop,       'drop')),
+            ('open gripper',      self.gripper.open),
+            ('retreat from drop', lambda: self.move_to_pose_retry(drop_above, 'retreat')),
+            ('return home',       lambda: self.move_to_joints(HOME,     'home')),
         ]
         for name, action in steps:
             self.get_logger().info(f'=== STEP: {name} ===')

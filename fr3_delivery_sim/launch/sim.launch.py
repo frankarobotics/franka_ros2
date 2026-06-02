@@ -95,6 +95,14 @@ def generate_launch_description():
     kinematics_yaml = load_yaml('franka_fr3_moveit_config', 'config/kinematics.yaml')
     ompl_yaml       = load_yaml('franka_fr3_moveit_config', 'config/ompl_planning.yaml')
 
+    # ── Patch the aggressive 5 ms IK timeout ──────────────────────────────────
+    # The stock kinematics.yaml sets kinematics_solver_timeout=0.005 (5 ms),
+    # far too short for the 7-DOF FR3 to solve constrained downward grasp poses.
+    # The solver fails, MoveIt falls back to a partial solution, and the wrist
+    # ends up at a weird angle. 50 ms gives LMA enough time to converge.
+    if 'fr3_arm' in kinematics_yaml:
+        kinematics_yaml['fr3_arm']['kinematics_solver_timeout'] = 0.05
+
     # ── MoveIt controller manager — exact pattern from franka moveit.launch.py ──
     # The official franka moveit.launch.py uses:
     #   moveit_simple_controllers_yaml = load_yaml('...', 'config/fr3_controllers.yaml')
@@ -135,7 +143,7 @@ def generate_launch_description():
         pkg_franka_gazebo_dir, 'config', 'franka_gazebo_controllers.yaml')
     our_position_ctrl_yaml  = os.path.join(
         pkg_delivery_dir, 'config', 'fr3_gazebo_position_controller.yaml')
-    gripper_ctrl_yaml = os.path.join(
+    gripper_ctrl_yaml       = os.path.join(
         pkg_delivery_dir, 'config', 'fr3_gripper_controller.yaml')
 
     # ── Gazebo ────────────────────────────────────────────────────────────────
@@ -173,6 +181,10 @@ def generate_launch_description():
             '/camera/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
             '/world/empty/create@ros_gz_interfaces/srv/SpawnEntity',
             '/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock',
+            # Finger position commands: ROS std_msgs/Float64 -> gz.msgs.Double.
+            # Consumed by the JointPositionController plugins in the xacro.
+            '/fr3_finger_joint1_cmd@std_msgs/msg/Float64]gz.msgs.Double',
+            '/fr3_finger_joint2_cmd@std_msgs/msg/Float64]gz.msgs.Double',
         ],
         output='screen',
     )
@@ -196,16 +208,17 @@ def generate_launch_description():
                    '--param-file', our_position_ctrl_yaml],
         output='screen',
     )])
-    # After arm_controller_spawner, add:
-    gripper_spawner = TimerAction(period=13.0, actions=[Node(
-        package='controller_manager', executable='spawner',
-        arguments=['fr3_gripper',
-                    '--controller-manager', '/controller_manager',
-                    '--controller-type',
-                    'position_controllers/GripperActionController',
-                    '--param-file', gripper_ctrl_yaml],
-        output='screen',
-)])
+
+    # ── (REMOVED) fr3_gripper GripperActionController ─────────────────────────
+    # The FR3 hand cannot be driven through gz_ros2_control: fr3_finger_joint2
+    # mimics fr3_finger_joint1, which triggers gz_ros2_control bug #343 and the
+    # position command to the leader joint is silently ignored. We instead drive
+    # both fingers with Ignition JointPositionController plugins (see the xacro)
+    # commanded over /fr3_finger_joint1_cmd and /fr3_finger_joint2_cmd.
+    # Spawning the GripperActionController here would CLAIM fr3_finger_joint1 and
+    # fight those plugins, so it is intentionally not spawned.
+    gripper_spawner = None
+
     # ── MoveIt 2 move_group (delayed 18 s) ──────────────────────────────────
     # CRITICAL: move_group must start AFTER fr3_arm_controller is active.
     # moveit_simple_controller_manager creates a FollowJointTrajectoryControllerHandle
@@ -229,6 +242,19 @@ def generate_launch_description():
         }
     }
     ompl_planning_pipeline_config['move_group'].update(ompl_yaml)
+
+    # ── Give 'fr3_arm' a real planner config ──────────────────────────────────
+    # The stock franka ompl_planning.yaml only defines planner_configs for the
+    # group 'panda_arm'. Our planning group is 'fr3_arm', so without this it has
+    # NO planners and MoveIt uses an untuned default — the root cause of the
+    # failed constrained plans (MoveItErrorCode -2) and weird-angle descents.
+    # Copy panda_arm's planner list onto fr3_arm and add a projection evaluator.
+    if 'planner_configs' in ompl_yaml and 'panda_arm' in ompl_yaml:
+        ompl_planning_pipeline_config['move_group']['fr3_arm'] = {
+            'planner_configs': ompl_yaml['panda_arm']['planner_configs'],
+            'projection_evaluator': 'joints(fr3_joint1,fr3_joint2)',
+            'longest_valid_segment_fraction': 0.005,
+        }
 
     planning_scene_monitor_parameters = {
         'publish_planning_scene': True,
@@ -296,6 +322,6 @@ def generate_launch_description():
         set_ign_env, set_gz_env,
         gazebo, robot_state_publisher, spawn_entity, bridge,
         static_tf_world_base,
-        jsb_spawner, arm_controller_spawner,gripper_spawner,
+        jsb_spawner, arm_controller_spawner,
         move_group, rviz_delayed, object_spawner,
     ])

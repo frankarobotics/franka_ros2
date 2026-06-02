@@ -2,6 +2,6 @@ fr3_gripper:
   ros__parameters:
     joint: fr3_finger_joint1
     allow_stalling: true
+    stall_velocity_threshold: 0.01
+    stall_timeout: 3.0
     goal_tolerance: 0.005
-    stall_velocity_threshold: 0.001
-    stall_timeout: 1.0

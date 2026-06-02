@@ -20,6 +20,7 @@ install(PROGRAMS
   src/vision_detector.py
   src/pick_and_place.py
   src/arm_mover.py
+  src/pick.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

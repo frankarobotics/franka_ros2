@@ -101,4 +101,42 @@
     </sensor>
   </gazebo>
 
+
+  <!-- ── Gripper finger control (bypasses gz_ros2_control mimic bug #343) ──────
+       fr3_finger_joint1 is the mimic LEADER; fr3_finger_joint2 mimics it in the
+       URDF, which makes gz_ros2_control refuse to actuate joint1 via its position
+       command interface (https://github.com/ros-controls/gz_ros2_control/issues/343).
+       Ignition also does not enforce URDF <mimic> on its own, so joint2 follows
+       nothing. We therefore drive BOTH fingers directly with Ignition's native
+       JointPositionController and command them to the same value from pick.py.
+       NOTE: the fr3_gripper ros2_control controller must NOT be spawned, or it
+       will fight these plugins for fr3_finger_joint1. (Removed in sim_launch.py.)
+  -->
+  <gazebo>
+    <plugin filename="ignition-gazebo-joint-position-controller-system"
+            name="ignition::gazebo::systems::JointPositionController">
+      <joint_name>fr3_finger_joint1</joint_name>
+      <topic>/fr3_finger_joint1_cmd</topic>
+      <p_gain>2000</p_gain>
+      <i_gain>15</i_gain>
+      <d_gain>40</d_gain>
+      <i_max>100</i_max>
+      <i_min>-100</i_min>
+      <cmd_max>100</cmd_max>
+      <cmd_min>-100</cmd_min>
+    </plugin>
+    <plugin filename="ignition-gazebo-joint-position-controller-system"
+            name="ignition::gazebo::systems::JointPositionController">
+      <joint_name>fr3_finger_joint2</joint_name>
+      <topic>/fr3_finger_joint2_cmd</topic>
+      <p_gain>2000</p_gain>
+      <i_gain>15</i_gain>
+      <d_gain>40</d_gain>
+      <i_max>100</i_max>
+      <i_min>-100</i_min>
+      <cmd_max>100</cmd_max>
+      <cmd_min>-100</cmd_min>
+    </plugin>
+  </gazebo>
+
 </robot>
