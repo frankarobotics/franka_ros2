@@ -135,6 +135,8 @@ def generate_launch_description():
         pkg_franka_gazebo_dir, 'config', 'franka_gazebo_controllers.yaml')
     our_position_ctrl_yaml  = os.path.join(
         pkg_delivery_dir, 'config', 'fr3_gazebo_position_controller.yaml')
+    gripper_ctrl_yaml = os.path.join(
+        pkg_delivery_dir, 'config', 'fr3_gripper_controller.yaml')
 
     # ── Gazebo ────────────────────────────────────────────────────────────────
     gazebo = IncludeLaunchDescription(
@@ -194,7 +196,16 @@ def generate_launch_description():
                    '--param-file', our_position_ctrl_yaml],
         output='screen',
     )])
-
+    # After arm_controller_spawner, add:
+    gripper_spawner = TimerAction(period=13.0, actions=[Node(
+        package='controller_manager', executable='spawner',
+        arguments=['fr3_gripper',
+                    '--controller-manager', '/controller_manager',
+                    '--controller-type',
+                    'position_controllers/GripperActionController',
+                    '--param-file', gripper_ctrl_yaml],
+        output='screen',
+)])
     # ── MoveIt 2 move_group (delayed 18 s) ──────────────────────────────────
     # CRITICAL: move_group must start AFTER fr3_arm_controller is active.
     # moveit_simple_controller_manager creates a FollowJointTrajectoryControllerHandle
@@ -285,6 +296,6 @@ def generate_launch_description():
         set_ign_env, set_gz_env,
         gazebo, robot_state_publisher, spawn_entity, bridge,
         static_tf_world_base,
-        jsb_spawner, arm_controller_spawner,
+        jsb_spawner, arm_controller_spawner,gripper_spawner,
         move_group, rviz_delayed, object_spawner,
     ])

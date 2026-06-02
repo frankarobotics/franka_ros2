@@ -28,3 +28,4 @@ fr3_arm_controller:
     constraints:
       stopped_velocity_tolerance: 0.05
       goal_time: 0.0
+

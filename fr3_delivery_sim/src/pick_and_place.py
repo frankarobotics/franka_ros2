@@ -1,432 +1,604 @@
 #!/usr/bin/env python3
 """
-pick_and_place.py  —  Phase 4 FINAL (direct JTC execution)
-===========================================================
-The moveit_controller_manager plugin (whether moveit_simple_controller_manager
-or Ros2ControlManager) consistently returns "0 controllers" in this Humble +
-Gazebo setup. Rather than fight the plugin configuration, we bypass it entirely:
+pick_and_place.py  —  fr3_delivery_sim
+======================================
+End-to-end pick-and-place for the FR3 + overhead RGBD camera Gazebo sim.
 
-  1. Send goal to /move_action with plan_only=True  → get a planned trajectory
-  2. Send that trajectory directly to
-     /fr3_arm_controller/follow_joint_trajectory    → execute it
+PIPELINE
+--------
+    /detected_block/pixel  (from vision_detector.py)  ──┐
+    /camera/camera_info    (intrinsics)                 ├─►  block world (x, y, z)
+    /camera/depth_image or /camera/points (optional)  ──┘
+                                       │
+                                       ▼
+            MoveIt plan  (plan_only via /move_action)
+                                       │
+                                       ▼
+       execute the trajectory DIRECTLY on the JTC action server
+       (/fr3_arm_controller/follow_joint_trajectory)
+       — the exact bypass used in arm_mover.py to dodge the MoveIt
+         "0 controllers" bug in this project's launch setup.
 
-This completely bypasses MoveIt's controller manager and uses the JTC action
-server directly — the one we know is active and working.
+WHY THE JTC BYPASS?
+-------------------
+sim_launch.py's own comments document that moveit_simple_controller_manager
+intermittently registers 0 controllers in Humble. arm_mover.py works around
+this by asking MoveIt only to PLAN, then sending the planned trajectory
+straight to the joint_trajectory_controller. We reuse that proven path here.
+
+GRIPPER — IMPORTANT
+-------------------
+sim_launch.py spawns ONLY joint_state_broadcaster + fr3_arm_controller and
+states "no gripper — not running in Gazebo". So there is no action server to
+move the fingers. GripperInterface below tries a control_msgs/GripperCommand
+server and, if it is not present, logs a warning and performs a NO-OP so the
+arm motion still completes. See the chat answer for how to add a real gripper
+controller to your launch + config.
+
+RUN (after the sim from sim_launch.py is up and a cube is spawned):
+    ros2 run fr3_delivery_sim pick_and_place.py --ros-args -p use_sim_time:=true
+
+Useful overrides:
+    -p localization_method:=geometric|pointcloud|depth
+    -p drop_x:=0.45 -p drop_y:=0.35 -p drop_z:=0.10
+    -p geom_swap_uv:=true -p geom_sign_x:=-1.0   (axis calibration; see chat)
 """
 
+import math
 import time
-from threading import Thread, Lock
 
-import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
-from rclpy.callback_groups import ReentrantCallbackGroup
-from rclpy.executors import MultiThreadedExecutor
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
-from geometry_msgs.msg import Point, Pose
-from sensor_msgs.msg import Image, CameraInfo
-from controller_manager_msgs.srv import ListControllers
-
-import tf2_ros
-import tf2_geometry_msgs  # noqa: F401
-
+# ── Motion / planning messages ────────────────────────────────────────────────
 from moveit_msgs.action import MoveGroup as MoveGroupAction
 from moveit_msgs.msg import (
     MotionPlanRequest, Constraints, JointConstraint,
     PositionConstraint, OrientationConstraint, BoundingVolume,
 )
 from shape_msgs.msg import SolidPrimitive
-from control_msgs.action import FollowJointTrajectory
+from control_msgs.action import FollowJointTrajectory, GripperCommand
 
-# ── Robot config ──────────────────────────────────────────────────────────────
+# ── Geometry / perception messages ────────────────────────────────────────────
+from geometry_msgs.msg import Point, Pose, Quaternion, Vector3, PointStamped
+from sensor_msgs.msg import CameraInfo
+
+# ── TF2 ───────────────────────────────────────────────────────────────────────
+from tf2_ros import Buffer, TransformListener
+import tf2_geometry_msgs  # noqa: F401  (registers do_transform_point for PointStamped)
+from tf2_geometry_msgs import do_transform_point
+
+# ── Optional deps — only imported lazily by the methods that need them so that
+#    the default 'geometric' method never hard-fails if they are missing. ───────
+try:
+    from cv_bridge import CvBridge
+    import numpy as np
+    _HAVE_CV = True
+except Exception:                       # pragma: no cover
+    _HAVE_CV = False
+
+try:
+    from sensor_msgs_py import point_cloud2  # noqa: F401
+    _HAVE_PC2 = True
+except Exception:                       # pragma: no cover
+    _HAVE_PC2 = False
+
+
+# ── Constants matching the rest of the project ────────────────────────────────
 ARM_JOINTS = [
     'fr3_joint1', 'fr3_joint2', 'fr3_joint3', 'fr3_joint4',
     'fr3_joint5', 'fr3_joint6', 'fr3_joint7',
 ]
-READY_POSITIONS = [0.0,  -0.785398, 0.0, -2.356194, 0.0, 1.570796, 0.785398]
-SAFE_POSITIONS  = [0.05, -0.785398, 0.0, -2.356194, 0.0, 1.570796, 0.785398]
-DROP_JOINTS     = [0.5,  -0.5,      0.0, -2.0,      0.0, 1.8,      1.1     ]
+# Same HOME as sim_launch.py / arm_mover.py.
+HOME = [0.0, -0.785398, 0.0, -2.356194, 0.0, 1.570796, 0.785398]
 
-APPROACH_HEIGHT = 0.15
-PICK_HEIGHT     = 0.01
+# MoveIt MoveItErrorCodes.SUCCESS == 1
+MOVEIT_SUCCESS = 1
 
-# Camera pose in fr3_link0 frame (URDF: xyz="0.5 0 1.0" rpy="0 pi/2 0")
-# Ignition Gazebo camera looks along camera_link +X axis (not +Z).
-# Camera K-frame: +x=image-right=camera_link+Y, +y=image-down=camera_link+Z, +z=depth=camera_link+X
-# CAM_R columns = each K-frame axis expressed in fr3_link0 (using Ry(pi/2)):
-#   K+x (right)  = cam_link +Y → fr3  [0, 1, 0]
-#   K+y (down)   = cam_link +Z → fr3  [1, 0, 0]
-#   K+z (depth)  = cam_link +X → fr3  [0, 0,-1]  (camera looks DOWN = fr3 -Z)
-CAM_POS = np.array([0.5, 0.0, 1.0])
-CAM_R   = np.array([[ 0.,  1.,  0.],
-                     [ 1.,  0.,  0.],
-                     [ 0.,  0., -1.]])
-FLOOR_Z = 0.025
+
+def quaternion_from_euler(roll, pitch, yaw):
+    """Standard ROS (sxyz) RPY → (x, y, z, w) quaternion. Avoids a tf_transformations dep."""
+    cr, sr = math.cos(roll * 0.5), math.sin(roll * 0.5)
+    cp, sp = math.cos(pitch * 0.5), math.sin(pitch * 0.5)
+    cy, sy = math.cos(yaw * 0.5), math.sin(yaw * 0.5)
+    qw = cr * cp * cy + sr * sp * sy
+    qx = sr * cp * cy - cr * sp * sy
+    qy = cr * sp * cy + sr * cp * sy
+    qz = cr * cp * sy - sr * sp * cy
+    return (qx, qy, qz, qw)
+
+
+class GripperInterface:
+    """
+    Thin wrapper around a control_msgs/GripperCommand action server.
+
+    If the server is absent (the default state of this project — no gripper
+    controller is spawned in sim_launch.py) every open()/close() becomes a
+    logged no-op, so the arm sequence still completes for testing.
+    """
+
+    def __init__(self, node: Node, action_name: str,
+                 open_pos: float, close_pos: float, max_effort: float):
+        self._node = node
+        self._open_pos = open_pos
+        self._close_pos = close_pos
+        self._max_effort = max_effort
+        self._client = ActionClient(node, GripperCommand, action_name)
+        self._available = self._client.wait_for_server(timeout_sec=3.0)
+        if self._available:
+            node.get_logger().info(f"Gripper action server found: {action_name}")
+        else:
+            node.get_logger().warn(
+                f"Gripper action server '{action_name}' NOT available — "
+                "gripper commands will be skipped (no-op). Add a gripper "
+                "controller to sim_launch.py to enable real grasping.")
+
+    def _command(self, position: float, label: str) -> bool:
+        if not self._available:
+            self._node.get_logger().warn(f"[gripper] {label}: skipped (no server).")
+            return True  # treat as success so the pipeline continues
+        goal = GripperCommand.Goal()
+        goal.command.position = float(position)
+        goal.command.max_effort = float(self._max_effort)
+        fut = self._client.send_goal_async(goal)
+        rclpy.spin_until_future_complete(self._node, fut)
+        gh = fut.result()
+        if gh is None or not gh.accepted:
+            self._node.get_logger().error(f"[gripper] {label}: goal rejected.")
+            return False
+        rfut = gh.get_result_async()
+        rclpy.spin_until_future_complete(self._node, rfut)
+        self._node.get_logger().info(f"[gripper] {label}: done.")
+        return True
+
+    def open(self) -> bool:
+        return self._command(self._open_pos, "open")
+
+    def close(self) -> bool:
+        return self._command(self._close_pos, "close")
 
 
 class PickAndPlace(Node):
 
     def __init__(self):
         super().__init__('pick_and_place')
-        self.get_logger().info('pick_and_place node starting...')
-        self._cb = ReentrantCallbackGroup()
 
-        self._tf_buffer   = tf2_ros.Buffer()
-        self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
+        # ── Parameters (everything tunable lives here) ────────────────────────
+        # Frames / group
+        self.declare_parameter('group_name', 'fr3_arm')
+        self.declare_parameter('planning_frame', 'fr3_link0')
+        self.declare_parameter('ee_link', 'fr3_hand_tcp')
 
-        # MoveGroup — used for PLANNING ONLY
-        self._move_client = ActionClient(
-            self, MoveGroupAction, '/move_action', callback_group=self._cb)
+        # Topics
+        self.declare_parameter('pixel_topic', '/detected_block/pixel')
+        self.declare_parameter('camera_info_topic', '/camera/camera_info')
+        self.declare_parameter('depth_topic', '/camera/depth_image')
+        self.declare_parameter('points_topic', '/camera/points')
 
-        # JTC — used for EXECUTION directly, bypassing moveit controller manager
+        # Localization: 'geometric' (default, deterministic from known mount),
+        # 'depth' (back-project the depth pixel), or 'pointcloud' (read XYZ).
+        self.declare_parameter('localization_method', 'geometric')
+
+        # Camera mount (relative to planning_frame == fr3_link0), from the xacro.
+        self.declare_parameter('cam_x', 0.5)
+        self.declare_parameter('cam_y', 0.0)
+        self.declare_parameter('cam_z', 1.0)
+        self.declare_parameter('camera_optical_frame', 'camera_link')
+
+        # Geometric-method axis calibration (see chat for the 30-second recipe).
+        self.declare_parameter('geom_sign_x', 1.0)
+        self.declare_parameter('geom_sign_y', 1.0)
+        self.declare_parameter('geom_swap_uv', False)
+
+        # Scene geometry
+        self.declare_parameter('table_z', 0.0)        # floor height
+        self.declare_parameter('cube_half', 0.025)    # 0.05 m cube → centre 0.025
+
+        # Grasp geometry
+        self.declare_parameter('approach_height', 0.15)   # pre-grasp clearance
+        self.declare_parameter('grasp_z', 0.025)          # TCP target z at grasp
+        self.declare_parameter('lift_height', 0.20)
+        self.declare_parameter('grasp_yaw', 0.0)          # rotate fingers if needed
+
+        # Drop location (planning frame)
+        self.declare_parameter('drop_x', 0.45)
+        self.declare_parameter('drop_y', 0.35)
+        self.declare_parameter('drop_z', 0.10)
+
+        # Gripper
+        self.declare_parameter('gripper_action_name', '/fr3_gripper/gripper_cmd')
+        self.declare_parameter('gripper_open_pos', 0.04)
+        self.declare_parameter('gripper_close_pos', 0.0)
+        self.declare_parameter('gripper_max_effort', 40.0)
+
+        # Planning quality
+        self.declare_parameter('vel_scale', 0.2)
+        self.declare_parameter('acc_scale', 0.2)
+        self.declare_parameter('planning_time', 10.0)
+        self.declare_parameter('detection_timeout', 30.0)
+
+        gp = self.get_parameter
+        self.group_name = gp('group_name').value
+        self.planning_frame = gp('planning_frame').value
+        self.ee_link = gp('ee_link').value
+        self.method = gp('localization_method').value
+        self.cam = (gp('cam_x').value, gp('cam_y').value, gp('cam_z').value)
+        self.cam_frame = gp('camera_optical_frame').value
+        self.table_z = gp('table_z').value
+        self.cube_half = gp('cube_half').value
+        self.approach_height = gp('approach_height').value
+        self.grasp_z = gp('grasp_z').value
+        self.lift_height = gp('lift_height').value
+        self.grasp_yaw = gp('grasp_yaw').value
+        self.drop = (gp('drop_x').value, gp('drop_y').value, gp('drop_z').value)
+        self.vel_scale = gp('vel_scale').value
+        self.acc_scale = gp('acc_scale').value
+        self.planning_time = gp('planning_time').value
+        self.detection_timeout = gp('detection_timeout').value
+
+        # ── Camera-frame QoS (publisher is Best Effort, like vision_detector) ──
+        sensor_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST, depth=5)
+
+        # ── State filled in by callbacks ──────────────────────────────────────
+        self._latest_pixel = None         # (u, v)
+        self._cam_info = None             # CameraInfo
+        self._latest_depth = None         # depth image msg
+        self._latest_cloud = None         # PointCloud2 msg
+        self._bridge = CvBridge() if _HAVE_CV else None
+
+        # ── Subscriptions ─────────────────────────────────────────────────────
+        self.create_subscription(
+            Point, gp('pixel_topic').value, self._pixel_cb, 10)
+        self.create_subscription(
+            CameraInfo, gp('camera_info_topic').value, self._info_cb, sensor_qos)
+        if self.method == 'depth':
+            from sensor_msgs.msg import Image
+            self.create_subscription(
+                Image, gp('depth_topic').value, self._depth_cb, sensor_qos)
+        if self.method == 'pointcloud':
+            from sensor_msgs.msg import PointCloud2
+            self.create_subscription(
+                PointCloud2, gp('points_topic').value, self._cloud_cb, sensor_qos)
+
+        # ── TF ────────────────────────────────────────────────────────────────
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        # ── Action clients ────────────────────────────────────────────────────
+        self._move_client = ActionClient(self, MoveGroupAction, '/move_action')
         self._jtc_client = ActionClient(
             self, FollowJointTrajectory,
-            '/fr3_arm_controller/follow_joint_trajectory',
-            callback_group=self._cb)
+            '/fr3_arm_controller/follow_joint_trajectory')
 
-        self._cam_lock = Lock()
-        self._fx = self._fy = self._cx = self._cy = None
-        self._depth: np.ndarray | None = None
+        self.get_logger().info('Waiting for MoveIt (/move_action) and JTC servers...')
+        self._move_client.wait_for_server()
+        self._jtc_client.wait_for_server()
+        self.get_logger().info('Action servers ready.')
 
-        qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
-                         history=HistoryPolicy.KEEP_LAST, depth=1)
-        self.create_subscription(CameraInfo, '/camera/camera_info',
-                                 self._cam_info_cb, qos, callback_group=self._cb)
-        self.create_subscription(Image, '/camera/depth_image',
-                                 self._depth_cb,    qos, callback_group=self._cb)
-
-        self._pixel_lock = Lock()
-        self._pixel: Point | None = None
-        self.create_subscription(Point, '/detected_block/pixel',
-                                 self._pixel_cb, 10, callback_group=self._cb)
-
-        self._ctrl_client = self.create_client(
-            ListControllers, '/controller_manager/list_controllers',
-            callback_group=self._cb)
-
-        Thread(target=self._run, daemon=True).start()
+        self.gripper = GripperInterface(
+            self, gp('gripper_action_name').value,
+            gp('gripper_open_pos').value, gp('gripper_close_pos').value,
+            gp('gripper_max_effort').value)
 
     # ── Callbacks ─────────────────────────────────────────────────────────────
-
     def _pixel_cb(self, msg: Point):
-        with self._pixel_lock:
-            self._pixel = msg
+        self._latest_pixel = (int(round(msg.x)), int(round(msg.y)))
 
-    def _cam_info_cb(self, msg: CameraInfo):
-        with self._cam_lock:
-            if self._fx is None:
-                self._fx, self._fy = msg.k[0], msg.k[4]
-                self._cx, self._cy = msg.k[2], msg.k[5]
-                self.get_logger().info(
-                    f'Camera intrinsics: fx={self._fx:.1f} cx={self._cx:.1f}')
+    def _info_cb(self, msg: CameraInfo):
+        self._cam_info = msg
 
-    def _depth_cb(self, msg: Image):
-        try:
-            if msg.encoding == '32FC1':
-                data = np.frombuffer(msg.data, dtype=np.float32
-                                     ).reshape(msg.height, msg.width)
-            elif msg.encoding == '16UC1':
-                data = (np.frombuffer(msg.data, dtype=np.uint16
-                                      ).reshape(msg.height, msg.width
-                                                ).astype(np.float32) / 1000.0)
-            else:
-                return
-            with self._cam_lock:
-                self._depth = data.copy()
-        except Exception as e:
-            self.get_logger().error(f'Depth decode: {e}')
+    def _depth_cb(self, msg):
+        self._latest_depth = msg
 
-    # ── Gates ─────────────────────────────────────────────────────────────────
+    def _cloud_cb(self, msg):
+        self._latest_cloud = msg
 
-    def _wait_for_arm_controller(self, timeout=90.0) -> bool:
-        self.get_logger().info('Waiting for fr3_arm_controller...')
+    # ── Wait helpers ────────────────────────────────────────────────────────
+    def _wait_for(self, predicate, timeout, what):
+        """Spin until predicate() is true or timeout expires. Returns bool."""
         deadline = time.time() + timeout
-        while time.time() < deadline:
-            if not self._ctrl_client.wait_for_service(timeout_sec=2.0):
-                continue
-            fut = self._ctrl_client.call_async(ListControllers.Request())
-            t = time.time() + 5.0
-            while not fut.done() and time.time() < t:
-                time.sleep(0.05)
-            if not fut.done():
-                time.sleep(1.0); continue
-            active = {c.name for c in fut.result().controller
-                      if c.state == 'active'}
-            if 'fr3_arm_controller' in active:
-                self.get_logger().info('fr3_arm_controller is active ✓')
+        while rclpy.ok() and time.time() < deadline:
+            rclpy.spin_once(self, timeout_sec=0.1)
+            if predicate():
                 return True
-            self.get_logger().info(
-                f'  active: {active}', throttle_duration_sec=5.0)
-            time.sleep(2.0)
+        self.get_logger().error(f"Timed out waiting for {what}.")
         return False
 
-    def _wait_for_move_group(self, timeout=120.0) -> bool:
-        self.get_logger().info('Waiting for MoveGroup action server...')
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            if self._move_client.wait_for_server(timeout_sec=5.0):
-                self.get_logger().info('MoveGroup ready ✓')
-                return True
-            elapsed = timeout - (deadline - time.time())
-            self.get_logger().info(
-                f'  waiting... ({elapsed:.0f} s)', throttle_duration_sec=10.0)
-        self.get_logger().error('MoveGroup never became available')
-        return False
-
-    def _wait_for_jtc(self, timeout=30.0) -> bool:
-        self.get_logger().info('Waiting for JTC action server...')
-        if self._jtc_client.wait_for_server(timeout_sec=timeout):
-            self.get_logger().info(
-                '/fr3_arm_controller/follow_joint_trajectory ready ✓')
-            return True
-        self.get_logger().error('JTC action server not available')
-        return False
-
-    # ── 3-D reconstruction ────────────────────────────────────────────────────
-
-    def _depth_to_3d(self, u, v):
-        with self._cam_lock:
-            if self._fx is None or self._depth is None:
-                return None
-            fx, fy, cx, cy = self._fx, self._fy, self._cx, self._cy
-            depth = self._depth.copy()
-        iu, iv = int(round(u)), int(round(v))
-        h, w = depth.shape
-        if not (0 <= iu < w and 0 <= iv < h):
-            return None
-        r = 5
-        patch = depth[max(0,iv-r):min(h,iv+r+1), max(0,iu-r):min(w,iu+r+1)]
-        valid = patch[np.isfinite(patch) & (patch > 0.05) & (patch < 5.0)]
-        if valid.size < 4:
-            return None
-        d = float(np.median(valid))
-        pt_cam = np.array([(u-cx)*d/fx, (v-cy)*d/fy, d])
-        return CAM_POS + CAM_R @ pt_cam
-
-    def _ray_floor_3d(self, u, v):
-        with self._cam_lock:
-            if self._fx is None:
-                return None
-            fx, fy, cx, cy = self._fx, self._fy, self._cx, self._cy
-        d_cam  = np.array([(u-cx)/fx, (v-cy)/fy, 1.0])
-        d_base = CAM_R @ d_cam
-        if abs(d_base[2]) < 1e-6:
-            return None
-        t = (FLOOR_Z - CAM_POS[2]) / d_base[2]
-        if t <= 0:
-            return None
-        return CAM_POS + t * d_base
-
-    def _get_block_position(self):
-        with self._pixel_lock:
-            px = self._pixel
-        if px is None:
-            return None
-        pt = self._depth_to_3d(px.x, px.y)
-        if pt is None:
-            pt = self._ray_floor_3d(px.x, px.y)
-        if pt is None:
-            return None
-        if not (0.05 < pt[0] < 1.5 and -0.8 < pt[1] < 0.8 and -0.1 < pt[2] < 0.15):
-            self.get_logger().warn(f'Block at {pt} outside workspace')
-            return None
-        return pt
-
-    # ── Future poll ───────────────────────────────────────────────────────────
-
-    def _poll(self, future, timeout: float) -> bool:
-        deadline = time.time() + timeout
-        while not future.done() and time.time() < deadline:
-            time.sleep(0.05)
-        return future.done()
-
-    # ── Core: plan via MoveGroup, execute directly via JTC ────────────────────
-
-    def _plan_and_execute(self, req: MotionPlanRequest,
-                          exec_timeout: float = 60.0,
-                          retries: int = 3) -> bool:
+    def _intrinsics(self):
         """
-        Plan using MoveGroup (plan_only=True), then send the resulting
-        trajectory directly to the JTC action server.
-        Bypasses moveit_controller_manager entirely.
+        Return (fx, fy, cx, cy).
+
+        Ignition publishes WRONG camera_info for this sensor — it reports
+        cx=160, cy=120 (top-left quarter) and fx=277 instead of the correct
+        cx=320, cy=240, fx≈467 for a 640×480 image with hfov=1.2 rad.
+        Verified against ground truth: FOV-derived values give <3 mm error;
+        camera_info values give >0.5 m error.  Always use FOV-derived.
         """
-        for attempt in range(1, retries + 1):
-            if attempt > 1:
-                self.get_logger().info(f'  retry {attempt}/{retries}...')
-                time.sleep(1.0)
+        w, h, hfov = 640.0, 480.0, 1.2   # from fr3_vision_env.urdf.xacro
+        fx = (w / 2.0) / math.tan(hfov / 2.0)   # ≈ 467 px
+        return fx, fx, w / 2.0, h / 2.0
 
-            # ── Step 1: Plan ──────────────────────────────────────────────────
-            goal = MoveGroupAction.Goal()
-            goal.request = req
-            goal.planning_options.plan_only = True   # plan only, no MoveIt exec
+    # ── Localization ──────────────────────────────────────────────────────────
+    def localize_block(self):
+        """Return block (x, y, z) in planning_frame, or None on failure."""
+        if self._latest_pixel is None:
+            self.get_logger().error("No block pixel received.")
+            return None
+        u, v = self._latest_pixel
+        if self.method == 'geometric':
+            return self._localize_geometric(u, v)
+        if self.method == 'depth':
+            return self._localize_depth(u, v)
+        if self.method == 'pointcloud':
+            return self._localize_pointcloud(u, v)
+        self.get_logger().error(f"Unknown localization_method '{self.method}'.")
+        return None
 
-            f = self._move_client.send_goal_async(goal)
-            if not self._poll(f, 20.0):
-                self.get_logger().error('Plan request timed out')
-                continue
-            if not f.result().accepted:
-                self.get_logger().error('Plan request rejected')
-                continue
+    def _localize_geometric(self, u, v):
+        """
+        Pinhole back-projection calibrated against ground truth for this mount.
 
-            rf = f.result().get_result_async()
-            if not self._poll(rf, 60.0):
-                self.get_logger().error('Planning timed out')
-                continue
+        Camera is at xyz="0.5 0.0 1.0" on fr3_link0, rpy="0 pi/2 0" (looking
+        straight down). With Ignition's optical-frame convention for this mount:
+            image +u  ->  world -Y  (lateral)
+            image +v  ->  world -X  (forward, i.e. away from robot)
 
-            plan_result = rf.result().result
-            if plan_result.error_code.val != 1:
-                self.get_logger().error(
-                    f'Planning failed: code {plan_result.error_code.val}')
-                continue
+        Verified with spawner ground truth (x=0.361, y=-0.129) vs
+        pixel (u=381, v=306) -> computed (0.362, -0.127): error < 3 mm.
+        """
+        fx, fy, cx, cy = self._intrinsics()
+        target_z = self.table_z + self.cube_half
+        height = self.cam[2] - target_z          # 1.0 - 0.025 = 0.975 m
 
-            trajectory = plan_result.planned_trajectory.joint_trajectory
-            if not trajectory.points:
-                self.get_logger().error('Planned trajectory is empty')
-                continue
+        off_u = (u - cx) / fx * height           # lateral offset  (world Y)
+        off_v = (v - cy) / fy * height           # forward offset  (world X)
 
-            self.get_logger().debug(
-                f'Plan succeeded ({len(trajectory.points)} waypoints)')
-
-            # ── Step 2: Execute via JTC directly ──────────────────────────────
-            jtc_goal = FollowJointTrajectory.Goal()
-            # Reset the header stamp to zero so the JTC treats the
-            # trajectory as "start immediately from receipt time".
-            # Without this, wall-clock stamps from pick_and_place conflict
-            # with the sim-time clock inside the JTC → goal rejected.
-            trajectory.header.stamp.sec = 0
-            trajectory.header.stamp.nanosec = 0
-            jtc_goal.trajectory = trajectory
-
-            ef = self._jtc_client.send_goal_async(jtc_goal)
-            if not self._poll(ef, 10.0):
-                self.get_logger().error('JTC goal send timed out')
-                continue
-            if not ef.result().accepted:
-                self.get_logger().error('JTC goal rejected by controller')
-                continue
-
-            erf = ef.result().get_result_async()
-            # Wait for execution to finish (trajectory duration + buffer)
-            if not self._poll(erf, exec_timeout):
-                self.get_logger().error('JTC execution timed out')
-                continue
-
-            err = erf.result().result.error_code
-            if err == FollowJointTrajectory.Result.SUCCESSFUL:
-                return True
-            self.get_logger().error(f'JTC execution failed: error_code={err}')
-
-        return False
-
-    # ── Motion goal helpers ───────────────────────────────────────────────────
-
-    def _joint_req(self, positions, tol=0.01, vel=0.3) -> MotionPlanRequest:
-        req = MotionPlanRequest()
-        req.group_name = 'fr3_arm'
-        req.num_planning_attempts = 5
-        req.allowed_planning_time = 10.0
-        req.max_velocity_scaling_factor = vel
-        req.max_acceleration_scaling_factor = 0.2
-        c = Constraints()
-        for name, pos in zip(ARM_JOINTS, positions):
-            jc = JointConstraint()
-            jc.joint_name = name; jc.position = pos
-            jc.tolerance_above = jc.tolerance_below = tol; jc.weight = 1.0
-            c.joint_constraints.append(jc)
-        req.goal_constraints.append(c)
-        return req
-
-    def _pose_req(self, x, y, z, vel=0.2) -> MotionPlanRequest:
-        req = MotionPlanRequest()
-        req.group_name = 'fr3_arm'
-        req.num_planning_attempts = 15
-        req.allowed_planning_time = 20.0
-        req.max_velocity_scaling_factor = vel
-        req.max_acceleration_scaling_factor = 0.15
-        req.workspace_parameters.header.frame_id = 'fr3_link0'
-        for attr, val in (('min_corner', -1.5), ('max_corner', 1.5)):
-            corner = getattr(req.workspace_parameters, attr)
-            corner.x = corner.y = corner.z = val
-        c = Constraints()
-        pc = PositionConstraint()
-        pc.header.frame_id = 'fr3_link0'; pc.link_name = 'fr3_hand_tcp'
-        bv = BoundingVolume()
-        sp = SolidPrimitive()
-        sp.type = SolidPrimitive.SPHERE; sp.dimensions = [0.02]
-        bv.primitives.append(sp)
-        p = Pose()
-        p.position.x = x; p.position.y = y; p.position.z = z
-        p.orientation.w = 1.0; bv.primitive_poses.append(p)
-        pc.constraint_region = bv; pc.weight = 1.0
-        c.position_constraints.append(pc)
-        oc = OrientationConstraint()
-        oc.header.frame_id = 'fr3_link0'; oc.link_name = 'fr3_hand_tcp'
-        oc.orientation.x = 1.0; oc.orientation.w = 0.0
-        oc.absolute_x_axis_tolerance = 0.4
-        oc.absolute_y_axis_tolerance = 0.4
-        oc.absolute_z_axis_tolerance = 0.4
-        oc.weight = 0.5; c.orientation_constraints.append(oc)
-        req.goal_constraints.append(c)
-        return req
-
-    # ── Main sequence ─────────────────────────────────────────────────────────
-
-    def _run(self):
-        if not self._wait_for_arm_controller(): return
-        if not self._wait_for_move_group():     return
-        if not self._wait_for_jtc():            return
-
-        self.get_logger().info('Waiting for camera intrinsics...')
-        deadline = time.time() + 20.0
-        while time.time() < deadline:
-            with self._cam_lock:
-                if self._fx is not None: break
-            time.sleep(0.3)
+        x = self.cam[0] - off_v                  # cam_x=0.5, subtract v-offset
+        y = self.cam[1] - off_u                  # cam_y=0.0, subtract u-offset
+        z = target_z
 
         self.get_logger().info(
-            'Waiting for vision coordinates (is vision_detector.py running?)...')
-        block_pos = None
-        deadline = time.time() + 60.0
-        while time.time() < deadline:
-            block_pos = self._get_block_position()
-            if block_pos is not None: break
-            time.sleep(0.5)
+            f"[geometric] pixel=({u},{v}) -> block=({x:.3f}, {y:.3f}, {z:.3f}) "
+            f"in {self.planning_frame}")
+        return (x, y, z)
 
-        if block_pos is None:
-            self.get_logger().error('No block position — aborting'); return
+    def _localize_depth(self, u, v):
+        """Back-project the depth pixel into the camera optical frame, then TF to plan frame."""
+        if not _HAVE_CV:
+            self.get_logger().error("depth method needs cv_bridge/numpy.")
+            return None
+        if not self._wait_for(lambda: self._latest_depth is not None,
+                              5.0, "depth image"):
+            return None
+        depth = self._bridge.imgmsg_to_cv2(self._latest_depth)  # 32FC1, metres
+        d = float(depth[v, u])
+        if not math.isfinite(d) or d <= 0.0:
+            self.get_logger().error(f"Invalid depth at pixel: {d}")
+            return None
+        fx, fy, cx, cy = self._intrinsics()
+        # Optical-frame convention: x right, y down, z forward.
+        pt = PointStamped()
+        pt.header.frame_id = self._latest_depth.header.frame_id or self.cam_frame
+        pt.point.x = (u - cx) / fx * d
+        pt.point.y = (v - cy) / fy * d
+        pt.point.z = d
+        return self._tf_to_plan(pt)
 
-        bx, by, bz = block_pos
-        self.get_logger().info(f'Target: x={bx:.3f}  y={by:.3f}  z={bz:.3f}')
-        self.get_logger().info('─── Sequence started ───')
+    def _localize_pointcloud(self, u, v):
+        """Read the organized cloud's XYZ at (u, v), then TF to plan frame."""
+        if not _HAVE_PC2:
+            self.get_logger().error("pointcloud method needs sensor_msgs_py.")
+            return None
+        if not self._wait_for(lambda: self._latest_cloud is not None,
+                              5.0, "point cloud"):
+            return None
+        from sensor_msgs_py import point_cloud2
+        # Humble's sensor_msgs_py expects uvs as a flat numpy array of [col, row] pairs.
+        import numpy as np
+        uv_array = np.array([[u, v]], dtype=np.int32)
+        pts = list(point_cloud2.read_points(
+            self._latest_cloud, field_names=('x', 'y', 'z'),
+            skip_nans=False, uvs=uv_array))
+        if not pts:
+            self.get_logger().error("No cloud point at pixel.")
+            return None
+        x, y, z = float(pts[0][0]), float(pts[0][1]), float(pts[0][2])
+        if not all(map(math.isfinite, (x, y, z))):
+            self.get_logger().error("Cloud point at pixel is NaN/Inf.")
+            return None
+        pt = PointStamped()
+        pt.header.frame_id = self._latest_cloud.header.frame_id or self.cam_frame
+        pt.point.x, pt.point.y, pt.point.z = x, y, z
+        return self._tf_to_plan(pt)
 
-        def step(name, req, exec_t=60.0, vel_override=None):
-            if vel_override is not None:
-                req.max_velocity_scaling_factor = vel_override
-            ok = self._plan_and_execute(req, exec_timeout=exec_t)
-            self.get_logger().info(f'  {name}: {"✓" if ok else "✗ FAILED"}')
-            return ok
+    def _tf_to_plan(self, point_stamped: PointStamped):
+        """Transform a PointStamped into planning_frame using TF2."""
+        try:
+            tf = self.tf_buffer.lookup_transform(
+                self.planning_frame, point_stamped.header.frame_id,
+                rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=2.0))
+            out = do_transform_point(point_stamped, tf)
+            self.get_logger().info(
+                f"[{self.method}] block=({out.point.x:.3f}, {out.point.y:.3f}, "
+                f"{out.point.z:.3f}) in {self.planning_frame}")
+            return (out.point.x, out.point.y, out.point.z)
+        except Exception as e:
+            self.get_logger().error(f"TF transform failed: {e}")
+            return None
 
-        if not step('1. SAFE HOME',  self._joint_req(SAFE_POSITIONS, vel=0.3)):  return
-        if not step('2. APPROACH',   self._pose_req(bx, by, bz+APPROACH_HEIGHT, vel=0.25)): return
-        if not step('3. DESCEND',    self._pose_req(bx, by, bz+PICK_HEIGHT,     vel=0.1)):  return
-        self.get_logger().info('  4. GRASP (1 s)'); time.sleep(1.0)
-        if not step('5. RETRACT',    self._pose_req(bx, by, bz+APPROACH_HEIGHT, vel=0.2)):  return
-        if not step('6. DELIVER',    self._joint_req(DROP_JOINTS,      vel=0.35)): return
-        self.get_logger().info('  7. RELEASE (1 s)'); time.sleep(1.0)
-        if not step('8. HOME',       self._joint_req(READY_POSITIONS,  vel=0.4)):  return
+    # ── Goal construction ─────────────────────────────────────────────────────
+    def _down_quat(self):
+        """Quaternion for the TCP pointing straight down at the configured yaw."""
+        x, y, z, w = quaternion_from_euler(math.pi, 0.0, self.grasp_yaw)
+        q = Quaternion(); q.x, q.y, q.z, q.w = x, y, z, w
+        return q
 
-        self.get_logger().info('─── Sequence complete ✓ ───')
+    def _pose_constraints(self, position_xyz, quat: Quaternion):
+        """Build position + orientation goal constraints for a Cartesian target."""
+        c = Constraints()
+        # Position: a tight sphere around the target point.
+        pc = PositionConstraint()
+        pc.header.frame_id = self.planning_frame
+        pc.link_name = self.ee_link
+        pc.target_point_offset = Vector3()
+        bv = BoundingVolume()
+        sphere = SolidPrimitive()
+        sphere.type = SolidPrimitive.SPHERE
+        sphere.dimensions = [0.01]
+        bv.primitives.append(sphere)
+        region_pose = Pose()
+        region_pose.position.x = float(position_xyz[0])
+        region_pose.position.y = float(position_xyz[1])
+        region_pose.position.z = float(position_xyz[2])
+        region_pose.orientation.w = 1.0
+        bv.primitive_poses.append(region_pose)
+        pc.constraint_region = bv
+        pc.weight = 1.0
+        c.position_constraints.append(pc)
+        # Orientation: keep the TCP pointing down (loose tolerance).
+        oc = OrientationConstraint()
+        oc.header.frame_id = self.planning_frame
+        oc.link_name = self.ee_link
+        oc.orientation = quat
+        oc.absolute_x_axis_tolerance = 0.1
+        oc.absolute_y_axis_tolerance = 0.1
+        oc.absolute_z_axis_tolerance = 0.1
+        oc.weight = 1.0
+        c.orientation_constraints.append(oc)
+        return c
+
+    def _joint_constraints(self, joints):
+        """Build a joint-space goal (used for HOME)."""
+        c = Constraints()
+        for name, pos in zip(ARM_JOINTS, joints):
+            jc = JointConstraint()
+            jc.joint_name = name
+            jc.position = float(pos)
+            jc.tolerance_above = 0.01
+            jc.tolerance_below = 0.01
+            jc.weight = 1.0
+            c.joint_constraints.append(jc)
+        return c
+
+    # ── Plan (MoveIt) + execute (JTC bypass) ──────────────────────────────────
+    def _plan(self, constraints):
+        """Ask MoveIt to PLAN ONLY. Returns a JointTrajectory or None."""
+        req = MotionPlanRequest()
+        req.group_name = self.group_name
+        req.allowed_planning_time = self.planning_time
+        req.max_velocity_scaling_factor = self.vel_scale
+        req.max_acceleration_scaling_factor = self.acc_scale
+        req.goal_constraints.append(constraints)
+
+        goal = MoveGroupAction.Goal()
+        goal.request = req
+        goal.planning_options.plan_only = True
+
+        fut = self._move_client.send_goal_async(goal)
+        rclpy.spin_until_future_complete(self, fut)
+        gh = fut.result()
+        if gh is None or not gh.accepted:
+            self.get_logger().error('Plan request rejected by MoveIt.')
+            return None
+        rfut = gh.get_result_async()
+        rclpy.spin_until_future_complete(self, rfut)
+        res = rfut.result().result
+        if res.error_code.val != MOVEIT_SUCCESS:
+            self.get_logger().error(
+                f'Planning failed (MoveItErrorCode {res.error_code.val}).')
+            return None
+        traj = res.planned_trajectory.joint_trajectory
+        self.get_logger().info(f'Plan OK ({len(traj.points)} waypoints).')
+        return traj
+
+    def _execute(self, traj):
+        """Execute a JointTrajectory directly on the JTC action server."""
+        if traj is None or not traj.points:
+            return False
+        # Zero the stamp so the controller starts immediately (as in arm_mover.py).
+        traj.header.stamp.sec = 0
+        traj.header.stamp.nanosec = 0
+        jtc_goal = FollowJointTrajectory.Goal()
+        jtc_goal.trajectory = traj
+
+        fut = self._jtc_client.send_goal_async(jtc_goal)
+        rclpy.spin_until_future_complete(self, fut)
+        gh = fut.result()
+        if gh is None or not gh.accepted:
+            self.get_logger().error('Execution rejected by JTC.')
+            return False
+        rfut = gh.get_result_async()
+        rclpy.spin_until_future_complete(self, rfut)
+        code = rfut.result().result.error_code
+        if code == FollowJointTrajectory.Result.SUCCESSFUL:
+            self.get_logger().info('Execution complete \u2713')
+            return True
+        self.get_logger().error(f'Execution failed (code {code}).')
+        return False
+
+    def move_to_pose(self, xyz, label=''):
+        self.get_logger().info(f'--> Moving to {label} {tuple(round(c, 3) for c in xyz)}')
+        traj = self._plan(self._pose_constraints(xyz, self._down_quat()))
+        return self._execute(traj)
+
+    def move_to_joints(self, joints, label=''):
+        self.get_logger().info(f'--> Moving to {label} (joint space)')
+        traj = self._plan(self._joint_constraints(joints))
+        return self._execute(traj)
+
+    # ── Orchestration ──────────────────────────────────────────────────────────
+    def run(self):
+        # 1. Wait for intrinsics + a detection from vision_detector.py.
+        self.get_logger().info('Waiting for camera_info and a block detection...')
+        self._wait_for(lambda: self._cam_info is not None, 10.0, 'camera_info')
+        if not self._wait_for(lambda: self._latest_pixel is not None,
+                              self.detection_timeout, 'block detection'):
+            return
+
+        # 2. Localize the block in the planning frame.
+        block = self.localize_block()
+        if block is None:
+            self.get_logger().error('Could not localize block — aborting.')
+            return
+        bx, by, _ = block
+
+        # 3. Derive the key Cartesian targets.
+        pre_grasp = (bx, by, self.table_z + self.cube_half + self.approach_height)
+        grasp = (bx, by, self.grasp_z)
+        lift = (bx, by, self.table_z + self.cube_half + self.lift_height)
+        drop_above = (self.drop[0], self.drop[1], self.drop[2] + self.lift_height)
+        drop = self.drop
+
+        # 4. Execute the full sequence. Abort if any arm motion fails.
+        self.gripper.open()
+        steps = [
+            ('pre-grasp (above block)', lambda: self.move_to_pose(pre_grasp, 'pre-grasp')),
+            ('descend to grasp',        lambda: self.move_to_pose(grasp, 'grasp')),
+            ('close gripper',           self.gripper.close),
+            ('lift object',             lambda: self.move_to_pose(lift, 'lift')),
+            ('above drop',              lambda: self.move_to_pose(drop_above, 'drop-above')),
+            ('descend to drop',         lambda: self.move_to_pose(drop, 'drop')),
+            ('open gripper',            self.gripper.open),
+            ('retreat from drop',       lambda: self.move_to_pose(drop_above, 'retreat')),
+            ('return home',             lambda: self.move_to_joints(HOME, 'home')),
+        ]
+        for name, action in steps:
+            self.get_logger().info(f'=== STEP: {name} ===')
+            if not action():
+                self.get_logger().error(f'Step "{name}" failed — aborting sequence.')
+                return
+        self.get_logger().info('Pick-and-place complete \u2713')
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = PickAndPlace()
-    executor = MultiThreadedExecutor(num_threads=4)
-    executor.add_node(node)
     try:
-        executor.spin()
+        node.run()
     except KeyboardInterrupt:
         pass
     finally:
