@@ -1,9 +1,7 @@
 #!groovy
+@Library('fe-gitlab-pipeline-steps@lts-2.2') _
+import de.franka.jenkins.FePipelineOptionDefaults
 pipeline {
-
-  libraries {
-    lib('fe-pipeline-steps')
-  }
 
   agent {
     node {
@@ -11,13 +9,9 @@ pipeline {
     }
   }
 
-  triggers {
-    pollSCM('H/5 * * * *')
-  }
-
   parameters {
     string(name: 'libfrankaRepoUrl',
-           defaultValue: 'ssh://git@bitbucket.fe.lan:7999/moctrl/libfranka.git',
+           defaultValue: 'ssh://git@gitlab.franka.de/frankadev/moctrl/libfranka.git',
            description: 'SSH URL to clone libfranka')
 
     string(name: 'libfrankaBranch',
@@ -25,7 +19,7 @@ pipeline {
            description: 'Branch or tag to checkout for libfranka.')
 
     string(name: 'frankaDescriptionRepoUrl',
-           defaultValue: 'ssh://git@bitbucket.fe.lan:7999/moctrl/franka_description.git',
+           defaultValue: 'ssh://git@gitlab.franka.de/frankadev/moctrl/franka_description.git',
            description: 'SSH URL to clone franka_description.')
 
     string(name: 'frankaDescriptionBranch',
@@ -46,6 +40,16 @@ pipeline {
   }
 
 
+  options {
+    gitLabConnection(FePipelineOptionDefaults.GITLAB_CONNECTION)
+    buildDiscarder(logRotator(
+      numToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.numToKeepStr,
+      daysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.daysToKeepStr,
+      artifactNumToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.artifactNumToKeepStr,
+      artifactDaysToKeepStr: FePipelineOptionDefaults.BUILD_DISCARDER.artifactDaysToKeepStr
+    ))
+  }
+
   stages {
     stage('Get Ready') {
       options { skipDefaultCheckout true }
@@ -62,7 +66,6 @@ pipeline {
             ]
         ])
         script {
-          notifyBitbucket()
           currentBuild.displayName = "[libfranka: ${params.libfrankaBranch}, franka_description: ${params.frankaDescriptionBranch}]"
         }
       }
@@ -108,7 +111,7 @@ pipeline {
               else
                 git clone --branch ${params.libfrankaBranch} ${params.libfrankaRepoUrl}
                 cd libfranka 
-                git config submodule.common.url ssh://git@bitbucket.fe.lan:7999/moctrl/libfranka-common.git
+                git config submodule.common.url ssh://git@gitlab.franka.de/frankadev/moctrl/libfranka-common.git
                 git submodule update --init --recursive --depth 1 
                 cd ..
               fi
@@ -217,7 +220,7 @@ pipeline {
       always {
           script {
               cleanWs()
-              notifyBitbucket()
+              feNotifySCM(currentBuild.result)
           }
       }
   }
