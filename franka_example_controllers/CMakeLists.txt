@@ -47,6 +47,8 @@ add_library(
         src/fr3/model_example_controller.cpp
         src/motion_generator.cpp
         src/fr3/move_to_start_example_controller.cpp
+        src/robot_model_franka.cpp
+        src/robot_model_pinocchio.cpp
 )
 
 target_include_directories( ${PROJECT_NAME}

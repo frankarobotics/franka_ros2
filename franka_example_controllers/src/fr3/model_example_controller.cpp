@@ -11,8 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <rclcpp/wait_for_message.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include <franka_example_controllers/fr3/model_example_controller.hpp>
+#include <franka_example_controllers/robot_model_franka.hpp>
+#include <franka_example_controllers/robot_model_pinocchio.hpp>
 
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
@@ -34,6 +38,7 @@ controller_interface::CallbackReturn ModelExampleController::on_init() {
   try {
     auto_declare("robot_type", "fr3");
     auto_declare<std::string>("arm_prefix", "");
+
     if (!get_node()->get_parameter("robot_type", robot_type_)) {
       RCLCPP_FATAL(get_node()->get_logger(), "Failed to get robot_type parameter");
       get_node()->shutdown();
@@ -45,6 +50,14 @@ controller_interface::CallbackReturn ModelExampleController::on_init() {
       return CallbackReturn::ERROR;
     }
     arm_prefix_ = arm_prefix_.empty() ? "" : arm_prefix_ + "_";
+    
+    auto_declare<bool>("gazebo", false);
+    if (!get_node()->get_parameter("gazebo", gazebo)) {
+      RCLCPP_FATAL(get_node()->get_logger(), "Failed to get gazebo parameter");
+      get_node()->shutdown();
+      return CallbackReturn::ERROR;
+    }
+
   } catch (const std::exception& e) {
     fprintf(stderr, "Exception thrown during init stage with message: %s \n", e.what());
     return CallbackReturn::ERROR;
@@ -62,18 +75,50 @@ controller_interface::InterfaceConfiguration ModelExampleController::state_inter
     const {
   controller_interface::InterfaceConfiguration state_interfaces_config;
   state_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-  for (const auto& franka_robot_model_name : franka_robot_model_->get_state_interface_names()) {
-    state_interfaces_config.names.push_back(franka_robot_model_name);
+
+  if (gazebo) {
+    // In simulation, we need joint position and velocity state interfaces
+    for (int i = 1; i <= 7; i++) {
+      state_interfaces_config.names.push_back(
+          arm_prefix_ + robot_type_ + "_joint" + std::to_string(i) + "/position");
+      state_interfaces_config.names.push_back(
+          arm_prefix_ + robot_type_ + "_joint" + std::to_string(i) + "/velocity");
+    }
+  } else {
+    // On hardware, request the FCI model/state interfaces
+    for (const auto& name : robot_model_->get_state_interface_names()) {
+      state_interfaces_config.names.push_back(name);
+    }
   }
+
   return state_interfaces_config;
 }
 
 controller_interface::CallbackReturn ModelExampleController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  franka_robot_model_ = std::make_unique<franka_semantic_components::FrankaRobotModel>(
-      franka_semantic_components::FrankaRobotModel(
-          arm_prefix_ + robot_type_ + "/" + k_robot_model_interface_name,
-          arm_prefix_ + robot_type_ + "/" + k_robot_state_interface_name));
+
+  if (gazebo) {
+    auto temp_node = std::make_shared<rclcpp::Node>("_urdf_fetcher");
+    std_msgs::msg::String msg;
+
+    rclcpp::QoS qos(1);
+    qos.transient_local();
+
+    if (!rclcpp::wait_for_message(msg, temp_node, "/robot_description",
+            std::chrono::seconds(5), qos)) {
+        RCLCPP_ERROR(get_node()->get_logger(),
+            "Timed out waiting for /robot_description topic");
+        return CallbackReturn::ERROR;
+    }
+
+    robot_model_ = std::make_unique<robot_model_interface::RobotModelPinocchio>(msg.data);
+    RCLCPP_INFO(get_node()->get_logger(), "Using Pinocchio model backend (simulation)");
+  } 
+  else {
+    robot_model_ = std::make_unique<robot_model_interface::RobotModelFranka>(
+        arm_prefix_ + robot_type_);
+    RCLCPP_INFO(get_node()->get_logger(), "Using Franka FCI model backend (hardware)");
+  }
 
   RCLCPP_DEBUG(get_node()->get_logger(), "configured successfully");
   return CallbackReturn::SUCCESS;
@@ -81,44 +126,51 @@ controller_interface::CallbackReturn ModelExampleController::on_configure(
 
 controller_interface::CallbackReturn ModelExampleController::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  franka_robot_model_->assign_loaned_state_interfaces(state_interfaces_);
+  robot_model_->assign_loaned_state_interfaces(state_interfaces_);
   return CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn ModelExampleController::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  franka_robot_model_->release_interfaces();
+  robot_model_->release_interfaces();
   return CallbackReturn::SUCCESS;
 }
+
+
 
 controller_interface::return_type ModelExampleController::update(
     const rclcpp::Time& /*time*/,
     const rclcpp::Duration& /*period*/) {
-  std::array<double, 49> mass = franka_robot_model_->getMassMatrix();
-  std::array<double, 7> coriolis = franka_robot_model_->getCoriolisForceVector();
-  std::array<double, 7> gravity = franka_robot_model_->getGravityForceVector();
-  std::array<double, 16> pose = franka_robot_model_->getPoseMatrix(franka::Frame::kJoint4);
-  std::array<double, 42> joint4_body_jacobian_wrt_joint4 =
-      franka_robot_model_->getBodyJacobian(franka::Frame::kJoint4);
-  std::array<double, 42> endeffector_jacobian_wrt_base =
-      franka_robot_model_->getZeroJacobian(franka::Frame::kEndEffector);
+
+  if (gazebo) {
+    robot_model_interface::Vector7d q, dq;
+    for (int i = 0; i < 7; i++) {
+      q(i) = state_interfaces_[2 * i].get_value();
+      dq(i) = state_interfaces_[2 * i + 1].get_value();
+    }
+    robot_model_->updateState(q, dq);
+  }
+
+  auto mass = robot_model_->getMassMatrix();
+  auto coriolis = robot_model_->getCoriolis();
+  auto gravity = robot_model_->getGravity();
+  auto pose = robot_model_->getPose("end_effector");
+  auto jacobian = robot_model_->getJacobian("end_effector");
+
+  Eigen::IOFormat fmt(4, 0, ", ", "\n", "[", "]");
 
   RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
                        "-------------------------------------------------------------");
   RCLCPP_INFO_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
-                              "mass :" << mass);
+                              "mass :\n" << mass.format(fmt));
   RCLCPP_INFO_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
-                              "coriolis :" << coriolis);
+                              "coriolis :" << coriolis.transpose().format(fmt));
   RCLCPP_INFO_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
-                              "gravity :" << gravity);
+                              "gravity :" << gravity.transpose().format(fmt));
   RCLCPP_INFO_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
-                              "joint_pose :" << pose);
-  RCLCPP_INFO_STREAM_THROTTLE(
-      get_node()->get_logger(), *get_node()->get_clock(), 1000,
-      "joint4_body_jacobian in joint4 frame :" << joint4_body_jacobian_wrt_joint4);
-  RCLCPP_INFO_STREAM_THROTTLE(
-      get_node()->get_logger(), *get_node()->get_clock(), 1000,
-      "end_effector_jacobian in base frame :" << endeffector_jacobian_wrt_base);
+                              "ee_pose :\n" << pose.matrix().format(fmt));
+  RCLCPP_INFO_STREAM_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
+                              "ee_jacobian :\n" << jacobian.format(fmt));
   RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
                        "-------------------------------------------------------------");
 
@@ -130,4 +182,4 @@ controller_interface::return_type ModelExampleController::update(
 #include "pluginlib/class_list_macros.hpp"
 // NOLINTNEXTLINE
 PLUGINLIB_EXPORT_CLASS(franka_example_controllers::ModelExampleController,
-                       controller_interface::ControllerInterface)
+                       controller_interface::ControllerInterface)   
