@@ -37,6 +37,9 @@
   <!-- Vision kit accessory components (Layer 2b) -->
   <xacro:include filename="$(find franka_vision_and_manipulation_kit)/robots/vision_kit_components.xacro"/>
 
+  <!-- ros2_control hardware interface macros -->
+  <xacro:include filename="$(find franka_hardware)/ros2_control/mobile_fr3_duo.ros2_control.xacro"/>
+
   <!-- Gazebo sensor plugins (Layer 3) -->
   <xacro:include filename="$(find franka_gazebo_bringup)/urdf/sensors.xacro" />
   <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
@@ -48,6 +51,7 @@
   <xacro:arg name="robot_types" default="['tmrv0_2','fr3v2','fr3v2']" />
   <xacro:property name="robot_types_list" value="${$(arg robot_types)}" />
 
+
   <xacro:arg name="no_prefix"          default="false"/>
   <xacro:arg name="hand"               default="true" />
   <xacro:arg name="ee_id"              default="franka_hand" />
@@ -58,16 +62,11 @@
   <xacro:arg name="tcp_rpy"            default="0 0 0" />
   <xacro:arg name="safety_distance"    default="0.03" />
   <xacro:arg name="with_sc"            default="false" />
-  <xacro:arg name="ros2_control"       default="false" />
-  <xacro:arg name="robot_ips"          default="['172.16.0.1','172.16.0.2','172.16.0.3']" />
-  <xacro:property name="robot_ips_list" value="${$(arg robot_ips)}" />
-  <xacro:arg name="use_fake_hardware"    default="false" />
-  <xacro:arg name="fake_sensor_commands" default="false" />
-  <xacro:arg name="gazebo_effort"        default="false" />
   <xacro:arg name="description_pkg"      default="franka_description" />
   <xacro:arg name="connected_to"         default="base" />
   <xacro:arg name="reduced_version"      default="false" />
   <xacro:arg name="use_arms"             default="true" />
+  <xacro:arg name="gazebo_effort"        default="false" />
 
   <!-- ================================================================ -->
   <!-- LAYER 1: Base Robot                                              -->
@@ -75,13 +74,8 @@
   <xacro:mobile_fr3_duo_v0_2
         robot_types="$(arg robot_types)"
         hand="$(arg hand)"
-        ros2_control="$(arg ros2_control)"
         gazebo="true"
-        gazebo_effort="$(arg gazebo_effort)"
-        use_fake_hardware="$(arg use_fake_hardware)"
-        fake_sensor_commands="$(arg fake_sensor_commands)"
         reduced_version="$(arg reduced_version)"
-        robot_ips="$(arg robot_ips)"
         description_pkg="$(arg description_pkg)"
         connected_to="$(arg connected_to)"
         use_arms="$(arg use_arms)"
@@ -104,6 +98,19 @@
   <!-- LAYER 2b: Vision Kit Accessories                                -->
   <!-- ================================================================ -->
   <xacro:vision_kit_components left_arm_type="fr3v2" right_arm_type="fr3v2" prefix="" robotiq_use_fake_hardware="true" robotiq_include_ros2_control="true" sim_gazebo="true" />
+
+  <!-- ================================================================ -->
+  <!-- ros2_control: Unified mobile base + both arms                   -->
+  <!-- ================================================================ -->
+  <xacro:property name="arm_prefixes_list" value="${['left','right']}"/>
+  <xacro:mobile_fr3_duo_ros2_control
+        mobile_robot_type="tmrv0_2"
+        robot_types="${robot_types_list}"
+        arm_prefixes="${arm_prefixes_list}"
+        hand="$(arg hand)"
+        gazebo="true"
+        gazebo_effort="$(arg gazebo_effort)"
+        robot_namespace=""/>
 
   <!-- ================================================================ -->
   <!-- LAYER 3: Gazebo Sensor Plugins                                  -->

@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find franka_hardware)/ros2_control/franka_ros2_control_macros.xacro"/>
+
+  <xacro:macro name="fr3_duo_ros2_control"
+    params="robot_types
+            arm_prefixes
+            robot_ips:=''
+            use_fake_hardware:=false
+            fake_sensor_commands:=false
+            is_async:=false
+            thread_priority:=50
+            hand
+            gazebo
+            gazebo_effort">
+    <ros2_control name="controller_manager" type="system" is_async="${is_async}">
+      <xacro:if value="${is_async}">
+        <properties>
+          <async scheduling_policy="detached" print_warnings="true" thread_priority="${thread_priority}"
+            manage_overruns="false"/>
+        </properties>
+      </xacro:if>
+      <hardware>
+        <param name="version">1.1.0</param>
+        <param name="robot_type">fr3_duo</param>
+        <xacro:if value="${use_fake_hardware}">
+          <plugin>mock_components/GenericSystem</plugin>
+          <param name="mock_sensor_commands">${fake_sensor_commands}</param>
+          <param name="state_following_offset">0.0</param>
+        </xacro:if>
+
+        <xacro:if value="${gazebo}">
+          <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+        </xacro:if>
+
+        <xacro:if value="${use_fake_hardware == 0 and gazebo == 0}">
+          <xacro:error message="fr3_duo_ros2_control is Gazebo/fake-hardware-only. For real dual-arm hardware, use the per-arm franka_arm_ros2_control macro (one per arm with independent robot_ips) via franka_bringup/urdf/fr3_duo.urdf.xacro."/>
+        </xacro:if>
+      </hardware>
+
+      <!-- Arm joints -->
+      <xacro:property name="robot_types_list" value="${robot_types}"/>
+      <xacro:property name="arm_prefixes_list" value="${arm_prefixes}"/>
+
+      <xacro:property name="arm1_type" value="${robot_types_list[0]}"/>
+      <xacro:property name="arm2_type" value="${robot_types_list[1]}"/>
+      <xacro:property name="arm1_prefix" value="${arm_prefixes_list[0]}"/>
+      <xacro:property name="arm2_prefix" value="${arm_prefixes_list[1]}"/>
+
+      <!-- Left arm interfaces -->
+      <xacro:configure_arm_interfaces
+          joint_prefix="${arm1_prefix}_${arm1_type}"
+          gpio_prefix="${arm1_prefix}_"
+          gazebo="${gazebo}"
+          gazebo_effort="${gazebo_effort}"
+          hand="${hand}"
+          cv_start_index="0"
+          include_elbow="1"
+          elbow_start_index="0"
+          finger_position_only="1"/>
+
+      <!-- Right arm interfaces -->
+      <xacro:configure_arm_interfaces
+          joint_prefix="${arm2_prefix}_${arm2_type}"
+          gpio_prefix="${arm2_prefix}_"
+          gazebo="${gazebo}"
+          gazebo_effort="${gazebo_effort}"
+          hand="${hand}"
+          cv_start_index="6"
+          include_elbow="1"
+          elbow_start_index="2"
+          finger_position_only="1"/>
+
+    </ros2_control>
+
+    <xacro:if value="${gazebo}">
+      <gazebo>
+        <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+          <parameters>$(find franka_gazebo_bringup)/config/franka_gazebo_controllers.yaml</parameters>
+        </plugin>
+      </gazebo>
+    </xacro:if>
+
+  </xacro:macro>
+</robot>

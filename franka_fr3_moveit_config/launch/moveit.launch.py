@@ -75,14 +75,14 @@ def generate_launch_description():
 
     # planning_context
     franka_xacro_file = os.path.join(
-        get_package_share_directory('franka_description'),
-        'robots', 'fr3', 'fr3.urdf.xacro'
+        get_package_share_directory('franka_bringup'),
+        'urdf', 'franka_arm.urdf.xacro'
     )
 
     robot_description_config = Command(
         [FindExecutable(name='xacro'), ' ', franka_xacro_file, ' hand:=', load_gripper,
          ' robot_ip:=', robot_ip, ' ee_id:=', ee_id, ' use_fake_hardware:=', use_fake_hardware,
-         ' fake_sensor_commands:=', fake_sensor_commands, ' ros2_control:=true'])
+         ' fake_sensor_commands:=', fake_sensor_commands])
 
     robot_description = {'robot_description': ParameterValue(
         robot_description_config, value_type=str)}

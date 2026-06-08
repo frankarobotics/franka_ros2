@@ -12,7 +12,7 @@ find_package(ament_cmake_python REQUIRED)
 ament_python_install_package(${PROJECT_NAME})
 
 install(
-  DIRECTORY config launch
+  DIRECTORY config launch urdf
   DESTINATION share/${PROJECT_NAME}
 )
 
@@ -34,6 +34,12 @@ if(BUILD_TESTING)
 
   add_ros_isolated_launch_test(test/test_hardware_example_controllers.py)
   add_ros_isolated_launch_test(test/test_hardware_generic_controller.py)
+
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_franka_arm_interfaces test/test_franka_arm_interfaces.py)
+  ament_add_pytest_test(test_fr3_duo_interfaces test/test_fr3_duo_interfaces.py)
+  ament_add_pytest_test(test_mobile_fr3_duo_interfaces test/test_mobile_fr3_duo_interfaces.py)
+  ament_add_pytest_test(test_gazebo_wrapper_expansion test/test_gazebo_wrapper_expansion.py)
 
   install(
     DIRECTORY test

@@ -132,20 +132,18 @@ def generate_robot_nodes(context):
     validate_duo_arrays_length(robot_types_list, robot_ips_list, robot_prefixes_list)
     validate_robot_prefixes_unique(robot_prefixes_list)
 
-    # Build URDF path - using mobile_fr3_duo with tmrv0_2 mobile base
+    # Build URDF path - using franka_hardware wrapper with ros2_control
     urdf_path = PathJoinSubstitution(
         [
-            FindPackageShare('franka_description'),
-            'robots',
-            'mobile_fr3_duo_v0_2',
-            'mobile_fr3_duo_v0_2.urdf.xacro',
+            FindPackageShare('franka_bringup'),
+            'urdf',
+            'mobile_fr3_duo.urdf.xacro',
         ]
     ).perform(context)
 
     robot_description = xacro.process_file(
         urdf_path,
         mappings={
-            'ros2_control': 'true',
             'robot_types': robot_types_str,
             'robot_prefixes': robot_prefixes_str,
             'robot_ips': robot_ips_str,

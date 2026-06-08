@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bringup entry point for FR3 Duo (dual-arm).
+
+  Composes the franka_description FR3 Duo base with per-arm ros2_control
+  hardware interfaces.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fr3_duo">
+
+  <!-- Base robot (geometry, links, joints — declares all description args) -->
+  <xacro:include filename="$(find franka_description)/robots/fr3_duo/fr3_duo.urdf.xacro"/>
+  <!-- ros2_control hardware interface macro (per-arm) -->
+  <xacro:include filename="$(find franka_hardware)/ros2_control/franka_arm.ros2_control.xacro"/>
+
+  <!-- ros2_control-specific arguments (not declared by description) -->
+  <xacro:arg name="robot_ips" default="['172.16.0.2','172.16.0.3']"/>
+  <xacro:property name="robot_ips_list" value="${$(arg robot_ips)}"/>
+  <xacro:arg name="use_fake_hardware" default="false"/>
+  <xacro:arg name="fake_sensor_commands" default="false"/>
+  <xacro:arg name="gazebo_effort" default="false"/>
+  <xacro:arg name="is_async" default="false"/>
+  <xacro:arg name="thread_priority" default="50"/>
+
+  <!-- Per-arm ros2_control hardware interfaces: one franka_arm_ros2_control call per arm
+       (two independent hardware components, each with its own robot_ip). -->
+  <xacro:franka_arm_ros2_control
+      robot_type="${robot_types_list[0]}"
+      robot_ip="${robot_ips_list[0]}"
+      use_fake_hardware="$(arg use_fake_hardware)"
+      fake_sensor_commands="$(arg fake_sensor_commands)"
+      gazebo="$(arg gazebo)"
+      hand="$(arg hand)"
+      gazebo_effort="$(arg gazebo_effort)"
+      arm_prefix="${arm_prefixes_list[0]}_"
+      is_async="$(arg is_async)"
+      thread_priority="$(arg thread_priority)"/>
+
+  <xacro:franka_arm_ros2_control
+      robot_type="${robot_types_list[1]}"
+      robot_ip="${robot_ips_list[1]}"
+      use_fake_hardware="$(arg use_fake_hardware)"
+      fake_sensor_commands="$(arg fake_sensor_commands)"
+      gazebo="$(arg gazebo)"
+      hand="$(arg hand)"
+      gazebo_effort="$(arg gazebo_effort)"
+      arm_prefix="${arm_prefixes_list[1]}_"
+      is_async="$(arg is_async)"
+      thread_priority="$(arg thread_priority)"/>
+
+</robot>

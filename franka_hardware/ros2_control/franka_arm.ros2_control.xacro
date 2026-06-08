@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find franka_hardware)/ros2_control/franka_ros2_control_macros.xacro"/>
+
+  <xacro:macro name="franka_arm_ros2_control"
+    params="robot_type
+                 robot_ip:=''
+                 use_fake_hardware:=false
+                 fake_sensor_commands:=false
+                 gazebo:=false
+                 hand:=false
+                 gazebo_effort:=false
+                 arm_prefix:=''
+                 is_async:=false
+                 thread_priority:=50">
+
+    <ros2_control name="${arm_prefix}FrankaHardwareInterface" type="system" is_async="${is_async}">
+      <xacro:if value="${is_async}">
+        <properties>
+          <async scheduling_policy="detached" print_warnings="true" thread_priority="${thread_priority}"
+            manage_overruns="false"/>
+        </properties>
+      </xacro:if>
+      <hardware>
+        <param name="version">1.1.0</param>
+        <param name="robot_type">${robot_type}</param>
+        <param name="prefix">${arm_prefix}</param>
+        <xacro:if value="${use_fake_hardware}">
+          <plugin>mock_components/GenericSystem</plugin>
+          <param name="mock_sensor_commands">${fake_sensor_commands}</param>
+          <param name="state_following_offset">0.0</param>
+        </xacro:if>
+
+        <xacro:if value="${gazebo}">
+          <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+        </xacro:if>
+
+        <xacro:if value="${use_fake_hardware == 0 and gazebo == 0}">
+          <plugin>franka_hardware/FrankaHardwareInterface</plugin>
+          <param name="robot_ip">${robot_ip}</param>
+          <param name="arm_prefix">${arm_prefix}</param>
+        </xacro:if>
+      </hardware>
+
+      <!-- Per-arm interfaces: joints, finger, cartesian velocity, cartesian pose, elbow, sensor -->
+      <xacro:configure_arm_interfaces
+          joint_prefix="${arm_prefix}${robot_type}"
+          gpio_prefix="${arm_prefix}"
+          gazebo="${gazebo}"
+          gazebo_effort="${gazebo_effort}"
+          hand="${hand}"
+          include_elbow="1"
+          include_cartesian_pose="1"
+          include_sensor="1"
+          sensor_name="${arm_prefix}${robot_type}_tcp"/>
+
+    </ros2_control>
+    <xacro:if value="${gazebo}">
+      <gazebo>
+        <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+          <parameters>$(find franka_gazebo_bringup)/config/franka_gazebo_controllers.yaml</parameters>
+        </plugin>
+      </gazebo>
+    </xacro:if>
+
+  </xacro:macro>
+</robot>

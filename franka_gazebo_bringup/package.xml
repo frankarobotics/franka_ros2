@@ -15,6 +15,7 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <exec_depend>franka_hardware</exec_depend>
   <exec_depend>ros2controlcli</exec_depend>
   <exec_depend>franka_mobile_sensors</exec_depend>
   <exec_depend>franka_mobile</exec_depend>

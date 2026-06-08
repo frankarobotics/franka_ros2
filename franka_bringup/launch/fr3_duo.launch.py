@@ -129,9 +129,8 @@ def generate_robot_nodes(context):
     # Build URDF path
     urdf_path = PathJoinSubstitution(
         [
-            FindPackageShare('franka_description'),
-            'robots',
-            'fr3_duo',
+            FindPackageShare('franka_bringup'),
+            'urdf',
             'fr3_duo.urdf.xacro',
         ]
     ).perform(context)
@@ -139,7 +138,6 @@ def generate_robot_nodes(context):
     robot_description = xacro.process_file(
         urdf_path,
         mappings={
-            'ros2_control': 'true',
             'robot_types': robot_types_str,
             'robot_ips': robot_ips_str,
             'hand': load_gripper_str,
