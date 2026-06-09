@@ -419,5 +419,13 @@
       <command_interface name="elbow_command"/>
       <param name="index">1</param>
     </gpio>
+    <sensor name="fr3_tcp">
+      <state_interface name="force.x"/>
+      <state_interface name="force.y"/>
+      <state_interface name="force.z"/>
+      <state_interface name="torque.x"/>
+      <state_interface name="torque.y"/>
+      <state_interface name="torque.z"/>
+    </sensor>
   </ros2_control>
 </robot>
