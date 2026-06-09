@@ -6,6 +6,15 @@ UNRELEASED
 
 * fix: franka_gazebo_bringup: fix launch file for gazebo (use world without gravity by default for example controllers)
 Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Humble
+Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 Jazzy
+
+* feat: expose ``K_F_ext_hat_K`` as ``ForceTorqueSensor`` state interfaces (force.x/y/z,
+  torque.x/y/z) on the ``<arm_prefix><robot_type>_tcp`` sensor, enabling direct wrench
+  consumption at control frequency without a topic bridge.
+* BREAKING CHANGE: collision_detected topic now uses best_effort QoS (SensorDataQoS);
+  thread-safe atomics for collision state in example controllers.
+  Subscribers using the default ``reliable`` QoS will no longer receive messages.
+  To migrate, set the subscriber QoS to ``best_effort`` (``SensorDataQoS``):
 
 * feat: Added franka_spine packages (franka_spine_msgs, franka_spine_server, franka_spine_examples) — ROS 2 action/service server for controlling the Franka Spine module
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <gmock/gmock.h>
+#include <algorithm>
 #include <exception>
 #include <rclcpp/rclcpp.hpp>
 
@@ -42,6 +43,11 @@
 
 using namespace std::chrono_literals;
 
+static constexpr size_t kStateInterfaceSize = 48;  // 7*3 (pos/vel/eff) + robot_state
+                                                   // + robot_model + pose(16) + elbow(2)
+                                                   // + robot_time(1) + F/T sensor(6)
+static constexpr size_t kStateInterfaceSizeWithoutSensor = 42;  // same without F/T sensor(6)
+
 class FrankaHardwareInterfaceTest : public ::testing::TestWithParam<std::string> {
  public:
   auto SetUp() -> void override {
@@ -61,6 +67,18 @@ class FrankaHardwareInterfaceTest : public ::testing::TestWithParam<std::string>
   hardware_interface::HardwareInfo default_hardware_info;
   franka_hardware::FrankaHardwareInterface default_franka_hardware_interface{default_mock_robot,
                                                                              robot_type};
+  MockModel mock_model_;
+
+  auto readAndExportStates(const franka::RobotState& robot_state = franka::RobotState{})
+      -> std::vector<hardware_interface::StateInterface> {
+    EXPECT_CALL(*default_mock_robot, readOnce()).WillOnce(testing::Return(robot_state));
+    EXPECT_CALL(*default_mock_robot, getModel()).WillOnce(testing::Return(&mock_model_));
+    auto time = rclcpp::Time(0);
+    auto duration = rclcpp::Duration(0, 0);
+    EXPECT_EQ(default_franka_hardware_interface.read(time, duration),
+              hardware_interface::return_type::OK);
+    return default_franka_hardware_interface.export_state_interfaces();
+  }
 
   /* Helper function to get the response of a service */
   template <typename service_client_type,
@@ -158,64 +176,55 @@ TEST_F(FrankaHardwareInterfaceTest, givenThatTheRobotInterfacesSet_whenReadCalle
 TEST_F(
     FrankaHardwareInterfaceTest,
     givenThatTheRobotInterfacesAreSet_whenCallExportState_returnZeroValuesAndCorrectInterfaceNames) {
-  franka::RobotState robot_state;
-  const size_t state_interface_size = 42;  // position, effort and velocity states for 7*3
-                                           // + robot state and model
-                                           // + pose(16) + elbow(2)
-                                           // + robot_time(1)
-  MockModel mock_model;
-  MockModel* model_address = &mock_model;
+  auto states = readAndExportStates();
 
-  EXPECT_CALL(*default_mock_robot, getModel()).WillOnce(testing::Return(model_address));
-  EXPECT_CALL(*default_mock_robot, readOnce()).WillOnce(testing::Return(robot_state));
+  // Helper to find state interface by name
+  auto findState = [&states](const std::string& name) {
+    return std::find_if(states.begin(), states.end(),
+                        [&name](const auto& s) { return s.get_name() == name; });
+  };
 
-  auto time = rclcpp::Time(0);
-  auto duration = rclcpp::Duration(0, 0);
-  auto return_type = default_franka_hardware_interface.read(time, duration);
-  ASSERT_EQ(return_type, hardware_interface::return_type::OK);
-  auto states = default_franka_hardware_interface.export_state_interfaces();
-  size_t joint_index = 0;
+  // Verify joint state interfaces exist with correct initial values
+  for (size_t i = 1; i <= k_number_of_joints; i++) {
+    const std::string joint_name = robot_type + "_" + k_joint_name + std::to_string(i);
 
-  // Get all the joint states (21 interfaces = 7 joints * 3 interfaces per joint)
-  const size_t joint_interfaces = 21;
-  for (size_t i = 0; i < joint_interfaces; i++) {
-    if (i % 3 == 0) {
-      joint_index++;
-    }
-    const std::string joint_name = k_joint_name + std::to_string(joint_index);
-    if (i % 3 == 0) {
-      ASSERT_EQ(states[i].get_name(), robot_type + "_" + joint_name + "/" + k_position_controller);
-    } else if (i % 3 == 1) {
-      ASSERT_EQ(states[i].get_name(), robot_type + "_" + joint_name + "/" + k_velocity_controller);
-    } else if (i % 3 == 2) {
-      ASSERT_EQ(states[i].get_name(), robot_type + "_" + joint_name + "/" + k_effort_controller);
-    }
-    ASSERT_EQ(states[i].get_value(), 0.0);
+    auto pos = findState(joint_name + "/" + k_position_controller);
+    ASSERT_NE(pos, states.end()) << "Missing: " << joint_name << "/position";
+    ASSERT_EQ(pos->get_value(), 0.0);
+
+    auto vel = findState(joint_name + "/" + k_velocity_controller);
+    ASSERT_NE(vel, states.end()) << "Missing: " << joint_name << "/velocity";
+    ASSERT_EQ(vel->get_value(), 0.0);
+
+    auto eff = findState(joint_name + "/" + k_effort_controller);
+    ASSERT_NE(eff, states.end()) << "Missing: " << joint_name << "/effort";
+    ASSERT_EQ(eff->get_value(), 0.0);
   }
 
-  ASSERT_EQ(states[joint_interfaces].get_name(), robot_type + "/robot_state");
-  ASSERT_EQ(states[joint_interfaces + 1].get_name(), robot_type + "/robot_model");
-  ASSERT_EQ(states[states.size() - 1].get_name(), robot_type + "/robot_time");
+  // Verify special interfaces exist
+  ASSERT_NE(findState(robot_type + "/robot_state"), states.end());
+  ASSERT_NE(findState(robot_type + "/robot_model"), states.end());
+  ASSERT_NE(findState(robot_type + "/robot_time"), states.end());
+
+  // Verify F/T sensor interfaces exist
+  const std::string sensor_name = robot_type + "_tcp";
+  ASSERT_NE(findState(sensor_name + "/force.x"), states.end());
+  ASSERT_NE(findState(sensor_name + "/force.y"), states.end());
+  ASSERT_NE(findState(sensor_name + "/force.z"), states.end());
+  ASSERT_NE(findState(sensor_name + "/torque.x"), states.end());
+  ASSERT_NE(findState(sensor_name + "/torque.y"), states.end());
+  ASSERT_NE(findState(sensor_name + "/torque.z"), states.end());
 
   // Verify total number of interfaces
-  ASSERT_EQ(states.size(), state_interface_size);
+  ASSERT_EQ(states.size(), kStateInterfaceSize);
 }
 
 TEST_F(
     FrankaHardwareInterfaceTest,
     given_that_the_robot_interfaces_are_set_when_call_export_state_interface_robot_model_interface_exists) {
-  franka::RobotState robot_state;
+  auto states = readAndExportStates();
+  MockModel* model_address = &mock_model_;
 
-  MockModel mock_model;
-  MockModel* model_address = &mock_model;
-  EXPECT_CALL(*default_mock_robot, readOnce()).WillOnce(testing::Return(robot_state));
-  EXPECT_CALL(*default_mock_robot, getModel()).WillOnce(testing::Return(model_address));
-
-  auto time = rclcpp::Time(0);
-  auto duration = rclcpp::Duration(0, 0);
-  auto return_type = default_franka_hardware_interface.read(time, duration);
-  ASSERT_EQ(return_type, hardware_interface::return_type::OK);
-  auto states = default_franka_hardware_interface.export_state_interfaces();
   ASSERT_EQ(states[22].get_name(),
             "fr3/robot_model");        // joint states (3*7) + robot state (1)
   EXPECT_NEAR(states[22].get_value(),  // joint states (3*7) + robot state (1)
@@ -229,22 +238,67 @@ TEST_F(
     given_that_the_robot_interfaces_are_set_when_call_export_state_interface_robot_state_interface_exists) {
   franka::RobotState robot_state;
   franka::RobotState* robot_state_address = &robot_state;
+  auto states = readAndExportStates(robot_state);
 
-  MockModel mock_model;
-  MockModel* model_address = &mock_model;
-  EXPECT_CALL(*default_mock_robot, readOnce()).WillOnce(testing::Return(robot_state));
-  EXPECT_CALL(*default_mock_robot, getModel()).WillOnce(testing::Return(model_address));
-
-  auto time = rclcpp::Time(0);
-  auto duration = rclcpp::Duration(0, 0);
-  auto return_type = default_franka_hardware_interface.read(time, duration);
-  ASSERT_EQ(return_type, hardware_interface::return_type::OK);
-  auto states = default_franka_hardware_interface.export_state_interfaces();
   ASSERT_EQ(states[21].get_name(),
             "fr3/robot_state");  // joint states (3*7) , then comes robot state
   EXPECT_NEAR(states[21].get_value(), *reinterpret_cast<double*>(&robot_state_address),
               k_EPS);  // testing that the casted robot state ptr
                        // is correctly pushed to state interface
+}
+
+TEST_F(FrankaHardwareInterfaceTest,
+       givenFR3StateInterfaces_whenReadCalled_thenForceTorqueValuesMatchRobotState) {
+  franka::RobotState robot_state;
+  robot_state.K_F_ext_hat_K = {1.5, -2.3, 0.7, -0.1, 4.2, -3.8};
+
+  auto states = readAndExportStates(robot_state);
+
+  const std::string sensor_name = "fr3_tcp";
+  const std::vector<std::string> interface_names = {
+      sensor_name + "/force.x",  sensor_name + "/force.y",  sensor_name + "/force.z",
+      sensor_name + "/torque.x", sensor_name + "/torque.y", sensor_name + "/torque.z"};
+
+  for (size_t i = 0; i < interface_names.size(); i++) {
+    auto it = std::find_if(states.begin(), states.end(), [&](const auto& state) {
+      return state.get_name() == interface_names[i];
+    });
+    ASSERT_NE(it, states.end()) << "Missing: " << interface_names[i];
+    EXPECT_NEAR(it->get_value(), robot_state.K_F_ext_hat_K[i], k_EPS)
+        << "Value mismatch for " << interface_names[i];
+  }
+}
+
+TEST_F(FrankaHardwareInterfaceTest,
+       givenNoSensorInURDF_whenExportStateInterfaces_thenNoForceTorqueInterfacesRegistered) {
+  // Simulate a hardware component without sensor declarations (e.g. mobile base)
+  auto hardware_info_no_sensor = default_hardware_info;
+  hardware_info_no_sensor.sensors.clear();
+
+  auto mock_robot = std::make_shared<MockRobot>();
+  franka_hardware::FrankaHardwareInterface hw_interface{mock_robot, robot_type};
+  hw_interface.on_init(hardware_info_no_sensor);
+
+  franka::RobotState robot_state;
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+  EXPECT_CALL(*mock_robot, readOnce()).WillOnce(testing::Return(robot_state));
+  EXPECT_CALL(*mock_robot, getModel()).WillOnce(testing::Return(model_address));
+
+  auto time = rclcpp::Time(0);
+  auto duration = rclcpp::Duration(0, 0);
+  hw_interface.read(time, duration);
+  auto states = hw_interface.export_state_interfaces();
+
+  ASSERT_EQ(states.size(), kStateInterfaceSizeWithoutSensor);
+
+  // Verify no F/T interfaces exist
+  for (const auto& state : states) {
+    ASSERT_EQ(state.get_name().find("force."), std::string::npos)
+        << "Unexpected F/T interface: " << state.get_name();
+    ASSERT_EQ(state.get_name().find("torque."), std::string::npos)
+        << "Unexpected F/T interface: " << state.get_name();
+  }
 }
 
 TEST_P(FrankaHardwareInterfaceTest,

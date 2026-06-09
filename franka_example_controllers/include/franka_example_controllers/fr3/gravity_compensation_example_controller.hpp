@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include <controller_interface/controller_interface.hpp>
@@ -21,6 +22,7 @@
 
 #include <rclcpp/duration.hpp>
 #include <rclcpp/time.hpp>
+#include <semantic_components/force_torque_sensor.hpp>
 
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
@@ -45,9 +47,15 @@ class GravityCompensationExampleController : public controller_interface::Contro
   controller_interface::return_type update(const rclcpp::Time& time,
                                            const rclcpp::Duration& period) override;
 
+  CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
+
+  CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
+
  private:
   std::string robot_type_;
   std::string arm_prefix_;
   const int num_joints = 7;
+  std::unique_ptr<semantic_components::ForceTorqueSensor> force_torque_sensor_;
+  size_t log_counter_{0};
 };
 }  // namespace franka_example_controllers
