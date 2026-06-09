@@ -85,7 +85,7 @@ class SpineController:
     def __init__(
         self,
         spine_ip: str,
-        timeout: float = 5.0,
+        timeout: float,
         feedback_rate: float = 10.0,
         logger: Optional[logging.Logger] = None,
     ):
