@@ -16,6 +16,8 @@
   <depend>hardware_interface</depend>
   <depend>pluginlib</depend>
 
+  <exec_depend>xacro</exec_depend>
+
   <test_depend>ament_cmake_clang_format</test_depend>
   <test_depend>ament_cmake_copyright</test_depend>
   <test_depend>ament_cmake_cppcheck</test_depend>
@@ -25,6 +27,8 @@
   <test_depend>ament_cmake_xmllint</test_depend>
   <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>ament_cmake_clang_tidy</test_depend>
+  <test_depend>xacro</test_depend>
+  <test_depend>franka_description</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

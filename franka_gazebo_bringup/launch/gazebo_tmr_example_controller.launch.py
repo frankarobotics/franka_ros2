@@ -59,16 +59,14 @@ rclpy.spin(StampedCmdVelPub())
 def get_robot_description(context: LaunchContext):
 
     franka_xacro_file = os.path.join(
-        get_package_share_directory('franka_description'),
-        'robots',
-        'tmrv0_2',
-        'tmrv0_2.urdf.xacro'
+        get_package_share_directory('franka_gazebo_bringup'),
+        'urdf',
+        'tmrv0_2.gazebo.urdf.xacro'
     )
 
     robot_description_config = xacro.process_file(
         franka_xacro_file,
         mappings={
-            'ros2_control': 'true',
             'gazebo': 'true',
         }
     )

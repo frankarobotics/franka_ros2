@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!--
+  Shared sensor-suite macro for the TMR v0.2.
+
+  Attaches the full sensor complement to the mounting points defined
+  on the TMRv0.2 base:
+    - 4x RealSense D455 cameras  (front, rear, left, right)
+    - 1x OLV-IMU01 IMU
+    - 2x SICK nanoScan3 LiDARs   (front, rear)
+
+  This file is gazebo-independent: LiDAR gazebo plugins are disabled
+  by default. The gazebo entry point layers them on separately.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find realsense2_description)/urdf/_d455.urdf.xacro" />
+  <xacro:include filename="$(find olv_module_descriptions)/urdf/olv-imu01.urdf.xacro" />
+  <xacro:include filename="$(find franka_mobile_sensors)/robots/nanoscan3/nanoscan3.xacro" />
+
+  <xacro:macro name="sensor_suite">
+
+    <!-- IMU -->
+    <xacro:olv-imu01
+      namespace="imu"
+      parent_link="imu_mounting_point"
+      mounting_side="bottom"
+      mounting_rotation="0"/>
+
+    <!-- Cameras -->
+    <xacro:sensor_d455 parent="front_mounting_point" name="camera_front"
+                       use_nominal_extrinsics="true">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:sensor_d455>
+
+    <xacro:sensor_d455 parent="rear_mounting_point" name="camera_rear"
+                       use_nominal_extrinsics="true">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:sensor_d455>
+
+    <xacro:sensor_d455 parent="left_mounting_point" name="camera_left"
+                       use_nominal_extrinsics="true">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:sensor_d455>
+
+    <xacro:sensor_d455 parent="right_mounting_point" name="camera_right"
+                       use_nominal_extrinsics="true">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:sensor_d455>
+
+    <!-- LiDARs (physical description only — gazebo plugins added by Layer 3) -->
+    <xacro:lidar name="lidar_front" parent="lidar_front_mounting_point">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:lidar>
+
+    <xacro:lidar name="lidar_rear" parent="lidar_rear_mounting_point">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:lidar>
+
+  </xacro:macro>
+
+</robot>

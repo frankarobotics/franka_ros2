@@ -33,7 +33,7 @@ Additional State Interfaces
 
 In addition to joint interfaces, the hardware plugin provides:
 
-* a ``franka_robot_state`` that contains the robot state information, `franka_robot_state <https://shorturl.at/wajZV>`_.
+* a ``franka_robot_state`` that contains the robot state information, `franka_robot_state <https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_msgs/msg/FrankaRobotState.msg>`_.
 * a ``franka_robot_model_interface`` that contains the pointer to the model object.
 * a ``ForceTorqueSensor`` (``<arm_prefix><robot_type>_tcp``) that exposes the estimated
   external wrench in the stiffness frame (``K_F_ext_hat_K`` from libfranka) as six state
@@ -47,6 +47,23 @@ In addition to joint interfaces, the hardware plugin provides:
     and can be consumed directly via the ``semantic_components::ForceTorqueSensor`` component
     in any controller (e.g. the admittance controller) without requiring a topic bridge.
     See the gravity compensation example controller for usage.
+
+ros2_control Macro Library
+--------------------------
+
+This package owns the ``ros2_control`` xacro macro library used to declare hardware interfaces
+for all Franka robot configurations. The macros live in ``franka_hardware/ros2_control/``:
+
+* ``franka_ros2_control_macros.xacro`` — shared building blocks (``configure_arm_joints``,
+  ``configure_finger_joint``, ``configure_steering_joint``, ``configure_driving_joint``,
+  ``configure_mobile_drive_joints``, ``configure_passive_mobile_base_joints``,
+  ``general_purpose_io``, ``cartesian_velocity_io``, ``cartesian_pose_loop``,
+  ``configure_arm_interfaces``, etc.)
+* ``franka_arm.ros2_control.xacro`` — single-arm configuration
+* ``tmrv0_2.ros2_control.xacro`` — standalone TMR base
+
+These are composed with ``franka_description`` robot models via thin wrappers in
+``franka_bringup/urdf/`` to produce complete robot descriptions with hardware interfaces.
 
 Configuration
 -------------

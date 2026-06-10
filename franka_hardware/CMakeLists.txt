@@ -60,6 +60,10 @@ install(
         DIRECTORY include/
         DESTINATION include
 )
+install(
+        DIRECTORY ros2_control/
+        DESTINATION share/${PROJECT_NAME}/ros2_control
+)
 
 if(BUILD_TESTING)
     find_package(ament_cmake_clang_format REQUIRED)

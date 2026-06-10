@@ -9,7 +9,7 @@ For further reference on how to use these classes:
 `Franka Robot State Broadcaster <https://github.com/frankarobotics/franka_ros2/tree/jazzy/franka_robot_state_broadcaster>`_
 and
 `Franka Example Controllers(model_example_controller)
-<https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_example_controllers/src/model_example_controller.cpp>`_
+<https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_example_controllers/src/fr3/model_example_controller.cpp>`_
 
 Cartesian Pose Interface
 -------------------------
@@ -48,7 +48,7 @@ One could also read quaternion and translation values in Eigen format.
 After setting up the cartesian interface, you need to ``assign_loaned_command_interfaces`` and ``assign_loaned_state_interfaces`` in your controller.
 This needs to be done in the on_activate() function of the controller. Examples can be found in the
 `assign loaned comamand interface example
-<https://shorturl.at/nmebx>`_
+<https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_example_controllers/src/fr3/cartesian_pose_example_controller.cpp>`_
 
 .. code-block:: cpp
 

@@ -73,19 +73,15 @@ def launch_all(context: LaunchContext, with_sensors, world):
             'tmrv0_2_with_sensors.gazebo.urdf.xacro')
     else:
         xacro_file = os.path.join(
-            get_package_share_directory('franka_description'),
-            'robots', 'tmrv0_2', 'tmrv0_2.urdf.xacro')
+            gazebo_bringup_share, 'urdf',
+            'tmrv0_2.gazebo.urdf.xacro')
 
     robot_description_xml = xacro.process_file(
         xacro_file,
         mappings={
             'robot_type': 'tmrv0_2',
-            'hand': 'false',
-            'ros2_control': 'true',
             'gazebo': 'true',
-            'ee_id': 'franka_hand',
             'robot_namespace': NAMESPACE,
-            'gazebo_effort': 'true',
         }
     ).toxml()
 
