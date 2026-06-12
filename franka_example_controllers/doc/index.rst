@@ -214,7 +214,7 @@ Compared to ``franka_ros`` we currently offer a reduced set of controller interf
     They are stored in the state_interface as double pointers and casted back to their original objects inside the franka_semantic_component class.
 
     Example of using franka_model can be found in the franka_example_controllers package:
-    `model_example_controller <https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_example_controllers/src/model_example_controller.cpp>`_.
+    `model_example_controller <https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_example_controllers/src/fr3/model_example_controller.cpp>`_.
 
 
 You can base your own controller on one of the example controllers in this package. To compute kinematic

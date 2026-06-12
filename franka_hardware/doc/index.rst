@@ -33,7 +33,7 @@ Additional State Interfaces
 
 In addition to joint interfaces, the hardware plugin provides:
 
-* a ``franka_robot_state`` that contains the robot state information, `franka_robot_state <https://shorturl.at/wajZV>`_.
+* a ``franka_robot_state`` that contains the robot state information, `franka_robot_state <https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_msgs/msg/FrankaRobotState.msg>`_.
 * a ``franka_robot_model_interface`` that contains the pointer to the model object.
 * a ``ForceTorqueSensor`` (``<arm_prefix><robot_type>_tcp``) that exposes the estimated
   external wrench in the stiffness frame (``K_F_ext_hat_K`` from libfranka) as six state
