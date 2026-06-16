@@ -35,7 +35,6 @@
 
   <!-- Gazebo sensor plugins (Layer 3) -->
   <xacro:include filename="$(find franka_gazebo_bringup)/urdf/sensors.xacro" />
-  <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
 
   <!-- ================================================================ -->
   <!-- Arguments                                                        -->
@@ -111,12 +110,6 @@
   <!-- Vision Kit Sensors (2x D405 wrist, 1x ZED head) -->
   <xacro:franka_gazebo_vision_kit_sensors/>
 
-  <!-- ================================================================ -->
-  <!-- Physics Configuration                                            -->
-  <!-- ================================================================ -->
-  <xacro:disable_arm_gravity prefix="left_" robot_type="${robot_types_list[0]}"/>
-  <xacro:disable_arm_gravity prefix="right_" robot_type="${robot_types_list[1]}"/>
-  <xacro:disable_mobile_base_gravity/>
 
 </robot>
 

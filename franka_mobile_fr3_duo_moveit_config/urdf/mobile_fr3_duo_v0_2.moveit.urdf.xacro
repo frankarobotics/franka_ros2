@@ -165,11 +165,5 @@
         is_async="$(arg is_async)"
         thread_priority="$(arg thread_priority)"/>
 
-    <xacro:if value="$(arg gazebo)">
-        <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
-        <xacro:disable_arm_gravity prefix="left_" robot_type="${robot_types_list[1]}"/>
-        <xacro:disable_arm_gravity prefix="right_" robot_type="${robot_types_list[2]}"/>
-        <xacro:disable_mobile_base_gravity/>
-    </xacro:if>
     
 </robot>
