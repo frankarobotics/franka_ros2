@@ -3,10 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
       args:
         - USER_UID=${USER_UID}
         - USER_GID=${USER_GID}
-    container_name: franka_ros2_jazzy
+    container_name: ${CONTAINER_NAME}
     network_mode: "host"
     privileged: true
     command: /bin/bash
