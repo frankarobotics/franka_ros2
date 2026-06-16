@@ -75,7 +75,6 @@ CallbackReturn JointVelocityExampleController::on_init() {
   try {
     auto_declare<std::string>("arm_prefix", "");
     auto_declare<bool>("gazebo", false);
-    auto_declare<std::string>("robot_description", "");
   } catch (const std::exception& e) {
     fprintf(stderr, "Exception thrown during init stage with message: %s \n", e.what());
     return CallbackReturn::ERROR;

@@ -199,7 +199,6 @@ def generate_robot_nodes(context):
             namespace=namespace,
             parameters=[
                 controllers_yaml,
-                {'robot_description': robot_description},
                 {'robot_types': robot_types_list},
                 {'robot_prefixes': robot_prefixes_list},
             ],
