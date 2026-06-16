@@ -13,6 +13,12 @@
   <depend>franka_description</depend>
   <depend>gz_ros2_control</depend>
   <depend>franka_mobile_sensors</depend>
+  <depend>gz_sim_vendor</depend>
+  <depend>hardware_interface</depend>
+  <depend>pinocchio</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
