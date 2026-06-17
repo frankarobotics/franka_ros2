@@ -30,6 +30,24 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 J
 * refactor: Removed the robot_description from launch files - controller_manager gets it natively via topic
 * docu: Added documentation for error recovery after an FCI error.
 * fix: Pinocchios collision detection component dropped the 'fcl/hpp' namespace and only supports now the coal namespace
+* feat: added a model-based gravity-compensation system plugin
+  (``franka_gazebo_hardware::GazeboGravityCompensationSystem``) for gz_ros2_control that
+  injects pinocchio-computed gravity torque on the effort-controlled arm joints, so the
+  zero-torque example controllers behave in Gazebo as on the real robot (where the master
+  controller performs gravity compensation) instead of collapsing under gravity.
+* chore: restructured the Gazebo support into two packages under the ``franka_gazebo/``
+  grouping folder: ``franka_gazebo_bringup`` (launch/world/urdf/config assets) and
+  ``franka_gazebo_hardware`` (the gz system plugin). The public launch command
+  ``ros2 launch franka_gazebo_bringup <file>`` is unchanged; the plugin is now referenced as
+  ``franka_gazebo_hardware/GazeboGravityCompensationSystem``.
+* chore: removed the per-link ``<gravity>false</gravity>`` xacro overrides; gravity is now
+  enabled globally in the Gazebo world. This is engine-independent (the previous approach
+  relied on a gz-fortress gravity-disable behavior that is not forwarded by some physics
+  engines). Simulation-only behavior change; no impact on real-robot users.
+* feat: hold the mobile platform (``mobile_fr3_duo_v0_2``) prismatic
+  ``franka_spine_vertical_joint`` against gravity with a ``spine_joint_trajectory_controller``
+  (JointTrajectoryController on a position command interface) that holds the column at its
+  initial height.
 
 v3.3.0 (2026-05-04)
 -------------------

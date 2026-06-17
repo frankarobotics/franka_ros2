@@ -13,8 +13,13 @@ libfranka
 franka_description
 
 #Third party packages
-gz-ros2-control
+gz_ros2_control/
+ros2_control/
 olvx_descriptions_module
 ros2_robotiq_gripper
 zed_description
 serial
+# Agent scratch files (never commit)
+activity.log
+task.md
+test-status.md

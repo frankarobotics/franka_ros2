@@ -1,7 +1,7 @@
 <library path="franka_gz_hardware_plugins">
   <class
-    name="franka_gazebo_bringup/GazeboGravityCompensationSystem"
-    type="franka_gazebo_bringup::GazeboGravityCompensationSystem"
+    name="franka_gazebo_hardware/GazeboGravityCompensationSystem"
+    type="franka_gazebo_hardware::GazeboGravityCompensationSystem"
     base_class_type="gz_ros2_control::GazeboSimSystemInterface">
     <description>
       Gazebo ros2_control hardware component that adds model-based gravity compensation for effort-controlled Franka joints.

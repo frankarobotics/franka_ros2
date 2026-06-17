@@ -113,8 +113,22 @@
   <!-- Configure passive base joints: rocker arm + front/rear casters (state-only) -->
   <xacro:macro name="configure_passive_mobile_base_joints" params="include_spine:=0">
     <xacro:if value="${include_spine}">
-      <!-- Spine -->
-      <xacro:passive_joint joint_name="franka_spine_vertical_joint"/>
+      <!-- Spine: the prismatic spine carries the full upper-body weight. With
+           gravity enabled globally in Gazebo it would collapse unless actively
+           held, so (this macro is only instantiated under Gazebo) it gets a
+           position command interface and is held at its initial height by
+           spine_joint_trajectory_controller. gz_ros2_control issue #343
+           (position+velocity command interface bug) does not apply here: the
+           spine declares only a single position command interface. -->
+      <joint name="franka_spine_vertical_joint">
+        <command_interface name="position"/>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+      </joint>
     </xacro:if>
 
     <!-- Rocker Arm -->
