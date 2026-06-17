@@ -23,6 +23,8 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 J
      auto sub = node->create_subscription<std_msgs::msg::Bool>(
          "collision_detected", rclcpp::SensorDataQoS(), callback);
 
+* docu: Added documentation for error recovery after an FCI error.
+
 v3.3.0 (2026-05-04)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Jazzy
