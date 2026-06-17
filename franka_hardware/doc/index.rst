@@ -73,14 +73,33 @@ collision or a violated joint limit), the hardware plugin:
 The ``controller_manager`` then:
 
 4. Transitions the hardware component to the **unconfigured** state.
-5. Deactivates all controllers that depend on that hardware component.
 
 The ``ros2_control_node`` process **stays alive** — no restart is needed.
+
+.. warning::
+   **Humble users:** Due to a limitation in ``ros2_control`` on Humble
+   (`ros-controls/ros2_control#2318 <https://github.com/ros-controls/ros2_control/issues/2318>`_),
+   controllers are **not** automatically deactivated when the hardware component
+   enters the error state. They remain in the *active* state even though the
+   underlying hardware is no longer functional. **You must manually deactivate
+   your controllers** before you can recover. See the recovery steps below.
 
 Recovery Steps
 ^^^^^^^^^^^^^^
 
-After an FCI error the following three steps must be performed **in order**:
+After an FCI error the following steps must be performed **in order**:
+
+**Step 0 — (Humble only) Deactivate your controllers**
+
+On Humble, controllers are not automatically deactivated on hardware error.
+You must stop them manually first:
+
+.. code-block:: bash
+
+   ros2 control switch_controllers --deactivate <controller_name>
+
+.. note::
+   On Jazzy this step is not needed — controllers are deactivated automatically.
 
 **Step 1 — Clear the robot error**
 
@@ -123,9 +142,9 @@ the control loop.
    ros2 control switch_controllers --activate <controller_name>
 
 .. warning::
-   The order matters. The robot error must be cleared (Step 1) before the
-   hardware component can re-activate (Step 2), and the hardware component must
-   be active before controllers can be activated (Step 3).
+   The order matters. On Humble you must first deactivate controllers (Step 0),
+   then clear the robot error (Step 1), re-activate the hardware (Step 2), and
+   finally re-activate controllers (Step 3). On Jazzy, start from Step 1.
 
 Action Server Topics
 ^^^^^^^^^^^^^^^^^^^^
