@@ -3,7 +3,7 @@
 <package format="3">
   <name>franka_gazebo_bringup</name>
   <version>2.4.0</version>
-  <description>Contains launch files for the franka_gazebo project</description>
+  <description>Launch files, worlds and robot descriptions for the franka_gazebo simulation</description>
   <maintainer email="support@franka.de">Franka Robotics GmbH</maintainer>
   <license>Apache 2.0</license>
 
@@ -13,15 +13,10 @@
   <depend>franka_description</depend>
   <depend>gz_ros2_control</depend>
   <depend>franka_mobile_sensors</depend>
-  <depend>gz_sim_vendor</depend>
-  <depend>hardware_interface</depend>
-  <depend>pinocchio</depend>
-  <depend>pluginlib</depend>
-  <depend>rclcpp</depend>
-  <depend>rclcpp_lifecycle</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <exec_depend>franka_gazebo_hardware</exec_depend>
   <exec_depend>franka_hardware</exec_depend>
   <exec_depend>ros2controlcli</exec_depend>
   <exec_depend>franka_mobile</exec_depend>

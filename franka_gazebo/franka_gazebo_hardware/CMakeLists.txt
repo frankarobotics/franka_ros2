@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 
-# Suppress CMP0002 warning 
 option(CHECK_TIDY "Enable clang-tidy checks" OFF)
 option(CMAKE_EXPORT_COMPILE_COMMANDS "Enable compile commands export" OFF)
 
-
-project(franka_gazebo_bringup)
+project(franka_gazebo_hardware)
 
 # Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
@@ -19,8 +17,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(gz_ros2_control REQUIRED)
-find_package(gz_sim_vendor REQUIRED)
-find_package(gz-sim REQUIRED)
+find_package(ignition-gazebo6 REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(pluginlib REQUIRED)
@@ -32,6 +29,7 @@ add_library(
         franka_gz_hardware_plugins
         SHARED
         src/gazebo_gravity_compensation_system.cpp
+        src/gravity_compensation_model.cpp
 )
 
 target_include_directories(franka_gz_hardware_plugins
@@ -49,7 +47,7 @@ ament_target_dependencies(franka_gz_hardware_plugins
 )
 
 target_link_libraries(franka_gz_hardware_plugins
-        gz-sim::gz-sim
+        ignition-gazebo6::core
         pinocchio::pinocchio
 )
 
@@ -68,27 +66,20 @@ install(
         DESTINATION include
 )
 
-# Install project launch files
-install(
-  DIRECTORY
-    launch config worlds urdf 
-  DESTINATION share/${PROJECT_NAME}
-)
-
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 
-  find_package(ament_cmake_ros REQUIRED)
-  find_package(launch_testing_ament_cmake REQUIRED)
-  function(add_ros_isolated_launch_test path)
-    set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
-    add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
-  endfunction()
-  # TODO add these back when gz sim issue is properly solved on ci
-  add_ros_isolated_launch_test(test/test_gazebo_franka_arm_example_controller.py)
-  add_ros_isolated_launch_test(test/test_gazebo_tmr_example_controller.py)
-  # add_ros_isolated_launch_test(test/test_gazebo_mobile_fr3_duo_example_controller.py)
+  find_package(ament_cmake_gmock REQUIRED)
+  ament_add_gmock(gravity_compensation_model_test test/gravity_compensation_model_test.cpp)
+  target_include_directories(gravity_compensation_model_test PRIVATE
+          include
+          ${EIGEN3_INCLUDE_DIRS}
+  )
+  target_link_libraries(gravity_compensation_model_test
+          franka_gz_hardware_plugins
+          pinocchio::pinocchio
+  )
 endif()
 
 ament_package()

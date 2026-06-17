@@ -4,6 +4,11 @@ Changelog for package franka_ros2
 UNRELEASED
 ----------
 
+* chore: split the gazebo sources into two packages, ``franka_gazebo_bringup``
+  (launch files, worlds, robot descriptions, controller configs) and
+  ``franka_gazebo_hardware`` (the gz_ros2_control gravity-compensation system plugin,
+  ``franka_gazebo_hardware/GazeboGravityCompensationSystem``). The public
+  ``ros2 launch franka_gazebo_bringup ...`` command is unchanged.
 * fix: franka_gazebo_bringup: fix launch file for gazebo (use world without gravity by default for example controllers)
 Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Humble
 Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 Jazzy
@@ -27,6 +32,15 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Humb
 
 * breaking change: Switching franka_description common package both for humble and jazzy -> 2.7.0
 * chore: refactored cartesian velocity example controller to be gazebo independent by chaining `swerve_ik_controller`
+* feat: added a model-based gravity-compensation system plugin
+  (``franka_gazebo_bringup::GazeboGravityCompensationSystem``) for gz_ros2_control that
+  injects pinocchio-computed gravity torque on the effort-controlled arm joints, so the
+  zero-torque example controllers behave in Gazebo as on the real robot (where the master
+  controller performs gravity compensation) instead of collapsing under gravity.
+* chore: removed the per-link ``<gravity>false</gravity>`` xacro overrides; gravity is now
+  enabled globally in the Gazebo world. This is engine-independent (the previous approach
+  relied on a gz-fortress gravity-disable behavior that is not forwarded by some physics
+  engines). Simulation-only behavior change; no impact on real-robot users.
 * docu: Maintenance work on documentation
 * feat: Added `franka_mobile` package with `swerve_drive_controller` (tf and odom support) and `swerve_ik_controller` for gazebo sim.
 * refactor: replace blocking mutex in franka_robot_state_broadcaster with lock-free AsyncBuffer

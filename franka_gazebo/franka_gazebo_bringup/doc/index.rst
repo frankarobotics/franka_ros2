@@ -1,5 +1,5 @@
-franka_gazebo
-=============
+franka_gazebo_bringup
+=====================
 
 .. important::
 
@@ -90,6 +90,20 @@ With sensors enabled:
 
     ros2 launch franka_gazebo_bringup gazebo_mobile_robot.launch.py with_sensors:=true
 
+
+Gravity Compensation in Simulation
+----------------------------------
+
+Gravity is enabled globally in the Gazebo world, just like on the real robot. To keep the
+arms from collapsing under their own weight, ``franka_gazebo_bringup`` loads a
+gravity-compensation system plugin (provided by ``franka_gazebo_hardware``) that computes
+the model-based gravity torque and applies it to the effort-controlled arm joints. This mirrors the real robot, where the master
+controller performs gravity compensation, so the zero-torque example controllers (for
+example the joint impedance controller) behave the same way in simulation as on hardware.
+
+You normally don't need to configure any of this — it is wired up by the example launch
+files. Gravity being enabled is engine-independent and does not depend on a particular
+physics engine forwarding a gravity-disable flag.
 
 Troubleshooting
 ---------------

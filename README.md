@@ -235,7 +235,7 @@ On another terminal launch:
 
 ### Run Gazebo examples with ROS 2
 
-If you want to use Gazebo to run your code, you can find some examples here: [franka_gazebo](./franka_gazebo/README.md)
+If you want to use Gazebo to run your code, you can find some examples here: [franka_gazebo_bringup](./franka_gazebo/franka_gazebo_bringup/doc/index)
 
 ## Troubleshooting
 ### `libfranka: UDP receive: Timeout error`
