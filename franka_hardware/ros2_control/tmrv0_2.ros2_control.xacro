@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find franka_hardware)/ros2_control/franka_ros2_control_macros.xacro"/>
+
+  <xacro:macro name="tmrv0_2_ros2_control"
+    params="mobile_robot_type
+            robot_ip:=''
+            use_fake_hardware:=false
+            fake_sensor_commands:=false
+            is_async:=false
+            thread_priority:=50
+            gazebo
+            robot_namespace
+            include_spine:=0">
+    <ros2_control name="TmrHardware" type="system" is_async="${is_async}">
+      <xacro:if value="${is_async}">
+        <properties>
+          <async scheduling_policy="detached" print_warnings="true" thread_priority="${thread_priority}"
+            manage_overruns="false"/>
+        </properties>
+      </xacro:if>
+      <hardware>
+        <param name="version">1.1.0</param>
+        <param name="mobile_robot_type">${mobile_robot_type}</param>
+        <param name="robot_type">tmrv0_2</param>
+        <xacro:if value="${use_fake_hardware}">
+          <plugin>mock_components/GenericSystem</plugin>
+          <param name="mock_gpio_commands">true</param>
+          <param name="mock_sensor_commands">${fake_sensor_commands}</param>
+          <param name="state_following_offset">0.0</param>
+        </xacro:if>
+
+        <xacro:if value="${gazebo}">
+          <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+        </xacro:if>
+
+        <xacro:if value="${use_fake_hardware == 0 and gazebo == 0}">
+          <plugin>franka_hardware/FrankaHardwareInterface</plugin>
+          <param name="robot_ip">${robot_ip}</param>
+        </xacro:if>
+      </hardware>
+
+      <xacro:configure_mobile_drive_joints mobile_robot_type="${mobile_robot_type}"/>
+
+      <!-- Passive base joints (rocker, casters, optional spine): simulation-only.
+           Real hardware exposes only the drive joints. -->
+      <xacro:if value="${gazebo}">
+        <xacro:configure_passive_mobile_base_joints include_spine="${include_spine}"/>
+      </xacro:if>
+
+      <!-- Cartesian velocity interfaces -->
+      <xacro:cartesian_velocity_io/>
+
+    </ros2_control>
+    <xacro:if value="${gazebo}">
+      <gazebo>
+        <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+          <parameters>$(find franka_gazebo_bringup)/config/franka_gazebo_controllers.yaml</parameters>
+        </plugin>
+      </gazebo>
+    </xacro:if>
+  </xacro:macro>
+</robot>

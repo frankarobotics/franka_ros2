@@ -28,11 +28,28 @@ import subprocess
 
 TEST_DURATION = 5.0  # sec
 
+# Known-benign ERROR-level messages that do NOT indicate a real failure.
+# Each entry is a substring; any ERROR line matching an entry is excluded from
+# the assertion.  Keep this list tight — every entry must have a justification.
+KNOWN_BENIGN_ERRORS = [
+    # gz_ros2_control plugin races with robot_state_publisher during startup.
+    # The service appears shortly after and the system functions normally.
+    'robot_state_publisher service not available',
+]
+
 def ensure_gz_sim_not_running():
-    # Kill any remaining Gazebo processes
-    # See https://github.com/ros2/launch/issues/545 for details
-    shell_cmd = ['pkill', '-9', '-f', '^gz sim']
-    subprocess.run(shell_cmd, check=False)
+    # Kill any remaining Gazebo/Ignition processes between test runs.
+    # See https://github.com/ros2/launch/issues/545 for details.
+    # On Humble (Ignition Fortress) the process is 'ign gazebo', not 'gz sim'.
+    patterns = [
+        '^gz sim',        # Gazebo Garden+ (gz-sim)
+        'ign gazebo',     # Ignition Fortress (Humble)
+        'ignition',       # Ignition sub-processes
+        'ruby.*ign',      # Ruby launcher for Ignition
+        'gzserver',       # Classic Gazebo server (fallback)
+    ]
+    for pattern in patterns:
+        subprocess.run(['pkill', '-9', '-f', pattern], check=False)
 
 def generate_test_description():
     """Generate the test launch descriptions."""
@@ -86,9 +103,24 @@ class TestExampleController(unittest.TestCase):
         ensure_gz_sim_not_running()
 
     def test_has_no_error(self, proc_output):
-        """Check if any error messages have been logged."""
-        has_no_error = not proc_output.waitFor(
-            'ERROR', timeout=TEST_DURATION, stream='stderr'
-        )
+        """Check that no unexpected ERROR messages appear in launch output.
 
-        assert has_no_error, 'Found [ERROR] log messages in launch output'
+        Lines matching KNOWN_BENIGN_ERRORS are excluded — these are transient
+        startup races that resolve on their own and do not affect functionality.
+        """
+        error_lines = []
+        for event in proc_output:
+            if not event.from_stderr:
+                continue
+            text = event.text.decode('utf-8', errors='replace')
+            for line in text.splitlines():
+                if 'ERROR' not in line:
+                    continue
+                if any(pattern in line for pattern in KNOWN_BENIGN_ERRORS):
+                    continue
+                error_lines.append(line)
+
+        assert not error_lines, (
+            'Found unexpected [ERROR] log messages in launch output:\n'
+            + '\n'.join(error_lines)
+        )

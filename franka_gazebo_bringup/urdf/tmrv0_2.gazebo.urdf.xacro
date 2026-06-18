@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!--
+  Gazebo entry point for the TMR v0.2 mobile base (without arms).
+
+  Includes the franka_description base robot and applies ros2_control
+  hardware interface for gazebo simulation.
+-->
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="tmrv0_2_gazebo">
+
+  <!-- ================================================================ -->
+  <!-- Macro includes                                                    -->
+  <!-- ================================================================ -->
+  <xacro:include filename="$(find franka_description)/robots/tmrv0_2/tmrv0_2.xacro"/>
+  <xacro:include filename="$(find franka_hardware)/ros2_control/tmrv0_2.ros2_control.xacro"/>
+
+  <!-- ================================================================ -->
+  <!-- Arguments                                                        -->
+  <!-- ================================================================ -->
+  <xacro:arg name="robot_type" default="tmrv0_2"/>
+  <xacro:arg name="reduced_version" default="false"/>
+  <xacro:arg name="robot_namespace" default=""/>
+
+  <!-- ================================================================ -->
+  <!-- Base robot (geometry only)                                       -->
+  <!-- ================================================================ -->
+  <xacro:tmrv0_2 mobile_robot_type="$(arg robot_type)"
+    reduced_version="$(arg reduced_version)"
+    robot_namespace="$(arg robot_namespace)"
+    gazebo="true"/>
+
+  <!-- ================================================================ -->
+  <!-- ros2_control hardware interface (gazebo mode)                    -->
+  <!-- ================================================================ -->
+  <xacro:tmrv0_2_ros2_control
+    mobile_robot_type="$(arg robot_type)"
+    gazebo="true"
+    robot_namespace="$(arg robot_namespace)"/>
+
+</robot>

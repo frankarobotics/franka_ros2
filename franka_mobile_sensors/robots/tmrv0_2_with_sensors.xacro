@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!--
+  Layer 2 macro: TMRv0.2 with sensor suite.
+
+  Composes:
+    - Layer 1 macro (franka_description: tmrv0_2)
+    - Sensor suite  (franka_mobile_sensors: sensor_suite)
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find franka_description)/robots/tmrv0_2/tmrv0_2.xacro"/>
+  <xacro:include filename="$(find franka_mobile_sensors)/robots/sensor_suite.xacro" />
+
+  <xacro:macro name="tmrv0_2_with_sensors"
+      params="robot_type
+              reduced_version
+              gazebo
+              robot_namespace">
+
+    <!-- Instantiate the base robot (Layer 1) -->
+    <xacro:tmrv0_2 mobile_robot_type="${robot_type}"
+                reduced_version="${reduced_version}"
+                robot_namespace="${robot_namespace}"
+                gazebo="${gazebo}"/>
+
+    <!-- Attach all sensors -->
+    <xacro:sensor_suite />
+
+  </xacro:macro>
+
+</robot>
