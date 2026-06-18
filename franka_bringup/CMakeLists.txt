@@ -38,6 +38,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_franka_arm_interfaces test/test_franka_arm_interfaces.py)
   ament_add_pytest_test(test_xacro_path_resolution test/test_xacro_path_resolution.py)
+  ament_add_pytest_test(test_gazebo_wrapper_expansion test/test_gazebo_wrapper_expansion.py)
 
   install(
     DIRECTORY test
