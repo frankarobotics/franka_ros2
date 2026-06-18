@@ -24,8 +24,8 @@
 
 namespace franka_mobile {
 
-using franka_semantic_components::FrankaCartesianVelocityInterface;
 using franka_semantic_components::FrankaCartesianPoseInterface;
+using franka_semantic_components::FrankaCartesianVelocityInterface;
 
 controller_interface::InterfaceConfiguration
 SwerveDriveController::command_interface_configuration() const {
@@ -176,13 +176,12 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
   double last_angular = previous_two_commands_.back().z();
   double second_to_last_angular = previous_two_commands_.front().z();
 
+  const double limiter_dt = 0.001;  // fixed 1 kHz control-loop timestep
+
   // rate limiting
-  linear_x_limiter_->limit(command_linear_x, last_linear_x, second_to_last_linear_x,
-                           period.seconds());
-  linear_y_limiter_->limit(command_linear_y, last_linear_y, second_to_last_linear_y,
-                           period.seconds());
-  angular_z_limiter_->limit(command_angular_z, last_angular, second_to_last_angular,
-                            period.seconds());
+  linear_x_limiter_->limit(command_linear_x, last_linear_x, second_to_last_linear_x, limiter_dt);
+  linear_y_limiter_->limit(command_linear_y, last_linear_y, second_to_last_linear_y, limiter_dt);
+  angular_z_limiter_->limit(command_angular_z, last_angular, second_to_last_angular, limiter_dt);
   previous_two_commands_.pop();
   previous_two_commands_.push({command_linear_x, command_linear_y, command_angular_z});
 
@@ -225,11 +224,9 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
   command_interface_prefix_ = auto_declare<std::string>("command_interface_prefix", "");
   state_interface_prefix_ = auto_declare<std::string>("state_interface_prefix", "");
   franka_cartesian_velocity_ =
-      std::make_unique<FrankaCartesianVelocityInterface>(
-          command_interface_prefix_, false);
+      std::make_unique<FrankaCartesianVelocityInterface>(command_interface_prefix_, false);
   franka_cartesian_pose_ =
-      std::make_unique<FrankaCartesianPoseInterface>(
-          state_interface_prefix_, false);
+      std::make_unique<FrankaCartesianPoseInterface>(state_interface_prefix_, false);
 
   tf_frame_id_ = auto_declare("tf_frame_id", "world");
   odom_frame_id_ = auto_declare("odom_frame_id", "base_link");
