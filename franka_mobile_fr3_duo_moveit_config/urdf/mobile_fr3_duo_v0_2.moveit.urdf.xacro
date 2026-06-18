@@ -10,13 +10,15 @@
        name="mobile_fr3_duo_v0_2">
 
     <xacro:include filename="$(find franka_description)/robots/mobile_fr3_duo_v0_2/mobile_fr3_duo_v0_2.xacro"/>
+    <!-- ros2_control hardware interface macros -->
+    <xacro:include filename="$(find franka_hardware)/ros2_control/franka_arm.ros2_control.xacro"/>
+    <xacro:include filename="$(find franka_hardware)/ros2_control/tmrv0_2.ros2_control.xacro"/>
 
     <xacro:arg name="robot_ips"          default="['172.16.16.10', '172.16.16.12', '172.16.16.11']" />
     <xacro:arg name="robot_types" default="['tmrv0_2','fr3v2','fr3v2']" />
     <xacro:property name="robot_types_list" value="${$(arg robot_types)}" />
     <xacro:arg name="hand"               default="false" />
     <xacro:arg name="ee_id"              default="None" />
-    <xacro:arg name="ros2_control"       default="true" />
     <xacro:property name="robot_ips_list" value="${$(arg robot_ips)}" />
     <xacro:arg name="gazebo_effort"        default="false" />
     <xacro:arg name="use_fake_hardware"    default="false" />
@@ -106,17 +108,10 @@
     </joint>
 
     <xacro:mobile_fr3_duo_v0_2
-        robot_ips="$(arg robot_ips)"
         robot_types="$(arg robot_types)"
         hand="$(arg hand)"
         ee_id="$(arg ee_id)"
-        ros2_control="$(arg ros2_control)"
         gazebo="$(arg gazebo)"
-        gazebo_effort="$(arg gazebo_effort)"
-        use_fake_hardware="$(arg use_fake_hardware)"
-        is_async="$(arg is_async)"
-        thread_priority="$(arg thread_priority)"
-        fake_sensor_commands="$(arg fake_sensor_commands)"
         reduced_version="$(arg reduced_version)"
         description_pkg="$(arg description_pkg)"
         connected_to="$(arg connected_to)"
@@ -130,6 +125,45 @@
         safety_distance="$(arg safety_distance)"
         with_sc="$(arg with_sc)"
     />
+
+    <!-- ros2_control hardware interfaces -->
+    <xacro:property name="arm_prefixes_list" value="${['left','right']}"/>
+
+    <!-- TMR mobile base ros2_control -->
+    <xacro:tmrv0_2_ros2_control
+        mobile_robot_type="${robot_types_list[0]}"
+        robot_ip="${robot_ips_list[0]}"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        gazebo="$(arg gazebo)"
+        robot_namespace=""
+        is_async="$(arg is_async)"
+        thread_priority="$(arg thread_priority)"/>
+
+    <!-- Per-arm ros2_control -->
+    <xacro:franka_arm_ros2_control
+        robot_type="${robot_types_list[1]}"
+        robot_ip="${robot_ips_list[1]}"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        gazebo="$(arg gazebo)"
+        hand="$(arg hand)"
+        gazebo_effort="$(arg gazebo_effort)"
+        arm_prefix="${arm_prefixes_list[0]}_"
+        is_async="$(arg is_async)"
+        thread_priority="$(arg thread_priority)"/>
+
+    <xacro:franka_arm_ros2_control
+        robot_type="${robot_types_list[2]}"
+        robot_ip="${robot_ips_list[2]}"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        fake_sensor_commands="$(arg fake_sensor_commands)"
+        gazebo="$(arg gazebo)"
+        hand="$(arg hand)"
+        gazebo_effort="$(arg gazebo_effort)"
+        arm_prefix="${arm_prefixes_list[1]}_"
+        is_async="$(arg is_async)"
+        thread_priority="$(arg thread_priority)"/>
 
     <xacro:if value="$(arg gazebo)">
         <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>

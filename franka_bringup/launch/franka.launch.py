@@ -61,7 +61,7 @@
 # which will, by default, rely upon franka.config.yaml for robot-specific parameters.
 # RViz is not launched by this script but can be included by higher-level launch files
 # if use_rviz is enabled. Ensure urdf_file parameter (a xacro file) exists in
-# franka_description/robots to avoid runtime errors.
+# franka_bringup/urdf to avoid runtime errors.
 #
 # This approach improves upon earlier launch scripts, which often lacked namespace
 # support and were less modular, offering a more consistent and maintainable solution.
@@ -97,16 +97,14 @@ def generate_robot_nodes(context):
     arm_prefix = LaunchConfiguration('arm_prefix').perform(context)
     urdf_path = PathJoinSubstitution(
         [
-            FindPackageShare('franka_description'),
-            'robots',
-            f'{robot_type}',
-            f'{robot_type}.urdf.xacro',
+            FindPackageShare('franka_bringup'),
+            'urdf',
+            'franka_arm.urdf.xacro',
         ]
     ).perform(context)
     robot_description = xacro.process_file(
         urdf_path,
         mappings={
-            'ros2_control': 'true',
             'robot_type': LaunchConfiguration('robot_type').perform(context),
             'arm_prefix': LaunchConfiguration('arm_prefix').perform(context),
             'robot_ip': LaunchConfiguration('robot_ip').perform(context),

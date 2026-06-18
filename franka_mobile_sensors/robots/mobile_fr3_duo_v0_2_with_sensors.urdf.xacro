@@ -37,24 +37,8 @@
   <!-- Should self-collision be enabled? -->
   <xacro:arg name="with_sc" default="false" />
 
-  <!-- Is the robot being controlled with ros2_control? -->
-  <xacro:arg name="ros2_control" default="false" />
-
-  <!-- IP address or hostname of the robot -->
-  <xacro:arg name="robot_ips" default="['172.16.0.1','172.16.0.2','172.16.0.3']" />
-  <xacro:property name="robot_ips_list" value="${$(arg robot_ips)}" />
-
-  <!-- Should a fake hardware be used? -->
-  <xacro:arg name="use_fake_hardware" default="false" />
-
-  <!-- Should fake sensors be used? -->
-  <xacro:arg name="fake_sensor_commands" default="false" />
-
   <!-- Should the robot be spawned in Gazebo? -->
   <xacro:arg name="gazebo" default="false" />
-
-  <!-- Should the robot be spawned in Gazebo with effort interfaces? -->
-  <xacro:arg name="gazebo_effort" default="false" />
 
   <!-- Name of the description package -->
   <xacro:arg name="description_pkg" default="franka_description" />
@@ -80,13 +64,8 @@
   <xacro:mobile_fr3_duo_v0_2_with_sensors
         robot_types="$(arg robot_types)"
         hand="$(arg hand)"
-        ros2_control="$(arg ros2_control)"
         gazebo="$(arg gazebo)"
-        gazebo_effort="$(arg gazebo_effort)"
-        use_fake_hardware="$(arg use_fake_hardware)"
-        fake_sensor_commands="$(arg fake_sensor_commands)"
         reduced_version="$(arg reduced_version)"
-        robot_ips="$(arg robot_ips)"
         description_pkg="$(arg description_pkg)"
         connected_to="$(arg connected_to)"
         use_arms="$(arg use_arms)"

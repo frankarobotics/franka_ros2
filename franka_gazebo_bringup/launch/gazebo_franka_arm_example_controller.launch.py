@@ -68,10 +68,9 @@ def get_robot_description(context: LaunchContext, robot_type, load_gripper, fran
         mappings={
             'robot_type': robot_type_str,
             'hand': load_gripper_str,
-            'ros2_control': 'true',
             'gazebo': 'true',
             'ee_id': franka_hand_str,
-            'gazebo_effort': 'true'
+            'gazebo_effort': 'true',
         }
     )
 

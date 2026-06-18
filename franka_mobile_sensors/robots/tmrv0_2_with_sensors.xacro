@@ -13,20 +13,12 @@
 
   <xacro:macro name="tmrv0_2_with_sensors"
       params="robot_type
-              ros2_control
-              robot_ip
-              use_fake_hardware
-              fake_sensor_commands
               reduced_version
               gazebo
               robot_namespace">
 
     <!-- Instantiate the base robot (Layer 1) -->
     <xacro:tmrv0_2 mobile_robot_type="${robot_type}"
-                robot_ip="${robot_ip}"
-                ros2_control="${ros2_control}"
-                use_fake_hardware="${use_fake_hardware}"
-                fake_sensor_commands="${fake_sensor_commands}"
                 reduced_version="${reduced_version}"
                 robot_namespace="${robot_namespace}"
                 gazebo="${gazebo}"/>

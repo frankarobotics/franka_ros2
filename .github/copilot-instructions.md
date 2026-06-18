@@ -36,6 +36,7 @@ Uses `ros2_control` for hardware abstraction and MoveIt for motion planning.
 - Source lives under `/ros2_ws/src/`
 - `franka_*` packages are the project's own code
 - `libfranka/` and `franka_description/` are **separate repos** with their own `AGENTS.md` — see those files for repo-specific conventions
+- `franka_hardware/ros2_control/` owns the ros2_control xacro macro library (hardware interface declarations for all robot configs); `franka_bringup/urdf/` has thin composition wrappers that combine `franka_description` models with these macros
 - `ros2_control/`, `realtime_tools/`, `gz_ros2_control/`, `serial/`, `zed_description/`, `ros2_robotiq_gripper/`, `olvx_descriptions_module/` are vendored dependencies — avoid modifying these unless patching
 - `dependency.repos` defines external dependency versions (imported via `vcs`)
 - `patches/` contains patches applied on top of vendored deps (e.g., `manage_overruns.patch` for `ros2_control/hardware_interface`)

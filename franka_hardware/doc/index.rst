@@ -33,7 +33,7 @@ Additional State Interfaces
 
 In addition to joint interfaces, the hardware plugin provides:
 
-* a ``franka_robot_state`` that contains the robot state information, `franka_robot_state <https://shorturl.at/wajZV>`_.
+* a ``franka_robot_state`` that contains the robot state information, `franka_robot_state <https://github.com/frankarobotics/franka_ros2/blob/jazzy/franka_msgs/msg/FrankaRobotState.msg>`_.
 * a ``franka_robot_model_interface`` that contains the pointer to the model object.
 * a ``ForceTorqueSensor`` (``<arm_prefix><robot_type>_tcp``) that exposes the estimated
   external wrench in the stiffness frame (``K_F_ext_hat_K`` from libfranka) as six state
@@ -53,10 +53,27 @@ Configuration
 
 The IP of the robot is read over a parameter from the URDF.
 
+ros2_control Macro Library
+--------------------------
+
+This package owns the ``ros2_control`` xacro macro library used to declare hardware interfaces
+for all Franka robot configurations. The macros live in ``franka_hardware/ros2_control/``:
+
+* ``franka_ros2_control_macros.xacro`` — shared building blocks (``configure_arm_joints``,
+  ``configure_finger_joint``, ``configure_steering_joint``, ``configure_driving_joint``,
+  ``general_purpose_io``, ``cartesian_velocity_io``, ``cartesian_pose_loop``, etc.)
+* ``franka_arm.ros2_control.xacro`` — single-arm configuration
+* ``fr3_duo.ros2_control.xacro`` — dual-arm configuration
+* ``mobile_fr3_duo.ros2_control.xacro`` — mobile dual-arm (TMR base + 2 arms)
+* ``tmrv0_2.ros2_control.xacro`` — standalone TMR base
+
+These are composed with ``franka_description`` robot models via thin wrappers in
+``franka_bringup/urdf/`` to produce complete robot descriptions with hardware interfaces.
+
 Error Recovery
 --------------
 
-Previously, FCI errors caused the entire launch process to exit. Now, from 
+Previously, FCI errors caused the entire launch process to exit. Now, from
 versions v2.4.0+ and v3.3.0+, the hardware interface remains running and only
 deactivates itself and its controllers, allowing in-place recovery without restarting.
 

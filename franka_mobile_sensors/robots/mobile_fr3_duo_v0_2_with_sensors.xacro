@@ -28,12 +28,7 @@
               tcp_rpy
               safety_distance
               with_sc
-              ros2_control
-              robot_ips
-              use_fake_hardware
-              fake_sensor_commands
               gazebo
-              gazebo_effort
               description_pkg
               connected_to
               reduced_version
@@ -43,13 +38,8 @@
     <xacro:mobile_fr3_duo_v0_2
           robot_types="${robot_types}"
           hand="${hand}"
-          ros2_control="${ros2_control}"
           gazebo="${gazebo}"
-          gazebo_effort="${gazebo_effort}"
-          use_fake_hardware="${use_fake_hardware}"
-          fake_sensor_commands="${fake_sensor_commands}"
           reduced_version="${reduced_version}"
-          robot_ips="${robot_ips}"
           description_pkg="${description_pkg}"
           connected_to="${connected_to}"
           use_arms="${use_arms}"

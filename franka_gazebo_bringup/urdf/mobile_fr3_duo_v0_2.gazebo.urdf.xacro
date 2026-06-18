@@ -20,12 +20,15 @@
   <!-- ================================================================ -->
   <xacro:include filename="$(find franka_description)/robots/mobile_fr3_duo_v0_2/mobile_fr3_duo_v0_2.xacro"/>
   <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
+  <!-- Unified ros2_control for gazebo (mobile base + both arms in one block) -->
+  <xacro:include filename="$(find franka_hardware)/ros2_control/mobile_fr3_duo.ros2_control.xacro"/>
 
   <!-- ================================================================ -->
   <!-- Arguments                                                        -->
   <!-- ================================================================ -->
   <xacro:arg name="robot_types" default="['tmrv0_2','fr3v2','fr3v2']" />
   <xacro:property name="robot_types_list" value="${$(arg robot_types)}" />
+
 
   <xacro:arg name="no_prefix"          default="false"/>
   <xacro:arg name="hand"               default="true" />
@@ -37,11 +40,6 @@
   <xacro:arg name="tcp_rpy"            default="0 0 0" />
   <xacro:arg name="safety_distance"    default="0.03" />
   <xacro:arg name="with_sc"            default="false" />
-  <xacro:arg name="ros2_control"       default="false" />
-  <xacro:arg name="robot_ips"          default="['172.16.0.1','172.16.0.2','172.16.0.3']" />
-  <xacro:property name="robot_ips_list" value="${$(arg robot_ips)}" />
-  <xacro:arg name="use_fake_hardware"    default="false" />
-  <xacro:arg name="fake_sensor_commands" default="false" />
   <xacro:arg name="gazebo_effort"        default="false" />
   <xacro:arg name="description_pkg"      default="franka_description" />
   <xacro:arg name="connected_to"         default="base" />
@@ -54,13 +52,8 @@
   <xacro:mobile_fr3_duo_v0_2
         robot_types="$(arg robot_types)"
         hand="$(arg hand)"
-        ros2_control="$(arg ros2_control)"
         gazebo="true"
-        gazebo_effort="$(arg gazebo_effort)"
-        use_fake_hardware="$(arg use_fake_hardware)"
-        fake_sensor_commands="$(arg fake_sensor_commands)"
         reduced_version="$(arg reduced_version)"
-        robot_ips="$(arg robot_ips)"
         description_pkg="$(arg description_pkg)"
         connected_to="$(arg connected_to)"
         use_arms="$(arg use_arms)"
@@ -73,6 +66,17 @@
         tcp_rpy="$(arg tcp_rpy)"
         safety_distance="$(arg safety_distance)"
         with_sc="$(arg with_sc)"/>
+
+  <!-- Unified ros2_control for gazebo (mobile base + both arms) -->
+  <xacro:property name="arm_prefixes_list" value="${['left','right']}"/>
+  <xacro:mobile_fr3_duo_ros2_control
+        mobile_robot_type="tmrv0_2"
+        robot_types="${robot_types_list}"
+        arm_prefixes="${arm_prefixes_list}"
+        hand="$(arg hand)"
+        gazebo="true"
+        gazebo_effort="$(arg gazebo_effort)"
+        robot_namespace=""/>
 
   <!-- ================================================================ -->
   <!-- Gravity overrides                                                -->
