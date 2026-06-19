@@ -18,6 +18,8 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 J
 
 * feat: Added franka_spine packages (franka_spine_msgs, franka_spine_server, franka_spine_examples) — ROS 2 action/service server for controlling the Franka Spine module
 * docu: Added documentation for error recovery after an FCI error.
+* refactor: Removed the dead ``auto_declare<std::string>("robot_description", "")`` parameter from the joint position/velocity example controllers - the URDF is obtained from robot_state_publisher via the parameters client, so the declaration was unused.
+* chore: devcontainer container name now derives from the workspace folder basename (``<folder>_humble``) so variant clones no longer collide on a fixed container name.
 
 v2.4.0 (2026-05-04)
 ----------

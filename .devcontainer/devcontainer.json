@@ -1,11 +1,11 @@
 {
-    "name": "ROS 2 Humble Development Container",
+    "name": "${localWorkspaceFolderBasename}",
     "privileged": true,
     "remoteUser": "user",
     "dockerComposeFile": "../docker-compose.yml",
     "service": "franka_ros2_humble",
     "workspaceFolder": "/ros2_ws",
-    "initializeCommand": "echo \"USER_UID=$(id -u $USER)\nUSER_GID=$(id -g $USER)\" > .env",
+    "initializeCommand": "echo \"USER_UID=$(id -u $USER)\nUSER_GID=$(id -g $USER)\nCONTAINER_NAME=$(basename $(pwd))_humble\" > .env",
     "customizations": {
         "vscode": {
             "extensions": [
