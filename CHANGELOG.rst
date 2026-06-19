@@ -27,6 +27,7 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 J
      // After (best_effort QoS):
      auto sub = node->create_subscription<std_msgs::msg::Bool>(
          "collision_detected", rclcpp::SensorDataQoS(), callback);
+* refactor: Removed the robot_description from launch files - controller_manager gets it natively via topic
 
 * docu: Added documentation for error recovery after an FCI error.
 
