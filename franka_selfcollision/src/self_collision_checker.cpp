@@ -64,7 +64,7 @@ bool SelfCollisionChecker::checkCollisions(const Eigen::VectorXd& q, bool print_
   if (collision_found && print_collisions) {
     for (size_t k = 0; k < geom_model_.collisionPairs.size(); ++k) {
       const pinocchio::CollisionPair& cp = geom_model_.collisionPairs[k];
-      const hpp::fcl::CollisionResult& cr = geom_data_->collisionResults[k];
+      const coal::CollisionResult& cr = geom_data_->collisionResults[k];
 
       if (cr.isCollision()) {
         const std::string& name1 = geom_model_.geometryObjects[cp.first].name;

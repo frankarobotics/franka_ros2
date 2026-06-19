@@ -8,14 +8,14 @@
 # Not all parameters are currently used but are included for future compatibility.
 # Ensure each robot has a unique namespace to prevent topic conflicts.
 
-ROBOT1: # Arbitrary identifier for the first robot (a Mnemonic) 
+ROBOT1: # Arbitrary identifier for the first robot (a Mnemonic)
   robot_type: "fr3" # Reserved for future use, unique arm (i.e. robot model) identifier
   arm_prefix: "" # Reserved for future use (e.g., robot unique prefix)
   fake_sensor_commands: "false" # Enable fake sensor commands for simulation
   joint_state_rate: 30 # Publishing rate for joint states (Hz)
-  load_gripper: "false" # Enable Franka Gripper ("true" or "false")
-  namespace: "NS_1" # Namespace for robot, any string (empty string allowed - meaningful names recommended)
-  robot_ip: "172.16.0.2" # Robot’s IP address or hostname
+  load_gripper: "true" # Enable Franka Gripper ("true" or "false")
+  namespace: "" # Namespace for robot, any string (empty string allowed - meaningful names recommended)
+  robot_ip: "localhost" # Robot’s IP address or hostname
   use_fake_hardware: "false" # Use simulated hardware ("true" or "false")
   use_rviz: "true" # Launch RViz if "true" (single instance for all namespaces)
 # Uncomment the following lines to add more robots in Namespaces

@@ -28,8 +28,8 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 J
      auto sub = node->create_subscription<std_msgs::msg::Bool>(
          "collision_detected", rclcpp::SensorDataQoS(), callback);
 * refactor: Removed the robot_description from launch files - controller_manager gets it natively via topic
-
 * docu: Added documentation for error recovery after an FCI error.
+* fix: Pinocchios collision detection component dropped the 'fcl/hpp' namespace and only supports now the coal namespace
 
 v3.3.0 (2026-05-04)
 -------------------
