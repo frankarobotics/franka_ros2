@@ -1,5 +1,5 @@
 {
-    "name": "${localWorkspaceFolderBasename}",
+    "name": "${localWorkspaceFolderBasename}_humble",
     "privileged": true,
     "remoteUser": "user",
     "dockerComposeFile": "../docker-compose.yml",
