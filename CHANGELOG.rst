@@ -17,6 +17,7 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 J
   To migrate, set the subscriber QoS to ``best_effort`` (``SensorDataQoS``):
 
 * feat: Added franka_spine packages (franka_spine_msgs, franka_spine_server, franka_spine_examples) — ROS 2 action/service server for controlling the Franka Spine module
+* docu: Added documentation for error recovery after an FCI error.
 
 v2.4.0 (2026-05-04)
 ----------

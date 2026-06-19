@@ -70,6 +70,114 @@ Configuration
 
 The IP of the robot is read over a parameter from the URDF.
 
+Error Recovery
+--------------
+
+Previously, FCI errors caused the entire launch process to exit. Now, from 
+versions v2.4.0+ and v3.3.0+, the hardware interface remains running and only
+deactivates itself and its controllers, allowing in-place recovery without restarting.
+
+Behavior on Error
+^^^^^^^^^^^^^^^^^
+
+When a Franka Control Interface (FCI) error occurs (e.g. a reflex triggered by a
+collision or a violated joint limit), the hardware plugin:
+
+1. Logs the error.
+2. Stops the active control loop on the robot.
+3. Returns ``hardware_interface::return_type::ERROR`` to the ``controller_manager``.
+
+The ``controller_manager`` then:
+
+4. Transitions the hardware component to the **unconfigured** state.
+
+The ``ros2_control_node`` process **stays alive** — no restart is needed.
+
+.. warning::
+   **Humble users:** Due to a limitation in ``ros2_control`` on Humble
+   (`ros-controls/ros2_control#2318 <https://github.com/ros-controls/ros2_control/issues/2318>`_),
+   controllers are **not** automatically deactivated when the hardware component
+   enters the error state. They remain in the *active* state even though the
+   underlying hardware is no longer functional. **You must manually deactivate
+   your controllers** before you can recover. See the recovery steps below.
+
+Recovery Steps
+^^^^^^^^^^^^^^
+
+After an FCI error the following steps must be performed **in order**:
+
+**Step 0 — (Humble only) Deactivate your controllers**
+
+On Humble, controllers are not automatically deactivated on hardware error.
+You must stop them manually first:
+
+.. code-block:: bash
+
+   ros2 control switch_controllers --deactivate <controller_name>
+
+.. note::
+   On Jazzy this step is not needed — controllers are deactivated automatically.
+
+**Step 1 — Clear the robot error**
+
+Call the error recovery action exposed by the ``franka_hardware`` action server.
+This invokes ``libfranka``'s ``automaticErrorRecovery()`` to reset the robot's
+error state.
+
+.. code-block:: bash
+
+   # Single-arm (no arm prefix):
+   ros2 action send_goal /action_server/error_recovery franka_msgs/action/ErrorRecovery {}
+
+   # Dual-arm (example for left arm with prefix "left_"):
+   ros2 action send_goal /left/action_server/error_recovery franka_msgs/action/ErrorRecovery {}
+
+**Step 2 — Re-activate the hardware component**
+
+Transition the hardware component back to the *active* state so it reconnects
+the control loop.
+
+.. code-block:: bash
+
+   # Single-arm:
+   ros2 control set_hardware_component_state FrankaHardwareInterface active
+
+   # Dual-arm (left arm):
+   ros2 control set_hardware_component_state left_FrankaHardwareInterface active
+
+.. tip::
+   You can discover the hardware component name at runtime with:
+
+   .. code-block:: bash
+
+      ros2 control list_hardware_components
+
+**Step 3 — Re-activate your controllers**
+
+.. code-block:: bash
+
+   ros2 control switch_controllers --activate <controller_name>
+
+.. warning::
+   The order matters. On Humble you must first deactivate controllers (Step 0),
+   then clear the robot error (Step 1), re-activate the hardware (Step 2), and
+   finally re-activate controllers (Step 3). On Jazzy, start from Step 1.
+
+Action Server Topics
+^^^^^^^^^^^^^^^^^^^^
+
+The error recovery action topic follows the arm prefix configured in the URDF:
+
++-----------------------------+---------------------------------------------+
+| Configuration               | Action topic                                |
++=============================+=============================================+
+| Single-arm (no prefix)      | ``/action_server/error_recovery``            |
++-----------------------------+---------------------------------------------+
+| Dual-arm, left (``left_``)  | ``/left/action_server/error_recovery``       |
++-----------------------------+---------------------------------------------+
+| Dual-arm, right (``right_``)| ``/right/action_server/error_recovery``      |
++-----------------------------+---------------------------------------------+
+
 Usage with Controllers
 ----------------------
 
