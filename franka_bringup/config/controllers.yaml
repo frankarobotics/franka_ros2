@@ -49,6 +49,9 @@
 
       joint_impedance_with_ik_example_controller:
         type: franka_example_controllers/JointImpedanceWithIKExampleController
+        
+      cartesian_impedance_example_controller:
+        type: franka_example_controllers/CartesianImpedanceExampleController
 
       joint_position_example_controller:
         type: franka_example_controllers/JointPositionExampleController
