@@ -175,6 +175,15 @@ This example uses the CartesianVelocity interface to send periodic velocity comm
 
     ros2 launch franka_bringup example.launch.py controller_names:=cartesian_velocity_example_controller
 
+Cartesian Impedance Example
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This example uses Cartesian impedance control to move the robot in a periodic compliant motion.
+The equilibrium pose and stiffness can be updated online via ``~/equilibrium_pose`` and ``~/set_cartesian_stiffness``.
+
+.. code-block:: shell
+
+    ros2 launch franka_bringup example.launch.py controller_names:=cartesian_impedance_example_controller
+
 Cartesian Elbow Example
 ^^^^^^^^^^^^^^^^^^^^^^^
 This example uses the CartesianElbow interface to send periodic elbow commands to the robot while keeping the end effector velocity constant.

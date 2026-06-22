@@ -27,6 +27,7 @@ find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(realtime_tools REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(Eigen3 REQUIRED)
 
@@ -47,8 +48,9 @@ add_library(
         src/fr3/joint_velocity_example_controller.cpp
         src/mobile_fr3_duo/mobile_fr3_duo_joint_impedance_example_controller.cpp
         src/fr3/model_example_controller.cpp
-        src/motion_generator.cpp
+        src/fr3/cartesian_impedance_example_controller.cpp
         src/fr3/move_to_start_example_controller.cpp
+        src/motion_generator.cpp
 )
 
 target_include_directories( ${PROJECT_NAME}
@@ -70,6 +72,7 @@ ament_target_dependencies(
         pluginlib
         rclcpp
         rclcpp_lifecycle
+        realtime_tools
         std_srvs
 )
 
@@ -141,6 +144,15 @@ if(BUILD_TESTING)
     #     ros2_control_test_assets
     # )
 
+
+    ament_add_gmock(${PROJECT_NAME}_cartesian_impedance_test
+        test/test_load_cartesian_impedance_example_controller.cpp)
+    target_include_directories(${PROJECT_NAME}_cartesian_impedance_test PRIVATE include)
+    target_link_libraries(${PROJECT_NAME}_cartesian_impedance_test ${PROJECT_NAME})
+    ament_target_dependencies(${PROJECT_NAME}_cartesian_impedance_test
+        controller_manager
+        ros2_control_test_assets
+    )
 
     ament_add_gmock(${PROJECT_NAME}_gravity_test test/test_gravity_compensation_example.cpp)
     target_include_directories(${PROJECT_NAME}_gravity_test PRIVATE include)

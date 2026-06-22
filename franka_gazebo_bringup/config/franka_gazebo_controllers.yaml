@@ -20,6 +20,9 @@ controller_manager:
     gravity_compensation_example_controller:
       type: franka_example_controllers/GravityCompensationExampleController
 
+    cartesian_impedance_example_controller:
+      type: franka_example_controllers/CartesianImpedanceExampleController
+
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
     
@@ -193,3 +196,10 @@ full_body_controller:
       - 1.0
       - 1.0
       - 0.5
+
+cartesian_impedance_example_controller:
+  ros__parameters:
+    arm_id: fr3
+    translational_stiffness: 150.0
+    rotational_stiffness: 10.0
+    nullspace_stiffness: 20.0
