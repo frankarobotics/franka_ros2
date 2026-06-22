@@ -3,25 +3,27 @@
 <package format="3">
   <name>franka_gazebo_bringup</name>
   <version>3.3.0</version>
-  <description>Contains launch files for the franka_gazebo_bringup project</description>
+  <description>Launch files, worlds, urdf-xacro and config assets for running Franka robots in Gazebo</description>
   <maintainer email="support@franka.de">Franka Robotics GmbH</maintainer>
   <license>Apache 2.0</license>
 
-  <depend>ros_gz</depend>
-  <depend>sdformat_urdf</depend>
-  <depend>joint_state_publisher_gui</depend>
-  <depend>franka_description</depend>
-  <depend>gz_ros2_control</depend>
-
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <exec_depend>ros_gz</exec_depend>
+  <exec_depend>sdformat_urdf</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>franka_description</exec_depend>
+  <exec_depend>gz_ros2_control</exec_depend>
   <exec_depend>franka_hardware</exec_depend>
+  <exec_depend>franka_gazebo_hardware</exec_depend>
   <exec_depend>ros2controlcli</exec_depend>
   <exec_depend>franka_mobile_sensors</exec_depend>
   <exec_depend>franka_mobile</exec_depend>
   <exec_depend>franka_example_controllers</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_cmake_ros</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

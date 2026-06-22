@@ -19,7 +19,6 @@
   <!-- Macro includes                                                    -->
   <!-- ================================================================ -->
   <xacro:include filename="$(find franka_description)/robots/mobile_fr3_duo_v0_2/mobile_fr3_duo_v0_2.xacro"/>
-  <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
   <!-- Unified ros2_control for gazebo (mobile base + both arms in one block) -->
   <xacro:include filename="$(find franka_hardware)/ros2_control/mobile_fr3_duo.ros2_control.xacro"/>
 
@@ -77,12 +76,4 @@
         gazebo="true"
         gazebo_effort="$(arg gazebo_effort)"
         robot_namespace=""/>
-
-  <!-- ================================================================ -->
-  <!-- Gravity overrides                                                -->
-  <!-- ================================================================ -->
-  <xacro:disable_arm_gravity prefix="left_" robot_type="${robot_types_list[1]}"/>
-  <xacro:disable_arm_gravity prefix="right_" robot_type="${robot_types_list[2]}"/>
-  <xacro:disable_mobile_base_gravity/>
-
 </robot>

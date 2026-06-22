@@ -292,6 +292,7 @@ def generate_launch_description():
         executable='spawner',
         arguments=[
             'joint_state_broadcaster',
+            'spine_joint_trajectory_controller',
             'swerve_ik_controller',
             'swerve_drive_controller',
             'mobile_fr3_duo_joint_impedance_example_controller',

@@ -257,7 +257,7 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p stamped:=true
 
 ### Run Gazebo examples with ROS 2
 
-If you want to use Gazebo to run your code, you can find some examples here: [franka_gazebo_bringup](./franka_gazebo_bringup/README)
+If you want to use Gazebo to run your code, you can find some examples here: [franka_gazebo_bringup](./franka_gazebo/franka_gazebo_bringup/doc/index)
 
 ## Troubleshooting
 ### `libfranka: UDP receive: Timeout error`

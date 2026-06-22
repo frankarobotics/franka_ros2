@@ -18,7 +18,6 @@
     <xacro:include filename="$(find franka_hardware)/ros2_control/franka_arm.ros2_control.xacro"/>
     <!-- Gazebo extras -->
     <xacro:include filename="$(find franka_gazebo_bringup)/urdf/sensors.xacro"/>
-    <xacro:include filename="$(find franka_gazebo_bringup)/urdf/gravity_overrides.xacro"/>
 
     <!-- ================================================================ -->
     <!-- Arguments                                                        -->
@@ -50,8 +49,5 @@
     <xacro:franka_gazebo_arm_imus arm_prefix="$(arg arm_prefix)" robot_type="$(arg robot_type)" imu_side="top"/>
     <xacro:franka_gazebo_arm_imus arm_prefix="$(arg arm_prefix)" robot_type="$(arg robot_type)" imu_side="bottom"/>
 
-    <!-- Disable gravity on arm links: the example controllers do not
-         implement gravity compensation, so the arms would collapse. -->
-    <xacro:disable_arm_gravity prefix="$(arg arm_prefix)" robot_type="$(arg robot_type)"/>
 
 </robot>

@@ -1,18 +1,13 @@
 cmake_minimum_required(VERSION 3.5)
 
-# Suppress CMP0002 warning 
-option(CHECK_TIDY "Enable clang-tidy checks" OFF)
-option(CMAKE_EXPORT_COMPILE_COMMANDS "Enable compile commands export" OFF)
-
-
-project(franka_gazebo_bringup)
+project(franka_gazebo_bringup NONE)
 
 find_package(ament_cmake REQUIRED)
 
-# Install project launch files
+# Install project launch files and supporting assets
 install(
   DIRECTORY
-    launch config worlds urdf 
+    launch config worlds urdf
   DESTINATION share/${PROJECT_NAME}
 )
 

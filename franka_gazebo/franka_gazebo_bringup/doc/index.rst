@@ -1,5 +1,5 @@
-franka_gazebo
-=============
+franka_gazebo_bringup
+=====================
 
 .. important::
 
@@ -227,6 +227,25 @@ This will spawn the mobile base and two FR3 arms with gripper and wrist cameras,
 for both arms and cartesian velocity control for the mobile base. RViz will also launch
 for visualization. Select ``base_link`` to see the robot there.
 
+
+Gravity Compensation in Simulation
+----------------------------------
+
+Gravity is enabled globally in the Gazebo world, just like on the real robot. To keep the
+arms from collapsing under their own weight, ``franka_gazebo_bringup`` loads a
+gravity-compensation system plugin that computes the model-based gravity torque and applies
+it to the effort-controlled arm joints. This mirrors the real robot, where the master
+controller performs gravity compensation, so the zero-torque example controllers (for
+example the joint impedance controller) behave the same way in simulation as on hardware.
+
+On the mobile platform (``mobile_fr3_duo_v0_2``), the vertical spine is a prismatic joint
+that would also drop under gravity. It is held at its initial height by the
+``spine_joint_trajectory_controller``, a ``JointTrajectoryController`` running on a position
+command interface, which is started automatically by the mobile example launch file.
+
+You normally don't need to configure any of this — it is wired up by the example launch
+files. Gravity being enabled is engine-independent and does not depend on a particular
+physics engine forwarding a gravity-disable flag.
 
 Troubleshooting
 ---------------
