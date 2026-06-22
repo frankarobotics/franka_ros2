@@ -128,7 +128,7 @@ def generate_launch_description():
         description='The controller name to be used. You can choose one from the franka_example_controllers.')
     gz_args_launch_argument = DeclareLaunchArgument(
         gz_args_name,
-        default_value='-r worlds/empty_no_gravity.sdf',
+        default_value='empty.sdf -r',
         description='Extra args to be forwared to gazebo')
     rviz_launch_argument = DeclareLaunchArgument(
         rviz_name,

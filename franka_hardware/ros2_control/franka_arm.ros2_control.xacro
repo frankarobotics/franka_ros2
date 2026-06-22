@@ -33,7 +33,12 @@
         </xacro:if>
 
         <xacro:if value="${gazebo}">
-          <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+          <xacro:if value="${gazebo_effort}">
+            <plugin>franka_gazebo_hardware/GazeboGravityCompensationSystem</plugin>
+          </xacro:if>
+          <xacro:unless value="${gazebo_effort}">
+            <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+          </xacro:unless>
         </xacro:if>
 
         <xacro:if value="${use_fake_hardware == 0 and gazebo == 0}">

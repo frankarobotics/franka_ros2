@@ -13,3 +13,6 @@ libfranka
 franka_description
 olvx_descriptions_module
 activity.log
+task.md
+task.md.archive
+test-status.md
