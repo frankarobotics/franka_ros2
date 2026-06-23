@@ -237,10 +237,14 @@ class TestMobilePassiveBaseGating:
 
     def test_passive_joints_present_with_gazebo_as_state_only(self):
         """
-        In Gazebo, passive joints are registered with state interfaces only.
+        In Gazebo, rocker/caster joints are state-only but the spine is actively held.
 
-        They provide feedback for physics simulation (joint angle readback)
-        but have no command interfaces — the compliance is passive, not actuated.
+        Rocker and casters provide feedback for physics simulation (joint angle
+        readback) but have no command interfaces — their compliance is passive,
+        not actuated. The prismatic spine is the exception: it carries the full
+        upper-body weight and would collapse under gravity, so it gets a single
+        position command interface and is held by spine_joint_trajectory_controller
+        (see configure_passive_mobile_base_joints in franka_ros2_control_macros.xacro).
         """
         components = load_mobile_fr3_duo_gazebo()
         all_joints = {j.name: j for c in components for j in c.joints}
@@ -269,13 +273,17 @@ class TestMobilePassiveBaseGating:
                 f'{name} must be state-only (no command interfaces)'
             )
 
-        # Spine
+        # Spine — actively held (carries upper-body weight), not passive
         assert 'franka_spine_vertical_joint' in all_joints, (
             'franka_spine_vertical_joint must be registered in gazebo'
         )
         spine = all_joints['franka_spine_vertical_joint']
-        assert len(spine.command_interfaces) == 0, (
-            'franka_spine_vertical_joint must be state-only (no command interfaces)'
+        assert len(spine.command_interfaces) == 1, (
+            'franka_spine_vertical_joint must have exactly one command interface '
+            'in gazebo (actively held against gravity, not passive)'
+        )
+        assert spine.command_interfaces[0].name == 'position', (
+            'franka_spine_vertical_joint must have a position command interface in gazebo'
         )
         assert len(spine.state_interfaces) > 0, (
             'franka_spine_vertical_joint must have state interfaces in gazebo'
