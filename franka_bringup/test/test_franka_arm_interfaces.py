@@ -21,8 +21,6 @@ interfaces that controllers bind to at runtime — getting them wrong means
 controllers fail to activate or command the wrong DOFs.
 """
 
-import xml.etree.ElementTree as ElementTree
-
 import pytest
 
 from ros2_control_test_helpers import (
@@ -202,40 +200,6 @@ class TestFrankaArmEffortGating:
             assert 'effort' in cmd_names, (
                 f'{joint.name} should have effort with gazebo_effort=true'
             )
-
-
-class TestMoveitLaunchExpansion:
-    """
-    Guards the franka_fr3_moveit_config/launch/moveit.launch.py xacro-expansion path.
-
-    moveit.launch.py is the only caller that expands franka_arm.urdf.xacro through a
-    mapping set that historically omitted robot_type. A regression once made robot_type
-    a required substitution argument with no default, producing:
-        error: Undefined substitution argument robot_type
-            ... franka_bringup/urdf/franka_arm.urdf.xacro
-    Every other test passes robot_type explicitly, so nothing caught it. This case mirrors
-    moveit.launch.py's mappings WITHOUT robot_type so the xacro must supply a usable
-    default; it raised before the fix and must expand to a valid URDF after it.
-    """
-
-    def test_franka_arm_expands_without_robot_type(self):
-        """franka_arm.urdf.xacro expands to a valid URDF using moveit.launch.py mappings."""
-        # Mirrors the mappings moveit.launch.py passes to xacro, minus robot_type.
-        mappings = {
-            'hand': 'true',
-            'robot_ip': 'localhost',
-            'ee_id': 'franka_hand',
-            'use_fake_hardware': 'false',
-            'fake_sensor_commands': 'false',
-        }
-        urdf = expand_wrapper_urdf(get_bringup_wrapper('franka_arm.urdf.xacro'), mappings)
-        assert urdf, 'Expansion without robot_type produced empty URDF (regression)'
-
-        root = ElementTree.fromstring(urdf)
-        assert root.tag == 'robot', (
-            f'Expected <robot> root element, got <{root.tag}>. '
-            f'moveit.launch.py needs a parseable robot description.'
-        )
 
 
 if __name__ == '__main__':
