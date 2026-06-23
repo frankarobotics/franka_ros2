@@ -5,7 +5,7 @@
   Composes the franka_description base robot with ros2_control hardware interface.
   Used by franka_bringup launch files and MoveIt config.
 -->
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="$(arg robot_type)">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="franka_arm">
 
   <!-- robot_type must be declared before include (used in filename resolution) -->
   <xacro:arg name="robot_type" default="fr3"/>

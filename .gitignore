@@ -19,7 +19,6 @@ olvx_descriptions_module
 ros2_robotiq_gripper
 zed_description
 serial
-# Agent scratch files (never commit)
 activity.log
 task.md
 test-status.md

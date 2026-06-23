@@ -58,15 +58,16 @@ def ensure_gz_sim_not_running():
 # Each entry: (launch_file, {launch_arguments})
 params = [
     # --- Franka arm example controllers ---
-    (
-        'gazebo_franka_arm_example_controller.launch.py',
-        {
-            'robot_type': 'fr3',
-            'controller': 'gravity_compensation_example_controller',
-            'gz_args': 'empty.sdf -r -s --headless-rendering',
-            'rviz': 'false',
-        },
-    ),
+    # ToDo: Re-add after force interface exists for gazebo
+    # (
+    #     'gazebo_franka_arm_example_controller.launch.py',
+    #     {
+    #         'robot_type': 'fr3',
+    #         'controller': 'gravity_compensation_example_controller',
+    #         'gz_args': 'empty.sdf -r -s --headless-rendering',
+    #         'rviz': 'false',
+    #     },
+    # ),
     (
         'gazebo_franka_arm_example_controller.launch.py',
         {
