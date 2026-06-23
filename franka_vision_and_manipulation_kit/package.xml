@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>franka_vision_and_manipulation_kit</name>
-  <version>0.1.0</version>
+  <version>3.4.0</version>
   <description>ROS 2 Drivers and Description for Franka Vision and Manipulation Kit</description>
   <maintainer email="support@franka.de">Franka Robotics GmbH</maintainer>
   <license>Apache 2.0</license>
@@ -19,7 +19,7 @@
   <exec_depend>robotiq_driver</exec_depend>
   <exec_depend>zed_description</exec_depend>
   <exec_depend>zed_wrapper</exec_depend>
-  
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

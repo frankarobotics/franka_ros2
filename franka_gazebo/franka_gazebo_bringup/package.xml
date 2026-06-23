@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>franka_gazebo_bringup</name>
-  <version>3.3.0</version>
+  <version>3.4.0</version>
   <description>Launch files, worlds, urdf-xacro and config assets for running Franka robots in Gazebo</description>
   <maintainer email="support@franka.de">Franka Robotics GmbH</maintainer>
   <license>Apache 2.0</license>

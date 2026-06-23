@@ -1,9 +1,9 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-UNRELEASED
-----------
-Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 Jazzy
+v3.4.0 (2026-06-23)
+-------------------
+Requires libfranka >= 0.20.4 and franka_description >= 2.8.0 requires ROS 2 Jazzy
 
 * feat: expose ``K_F_ext_hat_K`` as ``ForceTorqueSensor`` state interfaces (force.x/y/z,
   torque.x/y/z) on the ``<arm_prefix><robot_type>_tcp`` sensor, enabling direct wrench
