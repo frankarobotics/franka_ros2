@@ -1,8 +1,9 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-UNRELEASED
-----------
+v2.5.0 (2026-06-23)
+-------------------
+Requires libfranka >= 0.20.4 and franka_description >= 2.8.0 requires ROS 2 Humble
 
 * chore: split the gazebo sources into two packages, ``franka_gazebo_bringup``
   (launch files, worlds, robot descriptions, controller configs) and
@@ -27,7 +28,7 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.8.0(?) requires ROS 2 J
 * chore: devcontainer container name now derives from the workspace folder basename (``<folder>_humble``) so variant clones no longer collide on a fixed container name.
 
 v2.4.0 (2026-05-04)
-----------
+-------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.7.0 requires ROS 2 Humble
 
 * breaking change: Switching franka_description common package both for humble and jazzy -> 2.7.0
