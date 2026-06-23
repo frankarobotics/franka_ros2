@@ -80,7 +80,7 @@ def generate_launch_description():
     )
 
     robot_description_config = Command(
-        [FindExecutable(name='xacro'), ' ', franka_xacro_file, ' hand:=', load_gripper,
+        [FindExecutable(name='xacro'), ' ', franka_xacro_file, ' hand:=', load_gripper, ' robot_type:=fr3',
          ' robot_ip:=', robot_ip, ' ee_id:=', ee_id, ' use_fake_hardware:=', use_fake_hardware,
          ' fake_sensor_commands:=', fake_sensor_commands])
 
