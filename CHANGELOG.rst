@@ -1,6 +1,17 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+UNRELEASED
+-------------------
+Requires libfranka >= 0.20.4 and franka_description >= 2.8.0 requires ROS 2 Jazzy
+
+* chore: removed ``patches/manage_overruns.patch`` and its auto-apply step from
+  ``franka_entrypoint.sh``. Overrun handling is configured upstream through the
+  ``overruns.manage`` / ``overruns.print_warnings`` parameters, which the shipped
+  ``controller_manager`` configs already set (``overruns: manage: false``), so the
+  vendored ``hardware_interface`` no longer needs patching.
+
+
 v3.4.1 (2026-07-07)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.8.0 requires ROS 2 Jazzy
