@@ -334,11 +334,11 @@ void Robot::initializeJointPositionInterface() {
 void Robot::initializeCartesianVelocityInterface() {
   try {
     active_control_ = robot_->startCartesianVelocityControl(
-        research_interface::robot::Move::ControllerMode::kJointImpedance);
+        research_interface::robot::Move::ControllerMode::kCartesianImpedance);
   } catch (const franka::ControlException& e) {
     robot_->automaticErrorRecovery();
     active_control_ = robot_->startCartesianVelocityControl(
-        research_interface::robot::Move::ControllerMode::kJointImpedance);
+        research_interface::robot::Move::ControllerMode::kCartesianImpedance);
   }
   cartesian_velocity_interface_active_ = true;
 }
@@ -346,11 +346,11 @@ void Robot::initializeCartesianVelocityInterface() {
 void Robot::initializeCartesianPoseInterface() {
   try {
     active_control_ = robot_->startCartesianPoseControl(
-        research_interface::robot::Move::ControllerMode::kJointImpedance);
+        research_interface::robot::Move::ControllerMode::kCartesianImpedance);
   } catch (const franka::ControlException& e) {
     robot_->automaticErrorRecovery();
     active_control_ = robot_->startCartesianPoseControl(
-        research_interface::robot::Move::ControllerMode::kJointImpedance);
+        research_interface::robot::Move::ControllerMode::kCartesianImpedance);
   }
   cartesian_pose_interface_active_ = true;
 }
