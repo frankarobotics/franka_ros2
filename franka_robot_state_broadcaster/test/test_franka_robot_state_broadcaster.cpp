@@ -14,6 +14,8 @@
 
 #include <gmock/gmock.h>
 
+#include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -37,13 +39,31 @@ class MockFrankaRobotState : public franka_semantic_components::FrankaRobotState
   MOCK_METHOD(bool, get_values_as_message, (franka_msgs::msg::FrankaRobotState&), (override));
 };
 
+// FrankaRobotState resolves its own arm's seven joints out of the description, so the mock needs
+// a description that names them. ros2_control_test_assets' minimal robot does not.
+inline std::string singleArmUrdf(const std::string& arm_name) {
+  std::stringstream urdf;
+  urdf << "<?xml version=\"1.0\"?><robot name=\"" << arm_name << "\">";
+  urdf << "<link name=\"" << arm_name << "_link0\"/>";
+  for (size_t joint = 1; joint <= 7; ++joint) {
+    urdf << "<link name=\"" << arm_name << "_link" << joint << "\"/>"
+         << "<joint name=\"" << arm_name << "_joint" << joint << "\" type=\"revolute\">"
+         << "<parent link=\"" << arm_name << "_link" << joint - 1 << "\"/>"
+         << "<child link=\"" << arm_name << "_link" << joint << "\"/>"
+         << "<axis xyz=\"0 0 1\"/>"
+         << "<limit lower=\"-2.0\" upper=\"2.0\" effort=\"87.0\" velocity=\"2.0\"/></joint>";
+  }
+  urdf << "</robot>";
+  return urdf.str();
+}
+
 using namespace franka_robot_state_broadcaster;
 class TestFrankaRobotStateBroadcaster : public ::testing::Test {
  protected:
   void SetUp() override {
     std::unique_ptr<MockFrankaRobotState> franka_robot_state =
         std::make_unique<MockFrankaRobotState>("mock_franka_robot_state",
-                                               ros2_control_test_assets::minimal_robot_urdf);
+                                               singleArmUrdf("mock_franka_robot_state"));
     franka_robot_state_raw_ = franka_robot_state.get();  // Save raw pointer for mocking
 
     broadcaster_ = std::make_unique<FrankaRobotStateBroadcaster>(std::move(franka_robot_state));

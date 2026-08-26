@@ -100,8 +100,10 @@ class FrankaRobotState
   auto set_links_from_urdf() -> void;
 
   /**
-   * @brief Populate the joint_name std::vector with the joints from urdf object in order.
+   * @brief Populate the joint_name std::vector with this arm's seven joints, in joint order.
    *
+   * The robot_description may describe more than one arm; only the joints belonging to this
+   * component's arm are published. Throws std::runtime_error if one of them is missing.
    */
   auto set_joints_from_urdf() -> void;
 

@@ -1,6 +1,18 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+UNRELEASED
+----------
+Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
+
+* fix: ``franka_semantic_components::FrankaRobotState`` now sizes and labels the joint arrays of
+  ``FrankaRobotState`` from the arm the component is bound to, instead of from every revolute
+  joint in the global ``robot_description``. With more than seven revolute joints in the
+  description the arrays came out longer than seven, and the trailing entries were filled by
+  reading past the end of libfranka's seven-element arrays, so they carried a different quantity
+  than their joint name promised and each broadcaster labelled its own arm's data with another
+  arm's joint names.
+
 v3.5.2 (2026-08-17)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
