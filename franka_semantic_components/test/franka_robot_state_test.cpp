@@ -241,3 +241,73 @@ TEST_F(FrankaRobotStateTest,
               bottom_readings[sensor][2]);
   }
 }
+
+void FrankaRobotStateMultiArmTest::TearDown() {
+  franka_state_friend.reset(nullptr);
+}
+
+void FrankaRobotStateMultiArmTest::SetUp() {
+  franka_state_friend = std::make_unique<FrankaRobotStateMultiArmTestFriend>(
+      robot_name + "/" + franka_state_interface_name);
+
+  robot_state.q = joint_angles;
+  robot_state.q_d = desired_joint_angles;
+  robot_state_box.set(robot_state);
+
+  hardware_interface::StateInterface franka_hw_state{
+      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_box_ptr)};
+  std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
+
+  temp_state_interfaces.reserve(size);
+  temp_state_interfaces.emplace_back(franka_hw_state);
+
+  ASSERT_TRUE(franka_state_friend->assign_loaned_state_interfaces(temp_state_interfaces));
+  franka_state_friend->initialize_robot_state_msg(franka_robot_state_msg);
+  ASSERT_TRUE(franka_state_friend->get_values_as_message(franka_robot_state_msg));
+}
+
+// The robot_description holds fourteen revolute joints, but libfranka reports seven values for
+// the one arm this component is bound to. Sizing the arrays from the description made them
+// fourteen long and filled the extra entries by reading past the end of franka::RobotState's
+// seven-element arrays.
+TEST_F(FrankaRobotStateMultiArmTest, givenMultiArmRobotDescription_thenJointArraysAreArmLocal) {
+  const std::vector<std::string> expected_names = {"fr3_joint1", "fr3_joint2", "fr3_joint3",
+                                                   "fr3_joint4", "fr3_joint5", "fr3_joint6",
+                                                   "fr3_joint7"};
+
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.name, expected_names);
+  ASSERT_EQ(franka_robot_state_msg.desired_joint_state.name, expected_names);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_motor_state.name, expected_names);
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.name, expected_names);
+
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.position.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.velocity.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.effort.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.desired_joint_state.position.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.desired_joint_state.velocity.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.desired_joint_state.effort.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_motor_state.position.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_motor_state.velocity.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_motor_state.effort.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.position.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.velocity.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.effort.size(), 7u);
+}
+
+// Each entry has to carry the quantity its own field promises. Before the fix, entry seven of
+// measured_joint_state.position held q_d[0] rather than a measured position.
+TEST_F(FrankaRobotStateMultiArmTest, givenMultiArmRobotDescription_thenJointValuesAreNotMixed) {
+  ASSERT_THAT(joint_angles,
+              ::testing::ElementsAreArray(franka_robot_state_msg.measured_joint_state.position));
+  ASSERT_THAT(desired_joint_angles,
+              ::testing::ElementsAreArray(franka_robot_state_msg.desired_joint_state.position));
+}
+
+// A robot_description that does not describe this arm is a configuration error, not something to
+// publish around. initialize_robot_state_msg() already rejects a missing accelerometer frame the
+// same way.
+TEST(FrankaRobotStateStandaloneTest, givenDescriptionWithoutThisArm_thenConstructionThrows) {
+  EXPECT_THROW(franka_semantic_components::FrankaRobotState(
+                   "no_such_arm/robot_state", read_robot_description("franka_semantic_components")),
+               std::runtime_error);
+}
