@@ -30,6 +30,9 @@ constexpr size_t kBaseLinkIndex = 0;
 constexpr size_t kFlangeLinkIndex = 8;
 constexpr size_t kLoadLinkIndex = 8;
 constexpr size_t kAccelerometerCount = 6;
+// libfranka reports exactly this many joints per arm; every std::array in
+// franka::RobotState that this component copies from is this wide.
+constexpr size_t kJointCount = 7;
 const std::string kTCPFrameName = "_hand_tcp";
 
 // franka::RobotMode and FrankaRobotState.robot_mode are intentionally isomorphic.
@@ -149,11 +152,18 @@ auto FrankaRobotState::set_links_from_urdf() -> void {
 }
 
 auto FrankaRobotState::set_joints_from_urdf() -> void {
-  auto& joints = model_->joints_;
-  for (const auto& [name, joint] : joints) {
-    if (joint->type == urdf::Joint::REVOLUTE) {
-      joint_names.push_back(name);
+  // This component is bound to a single arm's state interface, and libfranka reports exactly
+  // kJointCount values for that arm. The robot_description, however, is the controller
+  // manager's global one and may describe several arms, so it cannot be used to size or label
+  // the published arrays. Take this arm's joints by name, in joint order, the same way the
+  // accelerometer frames are resolved in initialize_robot_state_msg().
+  joint_names.reserve(kJointCount);
+  for (size_t i = 0; i < kJointCount; ++i) {
+    const auto joint_name = robot_name_ + "_joint" + std::to_string(i + 1);
+    if (model_->joints_.find(joint_name) == model_->joints_.end()) {
+      throw std::runtime_error("Joint '" + joint_name + "' not found in URDF.");
     }
+    joint_names.push_back(joint_name);
   }
 }
 
