@@ -27,7 +27,10 @@ TEST_F(FrankaRobotTests,
 
 TEST_F(FrankaRobotTests,
        whenInitializeCartesianVelocityInterfaceCalled_thenStartCartesianVelocityControl) {
-  EXPECT_CALL(*mock_libfranka_robot, startCartesianVelocityControl(testing::_)).Times(1);
+  EXPECT_CALL(*mock_libfranka_robot,
+              startCartesianVelocityControl(
+                  research_interface::robot::Move::ControllerMode::kCartesianImpedance))
+      .Times(1);
 
   franka_hardware::Robot robot(std::move(mock_libfranka_robot), std::move(mock_model));
 
@@ -35,7 +38,10 @@ TEST_F(FrankaRobotTests,
 }
 
 TEST_F(FrankaRobotTests, whenInitializeCartesianPoseInterfaceCalled_thenStartCartesianPoseControl) {
-  EXPECT_CALL(*mock_libfranka_robot, startCartesianPoseControl(testing::_)).Times(1);
+  EXPECT_CALL(*mock_libfranka_robot,
+              startCartesianPoseControl(
+                  research_interface::robot::Move::ControllerMode::kCartesianImpedance))
+      .Times(1);
 
   franka_hardware::Robot robot(std::move(mock_libfranka_robot), std::move(mock_model));
 
