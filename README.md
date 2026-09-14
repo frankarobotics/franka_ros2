@@ -110,7 +110,7 @@ For detailed instructions on preparing VS Code to use `.devcontainer`, follow th
 
 1. **Clone the Repositories:**
     ```bash
-    git clone https://github.com/frankarobotics/franka_ros2.git
+    git clone -b jazzy https://github.com/frankarobotics/franka_ros2.git
     cd franka_ros2
     ```
     We provide separate instructions for using Docker from the command line or
