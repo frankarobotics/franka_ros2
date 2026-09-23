@@ -105,18 +105,20 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
     // warning: noisy at 1khz!!
     const auto [q, p] = franka_cartesian_pose_->getCurrentOrientationAndTranslation();
     const double dt = period.seconds();
-    const Eigen::Vector3d dp = (p - p_) / dt;
-    const Eigen::Quaterniond dq = q_.conjugate() * q;
-    const Eigen::Vector3d w = 2.0 * dq.vec() / dt;
     x = p.x();
     y = p.y();
-    vx = dp.x();
-    vy = dp.y();
-    wz = w.z();
     yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
                      1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
-    p_ = p;
-    q_ = q;
+    if (dt > 0.0) {
+      const Eigen::Vector3d dp = (p - p_) / dt;
+      const Eigen::Quaterniond dq = q_.conjugate() * q;
+      const Eigen::Vector3d w = 2.0 * dq.vec() / dt;
+      vx = dp.x();
+      vy = dp.y();
+      wz = w.z();
+      p_ = p;
+      q_ = q;
+    }
   }
 
   const Eigen::Quaterniond orientation{Eigen::AngleAxisd{yaw, Eigen::Vector3d::UnitZ()}};
@@ -152,7 +154,8 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
       realtime_odom_nav_publisher_->try_publish(odom_nav_message_);
     }
 
-    if (enable_odom_tf_msg_ && realtime_odom_tf_publisher_) {
+    if (enable_odom_tf_msg_ && realtime_odom_tf_publisher_ &&
+        !odom_tf_message_.transforms.empty()) {
       auto& transform = odom_tf_message_.transforms.front();
       transform.header.stamp = time;
       transform.header.frame_id = tf_frame_id_;
@@ -167,23 +170,25 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
     }
   }
 
-  double last_linear_x = previous_two_commands_.back().x();
-  double second_to_last_linear_x = previous_two_commands_.front().x();
+  const double last_linear_x = previous_commands_[1].x();
+  const double second_to_last_linear_x = previous_commands_[0].x();
 
-  double last_linear_y = previous_two_commands_.back().y();
-  double second_to_last_linear_y = previous_two_commands_.front().y();
+  const double last_linear_y = previous_commands_[1].y();
+  const double second_to_last_linear_y = previous_commands_[0].y();
 
-  double last_angular = previous_two_commands_.back().z();
-  double second_to_last_angular = previous_two_commands_.front().z();
-
-  const double limiter_dt = 0.001;  // fixed 1 kHz control-loop timestep
+  const double last_angular = previous_commands_[1].z();
+  const double second_to_last_angular = previous_commands_[0].z();
 
   // rate limiting
-  linear_x_limiter_->limit(command_linear_x, last_linear_x, second_to_last_linear_x, limiter_dt);
-  linear_y_limiter_->limit(command_linear_y, last_linear_y, second_to_last_linear_y, limiter_dt);
-  angular_z_limiter_->limit(command_angular_z, last_angular, second_to_last_angular, limiter_dt);
-  previous_two_commands_.pop();
-  previous_two_commands_.push({command_linear_x, command_linear_y, command_angular_z});
+  const double limiter_dt = period.seconds();
+  if (params_.enabled_speed_limits && limiter_dt > 0.0 && linear_x_limiter_ &&
+      linear_y_limiter_ && angular_z_limiter_) {
+    linear_x_limiter_->limit(command_linear_x, last_linear_x, second_to_last_linear_x, limiter_dt);
+    linear_y_limiter_->limit(command_linear_y, last_linear_y, second_to_last_linear_y, limiter_dt);
+    angular_z_limiter_->limit(command_angular_z, last_angular, second_to_last_angular, limiter_dt);
+  }
+  previous_commands_[0] = previous_commands_[1];
+  previous_commands_[1] = Eigen::Vector3d(command_linear_x, command_linear_y, command_angular_z);
 
   if (publish_limited_velocity_ && realtime_cmd_vel_out_publisher_) {
     limited_velocity_message_.header.stamp = time;
@@ -217,8 +222,9 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
   param_listener_ = std::make_shared<swerve_drive_controller::ParamListener>(get_node());
   params_ = param_listener_->get_params();
 
-  previous_two_commands_.push({0, 0, 0});
-  previous_two_commands_.push({0, 0, 0});
+  previous_commands_[0].setZero();
+  previous_commands_[1].setZero();
+  p_.setZero();
   q_.setIdentity();
 
   command_interface_prefix_ = auto_declare<std::string>("command_interface_prefix", "");
@@ -269,8 +275,12 @@ bool SwerveDriveController::on_set_chained_mode(bool chained) {
   if (chained) {
     cmd_vel_sub_.reset();
   } else {
+    if (param_listener_->is_old(params_)) {
+      params_ = param_listener_->get_params();
+    }
     cmd_vel_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
-        "~/cmd_vel", 100, [this](const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+        params_.cmd_vel_topic, 100,
+        [this](const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
           received_velocity_msg_ = *msg;
           last_cmd_time_ = 0;
         });
@@ -348,6 +358,8 @@ controller_interface::CallbackReturn SwerveDriveController::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   franka_cartesian_velocity_->assign_loaned_command_interfaces(command_interfaces_);
   franka_cartesian_pose_->assign_loaned_state_interfaces(state_interfaces_);
+  previous_commands_[0].setZero();
+  previous_commands_[1].setZero();
   return CallbackReturn::SUCCESS;
 }
 

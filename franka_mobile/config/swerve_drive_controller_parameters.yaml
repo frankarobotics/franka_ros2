@@ -14,7 +14,7 @@ swerve_drive_controller:
 
   cmd_vel_topic: {
     type: string,
-    default_value: "/cmd_vel",
+    default_value: "~/cmd_vel",
     description: "Topic name for incoming velocity commands.",
   }
 

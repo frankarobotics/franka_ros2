@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <array>
 #include <string>
 
 #include <controller_interface/chainable_controller_interface.hpp>
@@ -75,7 +76,9 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
 
   rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
 
-  std::queue<Eigen::Vector3d> previous_two_commands_;
+  // [0] is the command before last, [1] is the last command. Fixed storage so
+  // activation can reset history without reading an empty deque.
+  std::array<Eigen::Vector3d, 2> previous_commands_{};
 
   // franka interface
   std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>
