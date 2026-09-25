@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -40,6 +41,7 @@ class MoveToStartExampleController : public controller_interface::ControllerInte
   CallbackReturn on_init() override;
   CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
   CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
+  CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
 
  private:
   std::string robot_type_;
@@ -53,6 +55,11 @@ class MoveToStartExampleController : public controller_interface::ControllerInte
   Vector7d d_gains_;
   rclcpp::Time start_time_;
   std::unique_ptr<MotionGenerator> motion_generator_;
+  // Written from the realtime update and read by a node timer. set_parameter is not
+  // realtime-safe; calling it from update() misses the 1 kHz Franka deadline.
+  std::atomic<bool> motion_finished_{false};
+  bool process_finished_published_{false};
+  rclcpp::TimerBase::SharedPtr finished_timer_;
 
   void updateJointStates();
 };

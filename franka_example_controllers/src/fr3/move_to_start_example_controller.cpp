@@ -15,6 +15,7 @@
 #include <franka_example_controllers/fr3/move_to_start_example_controller.hpp>
 
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <exception>
 
@@ -65,7 +66,7 @@ controller_interface::return_type MoveToStartExampleController::update(
     for (auto& command_interface : command_interfaces_) {
       command_interface.set_value(0);
     }
-    this->get_node()->set_parameter({"process_finished", true});
+    motion_finished_.store(true, std::memory_order_relaxed);
   }
   return controller_interface::return_type::OK;
 }
@@ -128,9 +129,34 @@ CallbackReturn MoveToStartExampleController::on_configure(
 
 CallbackReturn MoveToStartExampleController::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
+  if (finished_timer_) {
+    finished_timer_->cancel();
+    finished_timer_.reset();
+  }
   updateJointStates();
   motion_generator_ = std::make_unique<MotionGenerator>(0.2, q_, q_goal_);
   start_time_ = this->get_node()->now();
+  motion_finished_.store(false, std::memory_order_relaxed);
+  process_finished_published_ = false;
+  this->get_node()->set_parameter({"process_finished", false});
+  finished_timer_ = this->get_node()->create_wall_timer(std::chrono::milliseconds(50), [this]() {
+    if (!motion_finished_.load(std::memory_order_relaxed) || process_finished_published_) {
+      return;
+    }
+    process_finished_published_ = true;
+    this->get_node()->set_parameter({"process_finished", true});
+    finished_timer_->cancel();
+  });
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn MoveToStartExampleController::on_deactivate(
+    const rclcpp_lifecycle::State& /*previous_state*/) {
+  if (finished_timer_) {
+    finished_timer_->cancel();
+    finished_timer_.reset();
+  }
+  motion_finished_.store(false, std::memory_order_relaxed);
   return CallbackReturn::SUCCESS;
 }
 
