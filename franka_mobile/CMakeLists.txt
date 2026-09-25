@@ -80,6 +80,7 @@ install(
 
 install(PROGRAMS
   scripts/battery_server_node.py
+  scripts/base_oscillation_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

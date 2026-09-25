@@ -146,13 +146,15 @@ def generate_robot_nodes(context):
             ],
             output='screen',
         ),
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            namespace=namespace,
-            arguments=['joint_state_broadcaster'],
-            output='screen',
-        ),
+        # Disabled for the SGS demo, see franka.launch.py for the reasoning.
+        # Re-enable it if you need /joint_states, TF, RViz or MoveIt for the base.
+        # Node(
+        #     package='controller_manager',
+        #     executable='spawner',
+        #     namespace=namespace,
+        #     arguments=['joint_state_broadcaster'],
+        #     output='screen',
+        # ),
     ]
 
     # Spawn controller

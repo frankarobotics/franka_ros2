@@ -1,0 +1,33 @@
+# Arm configuration for the SGS demo (see launch/sgs_demo.launch.py).
+#
+# One entry per arm, each with its own namespace, so example.launch.py brings up a separate
+# controller_manager per arm. Keeping the arms in separate processes is the point of this
+# demo: a stall in one robot's control loop cannot delay the other's.
+#
+# Note: This is a launch configuration file, not a node parameter file (see controllers.yaml).
+# Boolean values must be quoted to avoid YAML parsing issues.
+#
+# The IPs match franka_bringup/config/sgs_demo_base.config.yaml and the mobile FR3 duo
+# wiring: .10 is the mobile base, .12 the left arm, .11 the right arm.
+
+LEFT_ARM:
+  robot_type: "fr3"
+  arm_prefix: ""
+  fake_sensor_commands: "false"
+  joint_state_rate: 30
+  load_gripper: "false"
+  namespace: "left_arm"
+  robot_ip: "172.16.16.12"
+  use_fake_hardware: "false"
+  use_rviz: "false" # No broadcasters run in this demo, so there is nothing for RViz to show.
+
+RIGHT_ARM:
+  robot_type: "fr3"
+  arm_prefix: ""
+  fake_sensor_commands: "false"
+  joint_state_rate: 30
+  load_gripper: "false"
+  namespace: "right_arm"
+  robot_ip: "172.16.16.11"
+  use_fake_hardware: "false"
+  use_rviz: "false"

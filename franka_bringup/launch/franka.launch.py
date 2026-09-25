@@ -73,7 +73,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.actions import OpaqueFunction, Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.conditions import UnlessCondition, IfCondition
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -160,21 +160,26 @@ def generate_robot_nodes(context):
             ],
             output='screen',
         ),
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            namespace=namespace,
-            arguments=['joint_state_broadcaster'],
-            output='screen',
-        ),
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            namespace=namespace,
-            arguments=['franka_robot_state_broadcaster'],
-            condition=UnlessCondition(LaunchConfiguration('use_fake_hardware')),
-            output='screen',
-        ),
+        # Broadcasters are disabled for the SGS demo. Each one publishes from the 1 kHz
+        # control loop, and the franka_robot_state_broadcaster fans a large message out over
+        # nine topics per arm, which is what starves the network path on a PREEMPT_RT kernel.
+        # Re-enable both if you need /joint_states, TF, RViz or MoveIt; the second one also
+        # needs UnlessCondition imported again.
+        # Node(
+        #     package='controller_manager',
+        #     executable='spawner',
+        #     namespace=namespace,
+        #     arguments=['joint_state_broadcaster'],
+        #     output='screen',
+        # ),
+        # Node(
+        #     package='controller_manager',
+        #     executable='spawner',
+        #     namespace=namespace,
+        #     arguments=['franka_robot_state_broadcaster'],
+        #     condition=UnlessCondition(LaunchConfiguration('use_fake_hardware')),
+        #     output='screen',
+        # ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 [

@@ -31,6 +31,7 @@ install(DIRECTORY include/
 
 install(PROGRAMS
   scripts/spine_client_example.py
+  scripts/spine_oscillation_example.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
