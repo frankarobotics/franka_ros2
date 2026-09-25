@@ -76,8 +76,17 @@ get_parameter_for_config = launch_utils.get_parameter_for_config
 
 def generate_robot_nodes(context):
     config_file = LaunchConfiguration('robot_config_file').perform(context)
-    controller_names = LaunchConfiguration('controller_names').perform(context)
-    controller_names_vector = controller_names.split(',')
+    # Leave the controller configured but not running, so a later step can move the
+    # arm somewhere else before this controller's on_activate captures the pose.
+    spawn_inactive = LaunchConfiguration('inactive').perform(context).lower() == 'true'
+    spawn_controllers = (
+        LaunchConfiguration('spawn_controllers').perform(context).lower() != 'false'
+    )
+    controller_names = ''
+    controller_names_vector = []
+    if spawn_controllers:
+        controller_names = LaunchConfiguration('controller_names').perform(context)
+        controller_names_vector = controller_names.split(',')
     robot_ips = LaunchConfiguration('robot_ips').perform(context)
     configs = load_yaml(config_file)
     nodes = []
@@ -118,6 +127,9 @@ def generate_robot_nodes(context):
             )
         )
 
+        if not spawn_controllers:
+            continue
+
         # Determine which controller to use for this config
         controller_name = get_parameter_for_config(
             controller_names, num_configs=len(configs), config_index=index
@@ -131,16 +143,21 @@ def generate_robot_nodes(context):
         if CONTROLLER_EXAMPLE in controller_name:
             # Spawn the example as ros2_control controller
             controller_name = controller_names_vector[index]
+            spawner_arguments = [
+                controller_name,
+                '--controller-manager-timeout',
+                '30',
+                '--service-call-timeout',
+                '60',
+            ]
+            if spawn_inactive:
+                spawner_arguments.append('--inactive')
             nodes.append(
                 Node(
                     package='controller_manager',
                     executable='spawner',
                     namespace=namespace,
-                    arguments=[
-                        controller_name,
-                        '--controller-manager-timeout',
-                        '30',
-                    ],
+                    arguments=spawner_arguments,
                     parameters=[
                         PathJoinSubstitution(
                             [
@@ -215,6 +232,16 @@ def generate_launch_description():
                 default_value='',
                 description='Comma-separated list of IP adresses (optional).'
                 ' If provided, these will override the robot_ip values in the config file.',
+            ),
+            DeclareLaunchArgument(
+                'inactive',
+                default_value='false',
+                description='Spawn controllers configured but not activated.',
+            ),
+            DeclareLaunchArgument(
+                'spawn_controllers',
+                default_value='true',
+                description='Spawn the controllers named in controller_names.',
             ),
             OpaqueFunction(function=generate_robot_nodes),
         ]
