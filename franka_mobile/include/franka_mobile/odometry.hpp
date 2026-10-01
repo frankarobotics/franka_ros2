@@ -69,6 +69,17 @@ class Odometry {
   void init(const rclcpp::Time& time);
 
   /**
+   * @brief Re-seed only the integration timestamp without touching pose or accumulators.
+   *
+   * Allocation-free: unlike init(), this does not rebuild the rolling mean
+   * accumulators, so it is safe to call from the realtime update loop (e.g. to
+   * skip the inactive gap on the first open-loop update after activation).
+   *
+   * @param time  Current ROS time, recorded as the integration start point.
+   */
+  void resetTimestamp(const rclcpp::Time& time) { timestamp_ = time; }
+
+  /**
    * @brief Integrate a new velocity measurement and update pose and velocity estimates.
    *
    * Computes the elapsed time since the last update, integrates the displacement

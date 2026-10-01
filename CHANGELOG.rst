@@ -27,10 +27,14 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   and this poll only reports it, so it now samples at most every 0.5 s.
 
 * fix: corrected the ips of the right and left robot.
-* fix: swerve drive controller yaml parameters (rate limiting flag, cmd_vel topic name) are
-  now correctly picked up by the controller. The controller update period is now also inferred 
-  by ROS's period parameter.
-* fix: swerve drive controller resets its internal command queue during activation, not just at init.
+* fix: swerve drive controller parameters from yaml (rate limiting flag, cmd_vel topic,
+  odometry and frame settings) are picked up by the controller and refreshed on reconfigure.
+  The controller update period is inferred by ROS's period parameter. Command history and
+  the odometry seed reset on activation.
+* fix: swerve drive controller always applies the velocity clamp, including on ticks with a
+  non-positive update period where acceleration limiting holds the previous command (the
+  jerk stage continues the last step). The unreachable odometry transform guard is
+  removed and the rate-limit policy is pinned by new unit tests.
 
 v3.5.3 (2026-09-01)
 -------------------

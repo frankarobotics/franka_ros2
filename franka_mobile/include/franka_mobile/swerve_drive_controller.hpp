@@ -34,6 +34,40 @@
 
 namespace franka_mobile {
 
+namespace detail {
+
+/**
+ * Applies the swerve command-limiting policy through the full limiter: acceleration
+ * limiting holds the previous command when the update period is zero, while the velocity clamp
+ * runs on every call. The jerk stage continues the last step (v0 + (v0 - v1)).
+ * Negative periods are clamped to zero before reaching the limiter.
+ * Advances the command history ([0] is the second-to-last command, [1] is the last command)
+ * on every call, including when limiting is disabled or a limiter is missing.
+ *
+ * @param linear_x_limiter Non-owning borrow; may be null, in which case no axis is limited.
+ * @param linear_y_limiter Non-owning borrow; may be null, in which case no axis is limited.
+ * @param angular_z_limiter Non-owning borrow; may be null, in which case no axis is limited.
+ * @param speed_limits_enabled Master switch from parameters.
+ * @param command_linear_x Commanded x velocity, clamped in place.
+ * @param command_linear_y Commanded y velocity, clamped in place.
+ * @param command_angular_z Commanded yaw velocity, clamped in place.
+ * @param previous_commands Command history, shifted forward with the (possibly clamped) command.
+ * @param limiter_dt Update period in seconds; values <= 0 hold the previous command under
+ * acceleration limiting while the velocity clamp still applies. The jerk stage continues
+ * the last step (v0 + (v0 - v1)).
+ */
+auto applyCommandLimits(diff_drive_controller::SpeedLimiter* linear_x_limiter,
+                        diff_drive_controller::SpeedLimiter* linear_y_limiter,
+                        diff_drive_controller::SpeedLimiter* angular_z_limiter,
+                        bool speed_limits_enabled,
+                        double& command_linear_x,
+                        double& command_linear_y,
+                        double& command_angular_z,
+                        std::array<Eigen::Vector3d, 2>& previous_commands,
+                        double limiter_dt) -> void;
+
+}  // namespace detail
+
 class SwerveDriveController : public controller_interface::ChainableControllerInterface {
  public:
   [[nodiscard]] controller_interface::InterfaceConfiguration command_interface_configuration()
@@ -103,6 +137,9 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
 
   // pose integration in open loop
   Odometry odometry_;
+  // First open-loop update after activation re-seeds the odometry timestamp so the inactive
+  // gap is not integrated into the pose.
+  bool reset_odometry_timestamp_{false};
   // twist differentiation in closed loop
   Eigen::Vector3d p_;
   Eigen::Quaterniond q_;

@@ -110,6 +110,7 @@ if(BUILD_TESTING)
 
   add_franka_mobile_test(test_odometry test/test_odometry.cpp)
   add_franka_mobile_test(test_swerve_kinematics test/test_swerve_kinematics.cpp)
+  add_franka_mobile_test(test_swerve_drive_controller test/test_swerve_drive_controller.cpp)
 
 endif()
 
