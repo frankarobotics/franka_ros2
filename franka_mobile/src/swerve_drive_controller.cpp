@@ -154,8 +154,7 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
       realtime_odom_nav_publisher_->try_publish(odom_nav_message_);
     }
 
-    if (enable_odom_tf_msg_ && realtime_odom_tf_publisher_ &&
-        !odom_tf_message_.transforms.empty()) {
+    if (enable_odom_tf_msg_ && realtime_odom_tf_publisher_) {
       auto& transform = odom_tf_message_.transforms.front();
       transform.header.stamp = time;
       transform.header.frame_id = tf_frame_id_;
@@ -181,11 +180,19 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
 
   // rate limiting
   const double limiter_dt = period.seconds();
-  if (params_.enabled_speed_limits && limiter_dt > 0.0 && linear_x_limiter_ &&
-      linear_y_limiter_ && angular_z_limiter_) {
-    linear_x_limiter_->limit(command_linear_x, last_linear_x, second_to_last_linear_x, limiter_dt);
-    linear_y_limiter_->limit(command_linear_y, last_linear_y, second_to_last_linear_y, limiter_dt);
-    angular_z_limiter_->limit(command_angular_z, last_angular, second_to_last_angular, limiter_dt);
+  if (params_.enabled_speed_limits && linear_x_limiter_ && linear_y_limiter_ &&
+      angular_z_limiter_) {
+    if (limiter_dt > 0.0) {
+      linear_x_limiter_->limit(command_linear_x, last_linear_x, second_to_last_linear_x, limiter_dt);
+      linear_y_limiter_->limit(command_linear_y, last_linear_y, second_to_last_linear_y, limiter_dt);
+      angular_z_limiter_->limit(command_angular_z, last_angular, second_to_last_angular, limiter_dt);
+    } else {
+      // Acceleration and jerk are undefined without a timestep, but the value
+      // clamp is not, and max_velocity comes from the RCU budget.
+      linear_x_limiter_->limit_velocity(command_linear_x);
+      linear_y_limiter_->limit_velocity(command_linear_y);
+      angular_z_limiter_->limit_velocity(command_angular_z);
+    }
   }
   previous_commands_[0] = previous_commands_[1];
   previous_commands_[1] = Eigen::Vector3d(command_linear_x, command_linear_y, command_angular_z);
@@ -234,20 +241,23 @@ controller_interface::CallbackReturn SwerveDriveController::on_init() {
   franka_cartesian_pose_ =
       std::make_unique<FrankaCartesianPoseInterface>(state_interface_prefix_, false);
 
+  // Only tf_frame_id, publish_rate and the two interface prefixes are absent
+  // from swerve_drive_controller_parameters.yaml; everything else is declared
+  // by param_listener_ above, so auto_declare would return the already
+  // declared value and the default written here would never apply.
   tf_frame_id_ = auto_declare("tf_frame_id", "world");
-  odom_frame_id_ = auto_declare("odom_frame_id", "base_link");
-  odom_open_loop_ = auto_declare("odom_open_loop", true);
-  enable_odom_tf_msg_ = auto_declare("enable_odom_tf", true);
-  enable_odom_nav_msg_ = auto_declare("enable_odom_nav", true);
-  publish_limited_velocity_ = auto_declare("publish_limited_velocity", true);
   publish_rate_ = auto_declare("publish_rate", 50);
-  cmd_vel_timeout_ = auto_declare("cmd_vel_timeout", 0.5);
 
-  const std::string argo_drive_front_link_name =
-      auto_declare("wheel_1_link_name", "argo_drive_front_link");
-  const std::string argo_drive_rear_link_name =
-      auto_declare("wheel_2_link_name", "argo_drive_rear_link");
-  base_link_frame_id_ = auto_declare("base_link_frame_id", "base_link");
+  odom_frame_id_ = params_.odom_frame_id;
+  odom_open_loop_ = params_.odom_open_loop;
+  enable_odom_tf_msg_ = params_.enable_odom_tf;
+  enable_odom_nav_msg_ = params_.enable_odom_nav;
+  publish_limited_velocity_ = params_.publish_limited_velocity;
+  cmd_vel_timeout_ = params_.cmd_vel_timeout;
+
+  const std::string argo_drive_front_link_name = params_.wheel_1_link_name;
+  const std::string argo_drive_rear_link_name = params_.wheel_2_link_name;
+  base_link_frame_id_ = params_.base_link_frame_id;
 
   // get fixed params from robot descriptions
   const std::string robot_description = get_robot_description();
@@ -290,23 +300,20 @@ bool SwerveDriveController::on_set_chained_mode(bool chained) {
 
 controller_interface::CallbackReturn SwerveDriveController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  const auto odom_velocity_rolling_window_size =
-      auto_declare<int>("velocity_rolling_window_size", 10);
-
   auto logger = get_node()->get_logger();
-
-  odometry_.setVelocityRollingWindowSize(odom_velocity_rolling_window_size);
 
   if (param_listener_->is_old(params_)) {
     params_ = param_listener_->get_params();
     RCLCPP_INFO(logger, "Parameters were updated");
   }
 
+  odometry_.setVelocityRollingWindowSize(
+      static_cast<size_t>(params_.velocity_rolling_window_size));
+
   // measurement covariances
-  const std::vector<double> odom_pose_covariance_diagonal =
-      auto_declare<std::vector<double>>("odom_pose_covariance_diagonal", {0, 0, 0, 0, 0, 0});
-  const std::vector<double> odom_twist_covariance_diagonal =
-      auto_declare<std::vector<double>>("odom_twist_covariance_diagonal", {0, 0, 0, 0, 0, 0});
+  const std::vector<double>& odom_pose_covariance_diagonal = params_.odom_pose_covariance_diagonal;
+  const std::vector<double>& odom_twist_covariance_diagonal =
+      params_.odom_twist_covariance_diagonal;
   constexpr size_t NUM_DIMENSIONS = 6;
   for (size_t index = 0; index < NUM_DIMENSIONS; ++index) {
     const size_t diagonal_index = NUM_DIMENSIONS * index + index;
@@ -360,6 +367,15 @@ controller_interface::CallbackReturn SwerveDriveController::on_activate(
   franka_cartesian_pose_->assign_loaned_state_interfaces(state_interfaces_);
   previous_commands_[0].setZero();
   previous_commands_[1].setZero();
+
+  // Closed-loop odometry differentiates against p_ and q_. Seeding them from
+  // the pose the robot is actually in keeps the first update after activation
+  // from dividing a stale offset by the period. Requires the state interfaces
+  // assigned above.
+  const auto [q, p] = franka_cartesian_pose_->getCurrentOrientationAndTranslation();
+  p_ = p;
+  q_ = q;
+
   return CallbackReturn::SUCCESS;
 }
 
