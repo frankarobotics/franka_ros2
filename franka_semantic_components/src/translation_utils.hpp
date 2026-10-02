@@ -63,7 +63,7 @@ auto toAccel(const std::array<double, 6>& input_accel) -> geometry_msgs::msg::Ac
  * @param input_vector The 3D acceleration vector which should be translated
  * @return geometry_msgs::msg::Vector3 The translated vector
  */
-template<typename T>
+template <typename T>
 auto toVector3(const std::array<T, 3>& input_vector) -> geometry_msgs::msg::Vector3 {
   return geometry_msgs::build<geometry_msgs::msg::Vector3>()
       .x(static_cast<double>(input_vector[0]))

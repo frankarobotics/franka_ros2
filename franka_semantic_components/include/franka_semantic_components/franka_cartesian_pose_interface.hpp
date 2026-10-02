@@ -139,6 +139,21 @@ class FrankaCartesianPoseInterface
   std::tuple<Eigen::Quaterniond, Eigen::Vector3d> getCurrentOrientationAndTranslation();
 
   /**
+   * @brief Get the current orientation and translation without allocating or throwing.
+   *
+   * Real-time safe alternative to getCurrentOrientationAndTranslation(): reads the loaned
+   * state interfaces into caller-provided storage, so no std::vector is built and no
+   * exception escapes. Each interface is read through its non-blocking accessor.
+   *
+   * @param[out] quaternion current orientation in quaternion format [x,y,z,w].
+   * @param[out] translation current translation in Vector3d format [x,y,z].
+   * @return true when all 16 pose values were read and are finite, false when a state
+   * interface is missing or holds a non-finite value. The outputs are untouched on false.
+   */
+  bool getCurrentOrientationAndTranslation(Eigen::Quaterniond& quaternion,
+                                           Eigen::Vector3d& translation) const;
+
+  /**
    * @brief Get the current pose matrix
    *
    * @return std::array<double, 16> Current pose matrix column major homogenous transformation

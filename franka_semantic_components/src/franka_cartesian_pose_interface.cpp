@@ -14,6 +14,7 @@
 
 #include "franka_semantic_components/franka_cartesian_pose_interface.hpp"
 
+#include <cmath>
 #include <cstring>
 #include <string>
 #include "rclcpp/logging.hpp"
@@ -199,6 +200,32 @@ FrankaCartesianPoseInterface::getCurrentOrientationAndTranslation() {
 
   return std::make_tuple(quaternion, translation);
 };
+
+bool FrankaCartesianPoseInterface::getCurrentOrientationAndTranslation(
+    Eigen::Quaterniond& quaternion,
+    Eigen::Vector3d& translation) const {
+  if (state_interfaces_.size() < command_interface_size_) {
+    return false;
+  }
+  std::array<double, 16> current_pose{};
+  try {
+    for (size_t index = 0; index < command_interface_size_; ++index) {
+      const auto value = state_interfaces_[index].get().get_optional();
+      if (!value.has_value() || !std::isfinite(*value)) {
+        return false;
+      }
+      current_pose[index] = *value;
+    }
+  } catch (...) {
+    return false;
+  }
+
+  const Eigen::Matrix4d pose =
+      Eigen::Map<const Eigen::Matrix<double, 4, 4, Eigen::ColMajor>>(current_pose.data());
+  quaternion = Eigen::Quaterniond(pose.block<3, 3>(0, 0));
+  translation = pose.block<3, 1>(0, 3);
+  return true;
+}
 
 std::tuple<Eigen::Quaterniond, Eigen::Vector3d>
 FrankaCartesianPoseInterface::getCommandedOrientationAndTranslation() {

@@ -15,8 +15,11 @@
 #pragma once
 
 #include <array>
+#include <memory>
 #include <string>
+#include <vector>
 
+#include <Eigen/Dense>
 #include <controller_interface/chainable_controller_interface.hpp>
 #include <diff_drive_controller/speed_limiter.hpp>
 #include <franka_mobile/swerve_drive_controller_parameters.hpp>
@@ -33,40 +36,6 @@
 #include "odometry.hpp"
 
 namespace franka_mobile {
-
-namespace detail {
-
-/**
- * Applies the swerve command-limiting policy through the full limiter: acceleration
- * limiting holds the previous command when the update period is zero, while the velocity clamp
- * runs on every call. The jerk stage continues the last step (v0 + (v0 - v1)).
- * Negative periods are clamped to zero before reaching the limiter.
- * Advances the command history ([0] is the second-to-last command, [1] is the last command)
- * on every call, including when limiting is disabled or a limiter is missing.
- *
- * @param linear_x_limiter Non-owning borrow; may be null, in which case no axis is limited.
- * @param linear_y_limiter Non-owning borrow; may be null, in which case no axis is limited.
- * @param angular_z_limiter Non-owning borrow; may be null, in which case no axis is limited.
- * @param speed_limits_enabled Master switch from parameters.
- * @param command_linear_x Commanded x velocity, clamped in place.
- * @param command_linear_y Commanded y velocity, clamped in place.
- * @param command_angular_z Commanded yaw velocity, clamped in place.
- * @param previous_commands Command history, shifted forward with the (possibly clamped) command.
- * @param limiter_dt Update period in seconds; values <= 0 hold the previous command under
- * acceleration limiting while the velocity clamp still applies. The jerk stage continues
- * the last step (v0 + (v0 - v1)).
- */
-auto applyCommandLimits(diff_drive_controller::SpeedLimiter* linear_x_limiter,
-                        diff_drive_controller::SpeedLimiter* linear_y_limiter,
-                        diff_drive_controller::SpeedLimiter* angular_z_limiter,
-                        bool speed_limits_enabled,
-                        double& command_linear_x,
-                        double& command_linear_y,
-                        double& command_angular_z,
-                        std::array<Eigen::Vector3d, 2>& previous_commands,
-                        double limiter_dt) -> void;
-
-}  // namespace detail
 
 class SwerveDriveController : public controller_interface::ChainableControllerInterface {
  public:
@@ -106,7 +75,6 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
   bool enable_odom_nav_msg_ = true;
   double publish_rate_ = 50.0;
   double cmd_vel_timeout_ = 0.5;
-  double last_cmd_time_ = 0.0;
 
   rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
 
@@ -125,6 +93,9 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
   nav_msgs::msg::Odometry odom_nav_message_;
 
   realtime_tools::RealtimeThreadSafeBox<geometry_msgs::msg::TwistStamped> received_velocity_msg_;
+  // Latest velocity command for the real-time thread. Refreshed once per tick from the box
+  // above through its non-blocking read; keeps the last good value while the box is contended.
+  geometry_msgs::msg::TwistStamped last_velocity_msg_;
   realtime_tools::RealtimePublisherSharedPtr<nav_msgs::msg::Odometry> realtime_odom_nav_publisher_;
   realtime_tools::RealtimePublisherSharedPtr<tf2_msgs::msg::TFMessage> realtime_odom_tf_publisher_;
   realtime_tools::RealtimePublisherSharedPtr<geometry_msgs::msg::TwistStamped>

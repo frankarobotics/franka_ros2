@@ -93,9 +93,9 @@ bool FrankaCartesianVelocityInterface::setCommand(const Eigen::Vector3d& linear_
     return false;
   }
 
-  std::vector<double> full_command{linear_velocity_command.x(),  linear_velocity_command.y(),
-                                   linear_velocity_command.z(),  angular_velocity_command.x(),
-                                   angular_velocity_command.y(), angular_velocity_command.z()};
+  const std::array<double, 6> full_command{
+      linear_velocity_command.x(),  linear_velocity_command.y(),  linear_velocity_command.z(),
+      angular_velocity_command.x(), angular_velocity_command.y(), angular_velocity_command.z()};
 
   return set_values(full_command);
 }

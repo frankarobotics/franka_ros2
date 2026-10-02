@@ -14,6 +14,8 @@
 
 #include <franka_mobile/swerve_drive_controller.hpp>
 
+#include <franka_mobile/detail/swerve_command_limits.hpp>
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -24,43 +26,6 @@
 #include "urdf_utils.hpp"
 
 namespace franka_mobile {
-
-namespace detail {
-
-auto applyCommandLimits(diff_drive_controller::SpeedLimiter* linear_x_limiter,
-                        diff_drive_controller::SpeedLimiter* linear_y_limiter,
-                        diff_drive_controller::SpeedLimiter* angular_z_limiter,
-                        bool speed_limits_enabled,
-                        double& command_linear_x,
-                        double& command_linear_y,
-                        double& command_angular_z,
-                        std::array<Eigen::Vector3d, 2>& previous_commands,
-                        double limiter_dt) -> void {
-  const double last_linear_x = previous_commands[1].x();
-  const double second_to_last_linear_x = previous_commands[0].x();
-
-  const double last_linear_y = previous_commands[1].y();
-  const double second_to_last_linear_y = previous_commands[0].y();
-
-  const double last_angular = previous_commands[1].z();
-  const double second_to_last_angular = previous_commands[0].z();
-
-  // The full limiter holds the previous command at dt == 0 (the acceleration stage
-  // clamps dv to [0, 0]) while the velocity clamp still runs. The jerk stage continues the
-  // last step (v0 + (v0 - v1)). Negative periods never reach the
-  // limiter: std::clamp with low > high is undefined behaviour.
-  if (speed_limits_enabled && linear_x_limiter != nullptr && linear_y_limiter != nullptr &&
-      angular_z_limiter != nullptr) {
-    const double sanitized_dt = std::max(limiter_dt, 0.0);
-    linear_x_limiter->limit(command_linear_x, last_linear_x, second_to_last_linear_x, sanitized_dt);
-    linear_y_limiter->limit(command_linear_y, last_linear_y, second_to_last_linear_y, sanitized_dt);
-    angular_z_limiter->limit(command_angular_z, last_angular, second_to_last_angular, sanitized_dt);
-  }
-  previous_commands[0] = previous_commands[1];
-  previous_commands[1] = Eigen::Vector3d(command_linear_x, command_linear_y, command_angular_z);
-}
-
-}  // namespace detail
 
 using franka_semantic_components::FrankaCartesianPoseInterface;
 using franka_semantic_components::FrankaCartesianVelocityInterface;
@@ -104,12 +69,17 @@ controller_interface::return_type SwerveDriveController::update_reference_from_s
     const rclcpp::Time& time,
 
     const rclcpp::Duration& /*period*/) {
-  const auto age_of_last_command = (time - received_velocity_msg_.get().header.stamp).seconds();
+  // Single non-blocking read per tick. When the subscriber holds the box, the reference keeps
+  // the last good command instead of blocking the real-time thread.
+  if (const auto velocity_msg = received_velocity_msg_.try_get()) {
+    last_velocity_msg_ = *velocity_msg;
+  }
+  const auto age_of_last_command = (time - last_velocity_msg_.header.stamp).seconds();
   double command_linear_x = 0.0, command_linear_y = 0.0, command_angular_z = 0.0;
   if (age_of_last_command < cmd_vel_timeout_) {
-    command_linear_x = received_velocity_msg_.get().twist.linear.x;
-    command_linear_y = received_velocity_msg_.get().twist.linear.y;
-    command_angular_z = received_velocity_msg_.get().twist.angular.z;
+    command_linear_x = last_velocity_msg_.twist.linear.x;
+    command_linear_y = last_velocity_msg_.twist.linear.y;
+    command_angular_z = last_velocity_msg_.twist.angular.z;
   }
 
   reference_interfaces_[FrankaCartesianVelocityInterface::VX] = command_linear_x;
@@ -125,7 +95,6 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
   double command_linear_y = reference_interfaces_[FrankaCartesianVelocityInterface::VY];
   double command_angular_z = reference_interfaces_[FrankaCartesianVelocityInterface::WZ];
 
-  auto logger = get_node()->get_logger();
   double x = 0, y = 0, yaw = 0, vx = 0, vy = 0, wz = 0;
   if (odom_open_loop_) {  // update odometry from command interface
     if (std::isfinite(command_linear_x) && std::isfinite(command_linear_y) &&
@@ -145,7 +114,14 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
   } else {
     // update twist by differentiating the cartesian pose from the state interface
     // warning: noisy at 1khz!!
-    const auto [q, p] = franka_cartesian_pose_->getCurrentOrientationAndTranslation();
+    Eigen::Quaterniond q;
+    Eigen::Vector3d p;
+    if (!franka_cartesian_pose_->getCurrentOrientationAndTranslation(q, p)) {
+      RCLCPP_ERROR(
+          get_node()->get_logger(),
+          "Failed to read the cartesian pose state interfaces; skipping closed-loop update");
+      return controller_interface::return_type::ERROR;
+    }
     const double dt = period.seconds();
     x = p.x();
     y = p.y();
@@ -212,15 +188,15 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
   }
 
   const double limiter_dt = period.seconds();
-  detail::applyCommandLimits(linear_x_limiter_.get(), linear_y_limiter_.get(),
-                             angular_z_limiter_.get(), params_.enabled_speed_limits,
-                             command_linear_x, command_linear_y, command_angular_z,
-                             previous_commands_, limiter_dt);
+  detail::applyCommandLimits(
+      {linear_x_limiter_.get(), linear_y_limiter_.get(), angular_z_limiter_.get()},
+      params_.enabled_speed_limits,
+      {command_linear_x, command_linear_y, command_angular_z, previous_commands_}, limiter_dt);
 
   if (publish_limited_velocity_ && realtime_cmd_vel_out_publisher_) {
     limited_velocity_message_.header.stamp = time;
     // limited vel is in the same frame as the original one
-    limited_velocity_message_.header.frame_id = received_velocity_msg_.get().header.frame_id;
+    limited_velocity_message_.header.frame_id = last_velocity_msg_.header.frame_id;
     limited_velocity_message_.twist.linear.x = command_linear_x;
     limited_velocity_message_.twist.linear.y = command_linear_y;
     limited_velocity_message_.twist.linear.z = 0.0;
@@ -229,8 +205,6 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
     limited_velocity_message_.twist.angular.z = command_angular_z;
     realtime_cmd_vel_out_publisher_->try_publish(limited_velocity_message_);
   }
-
-  last_cmd_time_ += period.seconds();
 
   const Eigen::Vector3d cartesian_linear_velocity(command_linear_x, command_linear_y, 0.0);
   const Eigen::Vector3d cartesian_angular_velocity(0.0, 0.0, command_angular_z);
@@ -300,7 +274,6 @@ bool SwerveDriveController::on_set_chained_mode(bool chained) {
     cmd_vel_sub_ = get_node()->create_subscription<geometry_msgs::msg::TwistStamped>(
         params_.cmd_vel_topic, 100, [this](const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
           received_velocity_msg_ = *msg;
-          last_cmd_time_ = 0;
         });
   }
   return true;
@@ -341,20 +314,11 @@ controller_interface::CallbackReturn SwerveDriveController::on_configure(
 
   // rate limiting
   linear_x_limiter_ = std::make_unique<diff_drive_controller::SpeedLimiter>(
-      params_.linear.x.has_velocity_limits, params_.linear.x.has_acceleration_limits,
-      params_.linear.x.has_jerk_limits, params_.linear.x.min_velocity,
-      params_.linear.x.max_velocity, params_.linear.x.min_acceleration,
-      params_.linear.x.max_acceleration, params_.linear.x.min_jerk, params_.linear.x.max_jerk);
+      detail::makeSpeedLimiter(params_.linear.x));
   linear_y_limiter_ = std::make_unique<diff_drive_controller::SpeedLimiter>(
-      params_.linear.y.has_velocity_limits, params_.linear.y.has_acceleration_limits,
-      params_.linear.y.has_jerk_limits, params_.linear.y.min_velocity,
-      params_.linear.y.max_velocity, params_.linear.y.min_acceleration,
-      params_.linear.y.max_acceleration, params_.linear.y.min_jerk, params_.linear.y.max_jerk);
+      detail::makeSpeedLimiter(params_.linear.y));
   angular_z_limiter_ = std::make_unique<diff_drive_controller::SpeedLimiter>(
-      params_.angular.z.has_velocity_limits, params_.angular.z.has_acceleration_limits,
-      params_.angular.z.has_jerk_limits, params_.angular.z.min_velocity,
-      params_.angular.z.max_velocity, params_.angular.z.min_acceleration,
-      params_.angular.z.max_acceleration, params_.angular.z.min_jerk, params_.angular.z.max_jerk);
+      detail::makeSpeedLimiter(params_.angular.z));
 
   cmd_vel_out_pub_ = get_node()->create_publisher<geometry_msgs::msg::TwistStamped>(
       "~/cmd_vel_out", rclcpp::SystemDefaultsQoS());
