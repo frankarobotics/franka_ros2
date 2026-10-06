@@ -220,8 +220,7 @@ bool FrankaCartesianPoseInterface::getCurrentOrientationAndTranslation(
     return false;
   }
 
-  const Eigen::Matrix4d pose =
-      Eigen::Map<const Eigen::Matrix<double, 4, 4, Eigen::ColMajor>>(current_pose.data());
+  const Eigen::Map<const Eigen::Matrix<double, 4, 4, Eigen::ColMajor>> pose(current_pose.data());
   quaternion = Eigen::Quaterniond(pose.block<3, 3>(0, 0));
   translation = pose.block<3, 1>(0, 3);
   return true;
