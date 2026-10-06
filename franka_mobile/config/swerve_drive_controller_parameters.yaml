@@ -14,7 +14,7 @@ swerve_drive_controller:
 
   cmd_vel_topic: {
     type: string,
-    default_value: "/cmd_vel",
+    default_value: "~/cmd_vel",
     description: "Topic name for incoming velocity commands.",
   }
 
@@ -75,7 +75,10 @@ swerve_drive_controller:
   velocity_rolling_window_size: {
     type: int,
     default_value: 1,
-    description: "Size of the rolling window for averaging wheel velocities in odometry. 1 means no averaging."
+    description: "Size of the rolling window for averaging wheel velocities in odometry. 1 means no averaging.",
+    validation: {
+      gt_eq<>: [1]
+    }
   }
 
   enabled_speed_limits: {

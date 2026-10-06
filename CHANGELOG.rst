@@ -26,6 +26,28 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   doubling the request rate during a move. The drive stops itself on a fault
   and this poll only reports it, so it now samples at most every 0.5 s.
 
+* fix: corrected the ips of the right and left robot.
+* fix: swerve drive controller parameters from yaml (rate limiting flag, cmd_vel topic,
+  odometry and frame settings) are picked up by the controller and refreshed on reconfigure.
+  The controller update period is inferred by ROS's period parameter. Command history and
+  the odometry seed reset on activation.
+* fix: swerve drive controller always applies the velocity clamp, including on ticks with a
+  non-positive update period where acceleration limiting holds the previous command (the
+  jerk stage continues the last step). The unreachable odometry transform guard is
+  removed and the rate-limit policy is pinned by new unit tests.
+* fix: swerve drive controller update loop is real-time safe. It takes one non-blocking
+  ``try_get()`` of the cmd_vel box per tick instead of blocking ``get()`` copies, no longer
+  writes an unused timestamp from two threads, and drops the unused hot-path logger.
+  ``detail::applyCommandLimits`` moved into the internal
+  ``franka_mobile/detail/swerve_command_limits.hpp`` with grouped limiter and state structs.
+* feat: ``FrankaCartesianPoseInterface::getCurrentOrientationAndTranslation(Eigen::Quaterniond&,
+  Eigen::Vector3d&)`` is a non-throwing, allocation-free pose read that returns ``bool``.
+* feat: ``FrankaSemanticComponentInterface::set_values(const std::array<double, N>&)``
+  overload; ``FrankaCartesianVelocityInterface::setCommand`` uses it, so no vector is built per tick.
+* fix: behavior change: a pose-read failure with closed-loop odometry now makes the swerve
+  drive controller return ERROR and be deactivated by the controller manager instead of
+  throwing.
+
 v3.5.3 (2026-09-01)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy

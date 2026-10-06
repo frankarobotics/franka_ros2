@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
 #include <cmath>
+#include <rclcpp/rclcpp.hpp>
 
 #include <franka_mobile/odometry.hpp>
 
@@ -14,7 +14,6 @@ static rclcpp::Time make_time(double seconds) {
 
 static constexpr double kEps = 1e-9;
 static constexpr double kTol = 1e-6;
-
 
 // ===========================================================================
 // Construction
@@ -45,7 +44,7 @@ TEST_F(OdometryConstructionTest, WhenWindowSizeIsGreaterThanOneAssertSmoothingAp
 // ===========================================================================
 
 class OdometryInitTest : public ::testing::Test {
-protected:
+ protected:
   franka_mobile::Odometry odom{1};
 };
 
@@ -68,11 +67,48 @@ TEST_F(OdometryInitTest, WhenInitCalledAssertPoseNotReset) {
 }
 
 // ===========================================================================
+// resetTimestamp()
+// ===========================================================================
+
+class OdometryTimestampTest : public ::testing::Test {
+ protected:
+  franka_mobile::Odometry odom{3};
+};
+
+TEST_F(OdometryTimestampTest, WhenTimestampResetAssertOnlyTimestampChanges) {
+  odom.init(make_time(0.0));
+  odom.update(1.0, 0.0, 0.0, make_time(1.0));
+  odom.update(2.0, 0.0, 0.0, make_time(2.0));
+  const double x_before = odom.getX();
+  const double y_before = odom.getY();
+  const double heading_before = odom.getHeading();
+  const double vx_before = odom.getLinearX();
+  const double vy_before = odom.getLinearY();
+  const double wz_before = odom.getAngular();
+
+  odom.resetTimestamp(make_time(10.0));
+
+  // Pose and accumulator-backed velocities are untouched by the re-seed.
+  ASSERT_NEAR(odom.getX(), x_before, kEps);
+  ASSERT_NEAR(odom.getY(), y_before, kEps);
+  ASSERT_NEAR(odom.getHeading(), heading_before, kEps);
+  ASSERT_NEAR(odom.getLinearX(), vx_before, kEps);
+  ASSERT_NEAR(odom.getLinearY(), vy_before, kEps);
+  ASSERT_NEAR(odom.getAngular(), wz_before, kEps);
+
+  // The following update integrates from the new time (dt = 1, not 9), and the
+  // rolling mean still holds the pre-reset samples ((1 + 2 + 3) / 3 = 2).
+  odom.update(3.0, 0.0, 0.0, make_time(11.0));
+  ASSERT_NEAR(odom.getX(), x_before + 3.0, kTol);
+  ASSERT_NEAR(odom.getLinearX(), 2.0, kTol);
+}
+
+// ===========================================================================
 // resetOdometry()
 // ===========================================================================
 
 class OdometryResetTest : public ::testing::Test {
-protected:
+ protected:
   franka_mobile::Odometry odom{1};
   void SetUp() override {
     odom.init(make_time(0.0));
@@ -106,7 +142,7 @@ TEST_F(OdometryResetTest, WhenResetOdometryCalledAssertVelocitiesUnchanged) {
 // ===========================================================================
 
 class OdometryVelocityTest : public ::testing::Test {
-protected:
+ protected:
   franka_mobile::Odometry odom{4};
   void SetUp() override { odom.init(make_time(0.0)); }
 };
@@ -150,7 +186,7 @@ TEST_F(OdometryVelocityTest, WhenNegativeVelocitiesProvidedAssertHandledCorrectl
 // ===========================================================================
 
 class OdometryIntegrationTest : public ::testing::Test {
-protected:
+ protected:
   franka_mobile::Odometry odom{1};
   void SetUp() override { odom.init(make_time(0.0)); }
 };
@@ -209,8 +245,8 @@ TEST_F(OdometryIntegrationTest, WhenDeltaTimeIsZeroAssertNoPoseChange) {
 TEST_F(OdometryIntegrationTest, WhenDrivingFullCircleAssertReturnToOrigin) {
   const int steps = 360;
   const double omega = 2.0 * M_PI / steps;
-  const double v     = 1.0;
-  const double r     = v / omega;
+  const double v = 1.0;
+  const double r = v / omega;
 
   odom.resetOdometry();
   for (int i = 0; i < steps; ++i) {
@@ -229,7 +265,7 @@ TEST_F(OdometryIntegrationTest, WhenDrivingFullCircleAssertReturnToOrigin) {
 // ===========================================================================
 
 class OdometryWindowResizeTest : public ::testing::Test {
-protected:
+ protected:
   franka_mobile::Odometry odom{4};
   void SetUp() override {
     odom.init(make_time(0.0));
@@ -262,7 +298,7 @@ TEST_F(OdometryWindowResizeTest, WhenWindowSizeChangedAssertPoseUnaffected) {
 // ===========================================================================
 
 class OdometryEdgeCaseTest : public ::testing::Test {
-protected:
+ protected:
   franka_mobile::Odometry odom{1};
   void SetUp() override { odom.init(make_time(0.0)); }
 };

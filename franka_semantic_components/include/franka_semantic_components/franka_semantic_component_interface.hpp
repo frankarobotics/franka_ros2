@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -115,6 +116,28 @@ class FrankaSemanticComponentInterface {
    * \return true if commanded_values size matches the loaned command_interface size, else false
    */
   bool set_values(const std::vector<double>& commanded_values);
+
+  /**
+   * Set all values for the command interfaces without allocating.
+   *
+   * Stack-storage alternative to set_values(const std::vector<double>&) for the real-time
+   * path: the caller passes a fixed-size array, so no heap buffer is built per call.
+   *
+   * \param[in] commanded_values to be set; its size must match the loaned command interfaces
+   *
+   * \return true if the array size matches the loaned command_interface size, else false
+   */
+  template <size_t NumValues>
+  bool set_values(const std::array<double, NumValues>& commanded_values) {
+    if (NumValues != command_interfaces_.size()) {
+      return false;
+    }
+    bool success = true;
+    for (size_t index = 0; index < NumValues; ++index) {
+      success &= command_interfaces_[index].get().set_value(commanded_values[index]);
+    }
+    return success;
+  }
 
  protected:
   std::string name_;  // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes,

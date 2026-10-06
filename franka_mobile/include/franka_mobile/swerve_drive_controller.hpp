@@ -14,8 +14,12 @@
 
 #pragma once
 
+#include <array>
+#include <memory>
 #include <string>
+#include <vector>
 
+#include <Eigen/Dense>
 #include <controller_interface/chainable_controller_interface.hpp>
 #include <diff_drive_controller/speed_limiter.hpp>
 #include <franka_mobile/swerve_drive_controller_parameters.hpp>
@@ -71,11 +75,12 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
   bool enable_odom_nav_msg_ = true;
   double publish_rate_ = 50.0;
   double cmd_vel_timeout_ = 0.5;
-  double last_cmd_time_ = 0.0;
 
   rclcpp::Time previous_publish_timestamp_{0, 0, RCL_CLOCK_UNINITIALIZED};
 
-  std::queue<Eigen::Vector3d> previous_two_commands_;
+  // [0] is the command before last, [1] is the last command. Fixed storage so
+  // activation can reset history without reading an empty deque.
+  std::array<Eigen::Vector3d, 2> previous_commands_{};
 
   // franka interface
   std::unique_ptr<franka_semantic_components::FrankaCartesianVelocityInterface>
@@ -88,6 +93,9 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
   nav_msgs::msg::Odometry odom_nav_message_;
 
   realtime_tools::RealtimeThreadSafeBox<geometry_msgs::msg::TwistStamped> received_velocity_msg_;
+  // Latest velocity command for the real-time thread. Refreshed once per tick from the box
+  // above through its non-blocking read; keeps the last good value while the box is contended.
+  geometry_msgs::msg::TwistStamped last_velocity_msg_;
   realtime_tools::RealtimePublisherSharedPtr<nav_msgs::msg::Odometry> realtime_odom_nav_publisher_;
   realtime_tools::RealtimePublisherSharedPtr<tf2_msgs::msg::TFMessage> realtime_odom_tf_publisher_;
   realtime_tools::RealtimePublisherSharedPtr<geometry_msgs::msg::TwistStamped>
@@ -100,6 +108,9 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
 
   // pose integration in open loop
   Odometry odometry_;
+  // First open-loop update after activation re-seeds the odometry timestamp so the inactive
+  // gap is not integrated into the pose.
+  bool reset_odometry_timestamp_{false};
   // twist differentiation in closed loop
   Eigen::Vector3d p_;
   Eigen::Quaterniond q_;

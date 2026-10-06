@@ -58,15 +58,34 @@ class Odometry {
   explicit Odometry(size_t velocity_rolling_window_size = 10);
 
   /**
-   * @brief Initialize the odometry state and timestamp.
+   * @brief Seed the integration timestamp and clear the velocity smoothing state.
    *
-   * Resets the pose to the origin, zeroes all velocities and accumulators,
-   * and records the given time as the integration start point.
-   * Must be called before the first call to update().
+   * Rebuilds the rolling mean accumulators (dropping any velocity history) and
+   * records the given time as the integration start point. Pose, last velocity
+   * readings and rolling window size are left untouched: this is not a pose
+   * reset, use resetOdometry() for that.
    *
-   * @param time  Current ROS time.
+   * Standalone use must call this before the first update() so the first
+   * timestep is measured from a known time. The swerve controller never calls
+   * init(): on_configure() refreshes the accumulators via
+   * setVelocityRollingWindowSize(), and the first open-loop update after each
+   * activation re-seeds the timestamp via resetTimestamp(), so the inactive gap
+   * is not integrated into the pose.
+   *
+   * @param time  Current ROS time, recorded as the integration start point.
    */
   void init(const rclcpp::Time& time);
+
+  /**
+   * @brief Re-seed only the integration timestamp without touching pose or accumulators.
+   *
+   * Allocation-free: unlike init(), this does not rebuild the rolling mean
+   * accumulators, so it is safe to call from the realtime update loop (e.g. to
+   * skip the inactive gap on the first open-loop update after activation).
+   *
+   * @param time  Current ROS time, recorded as the integration start point.
+   */
+  void resetTimestamp(const rclcpp::Time& time) { timestamp_ = time; }
 
   /**
    * @brief Integrate a new velocity measurement and update pose and velocity estimates.
@@ -84,9 +103,10 @@ class Odometry {
   void update(double linear_x, double linear_y, double angular, const rclcpp::Time& time);
 
   /**
-   * @brief Reset the pose estimate to the origin and zero all velocities.
+   * @brief Reset the pose estimate to the origin.
    *
-   * Does not reset the timestamp or rolling window size.
+   * Zeroes x, y and heading only. Last velocity readings, timestamp,
+   * accumulators and rolling window size are left untouched.
    */
   void resetOdometry();
 

@@ -15,6 +15,7 @@
 #include "franka_cartesian_pose_interface_test.hpp"
 
 #include <exception>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -183,7 +184,7 @@ TEST_F(FrankaCartesianPoseTest,
 
   auto success = franka_cartesian_command_friend->setCommand(new_hw_cartesian_pose_command);
   ASSERT_FALSE(success);
-  
+
   franka_cartesian_command_friend->release_interfaces();
   temp_command_interfaces.clear();
 }
@@ -308,6 +309,58 @@ TEST_F(FrankaCartesianPoseTest, given_correct_interfaces_when_pose_requested_exp
   auto received_pose = franka_cartesian_command_friend->getCurrentPoseMatrix();
 
   ASSERT_EQ(received_pose, cartesian_pose_state_);
+
+  franka_cartesian_command_friend->release_interfaces();
+}
+
+TEST_F(
+    FrankaCartesianPoseTest,
+    given_valid_state_interfaces_when_reading_pose_realtime_safe_then_orientation_and_translation_match) {
+  constructFrankaCartesianPoseInterface(false);
+  Eigen::Quaterniond received_orientation(0.0, 0.0, 0.0, 0.0);
+  Eigen::Vector3d received_translation(99.0, 99.0, 99.0);
+
+  const bool success = franka_cartesian_command_friend->getCurrentOrientationAndTranslation(
+      received_orientation, received_translation);
+
+  ASSERT_TRUE(success);
+
+  const Eigen::Matrix4d pose =
+      Eigen::Map<const Eigen::Matrix<double, 4, 4, Eigen::ColMajor>>(cartesian_pose_state_.data());
+  const Eigen::Quaterniond expected_orientation(pose.block<3, 3>(0, 0));
+  const Eigen::Vector3d expected_translation = pose.block<3, 1>(0, 3);
+  ASSERT_EQ(received_orientation, expected_orientation);
+  ASSERT_EQ(received_translation, expected_translation);
+
+  franka_cartesian_command_friend->release_interfaces();
+}
+
+TEST_F(
+    FrankaCartesianPoseTest,
+    given_non_finite_state_value_when_reading_pose_realtime_safe_then_read_fails_and_outputs_untouched) {
+  constructFrankaCartesianPoseInterface(false);
+  cartesian_pose_state_[3] = std::numeric_limits<double>::quiet_NaN();
+  Eigen::Quaterniond received_orientation = Eigen::Quaterniond::Identity();
+  Eigen::Vector3d received_translation(1.0, 2.0, 3.0);
+
+  const bool success = franka_cartesian_command_friend->getCurrentOrientationAndTranslation(
+      received_orientation, received_translation);
+
+  ASSERT_FALSE(success);
+  ASSERT_EQ(received_orientation, Eigen::Quaterniond::Identity());
+  ASSERT_EQ(received_translation, Eigen::Vector3d(1.0, 2.0, 3.0));
+
+  franka_cartesian_command_friend->release_interfaces();
+}
+
+TEST_F(FrankaCartesianPoseTest,
+       given_unassigned_state_interfaces_when_reading_pose_realtime_safe_then_read_fails) {
+  franka_cartesian_command_friend = std::make_unique<FrankaCartesianPoseTestFriend>(false);
+  Eigen::Quaterniond received_orientation = Eigen::Quaterniond::Identity();
+  Eigen::Vector3d received_translation = Eigen::Vector3d::Zero();
+
+  ASSERT_FALSE(franka_cartesian_command_friend->getCurrentOrientationAndTranslation(
+      received_orientation, received_translation));
 
   franka_cartesian_command_friend->release_interfaces();
 }
