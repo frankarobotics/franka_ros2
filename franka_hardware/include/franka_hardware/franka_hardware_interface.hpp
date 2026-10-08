@@ -20,6 +20,7 @@
 #include <set>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <realtime_tools/mutex.hpp>
@@ -71,8 +72,12 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   hardware_interface::return_type perform_command_mode_switch(
       const std::vector<std::string>& start_interfaces,
       const std::vector<std::string>& stop_interfaces) override;
-  std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
-  std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
+  // Joint and gpio state/command interfaces, and the force/torque sensor, are declared in the
+  // URDF and already picked up by the default on_export_state_interfaces()/
+  // on_export_command_interfaces(); only robot_state/robot_model/robot_time, cartesian_pose_state
+  // and elbow_state aren't tied to a joint/gpio/sensor and need explicit declaration here.
+  std::vector<hardware_interface::InterfaceDescription> export_unlisted_state_interface_descriptions()
+      override;
   CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
   CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
   CallbackReturn on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
@@ -92,6 +97,12 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
 
   void initializePositionCommands(const franka::RobotState& robot_state);
   void updateStateInterfaces(const franka::RobotState& robot_state);
+  // Pushes the current value of every command buffer (hw_effort_commands_,
+  // hw_cartesian_pose_commands_, ...) into its exported command interface via set_command().
+  // Called after on_activate() and after every perform_command_mode_switch(), so an interface no
+  // controller has claimed yet still reads back a finite value on the next write() cycle instead
+  // of hardware_interface::Handle's own NaN default for an unset double.
+  void SeedCommandInterfaces();
 
   // Support Franka ros2 control interface version
   const int kSupportedControlInterfaceMajor = 1;
@@ -196,5 +207,33 @@ class FrankaHardwareInterface : public hardware_interface::SystemInterface {
   realtime_tools::prio_inherit_mutex control_mutex_;
 
   std::unordered_set<std::string> exported_command_interfaces_;
+
+  // Interface names, built once in on_init() (matching kassow_kord_hardware_interface's
+  // convention) instead of concatenating "<prefix>/<interface>" fresh on every read()/write()
+  // cycle. set_state()/get_command() still do a name lookup per call - only the string-building
+  // is cached, not the resolved handle.
+  std::array<std::string, kNumberOfJoints> joint_position_state_names_;
+  std::array<std::string, kNumberOfJoints> joint_velocity_state_names_;
+  std::array<std::string, kNumberOfJoints> joint_effort_state_names_;
+
+  // A command interface declared for a joint or gpio, together with the shared command vector
+  // slot (from command_interface_map_) its pulled value gets written into - replaces the raw
+  // pointer that used to alias that same slot directly.
+  struct CommandPull {
+    std::string name;
+    std::vector<double>* target;
+    size_t index;
+  };
+  std::vector<CommandPull> command_pulls_;
+
+  std::string robot_state_interface_full_name_;
+  std::string robot_model_interface_full_name_;
+  std::string robot_time_interface_full_name_;
+  std::array<std::string, 16> cartesian_pose_state_names_;
+  std::array<std::string, 2> elbow_state_full_names_;
+  // Force/torque sensor state names, paired with the index into force_torque_sensor_state_ they
+  // read from - built once in on_init() from info_.sensors, in the same order
+  // export_state_interfaces() used to emplace them in.
+  std::vector<std::pair<std::string, size_t>> force_torque_sensor_state_names_;
 };
 }  // namespace franka_hardware

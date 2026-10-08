@@ -19,7 +19,6 @@
 
 #include <franka/exception.h>
 #include <franka/logging/logger.hpp>
-#include <hardware_interface/handle.hpp>
 #include <hardware_interface/hardware_info.hpp>
 #include <hardware_interface/introspection.hpp>
 #include <hardware_interface/system_interface.hpp>
@@ -58,9 +57,6 @@ auto parseVersion(const std::string& version_str) {
 }  // namespace
 namespace franka_hardware {
 
-using StateInterface = hardware_interface::StateInterface;
-using CommandInterface = hardware_interface::CommandInterface;
-
 FrankaHardwareInterface::FrankaHardwareInterface(const std::shared_ptr<Robot>& robot,
                                                  const std::string& robot_type)
     : FrankaHardwareInterface() {
@@ -83,85 +79,36 @@ FrankaHardwareInterface::FrankaHardwareInterface()
   franka::logging::addLogger(std::make_shared<RosLibfrankaLogger>(getLogger()));
 }
 
-std::vector<StateInterface> FrankaHardwareInterface::export_state_interfaces() {
-  std::vector<StateInterface> state_interfaces;
-  for (auto i = 0U; i < info_.joints.size(); i++) {
-    state_interfaces.emplace_back(StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_POSITION, &hw_positions_.at(i)));
-    state_interfaces.emplace_back(StateInterface(
-        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &hw_velocities_.at(i)));
-    state_interfaces.emplace_back(
-        StateInterface(info_.joints[i].name, hardware_interface::HW_IF_EFFORT, &hw_efforts_.at(i)));
-  }
-
-  state_interfaces.emplace_back(StateInterface(
-      prefix_ + robot_type_, k_robot_state_interface_name,
-      reinterpret_cast<double*>(  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-          &robot_state_box_ptr_)));
-  state_interfaces.emplace_back(StateInterface(
-      prefix_ + robot_type_, k_robot_model_interface_name,
-      reinterpret_cast<double*>(  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-          &hw_franka_model_ptr_)));
-
-  // cartesian pose state interface 16 element pose matrix
-  for (auto i = 0U; i < 16; i++) {
-    state_interfaces.emplace_back(StateInterface(
-        prefix_ + std::to_string(i), k_HW_IF_CARTESIAN_POSE_STATE, &cartesian_pose_state_.at(i)));
-  }
-
-  // elbow state interface
-  for (auto i = 0U; i < elbow_state_names_.size(); i++) {
-    state_interfaces.emplace_back(StateInterface(prefix_ + elbow_state_names_.at(i),
-                                                 k_HW_IF_ELBOW_STATE, &elbow_state_.at(i)));
-  }
-
-  state_interfaces.emplace_back(
-      StateInterface(prefix_ + robot_type_, "robot_time", &robot_time_state_));
-
-  // Force/torque sensor state interfaces (loaded from URDF sensor declarations)
-  for (const auto& sensor : info_.sensors) {
-    for (size_t i = 0; i < sensor.state_interfaces.size(); i++) {
-      state_interfaces.emplace_back(StateInterface(sensor.name, sensor.state_interfaces[i].name,
-                                                   &force_torque_sensor_state_[i]));
-    }
-  }
-
-  return state_interfaces;
+namespace {
+hardware_interface::InterfaceDescription MakeUnlistedInterface(const std::string& prefix,
+                                                                const std::string& name) {
+  hardware_interface::InterfaceInfo info{};
+  info.name = name;
+  info.initial_value = "0";
+  return hardware_interface::InterfaceDescription(prefix, info);
 }
+}  // namespace
 
-std::vector<CommandInterface> FrankaHardwareInterface::export_command_interfaces() {
-  std::vector<CommandInterface> command_interfaces;
-  command_interfaces.reserve(info_.joints.size());
-  // Register all command interfaces defined in the URDF
-  RCLCPP_INFO(getLogger(), "Register joint-based command interfaces");
-  for (auto joint_index = 0U; joint_index < info_.joints.size(); joint_index++) {
-    const auto& joint = info_.joints[joint_index];
-    for (const auto& command_interface : joint.command_interfaces) {
-      command_interfaces.emplace_back(
-          CommandInterface(joint.name, command_interface.name,
-                           &command_interface_map_.at(command_interface.name)[joint_index]));
+std::vector<hardware_interface::InterfaceDescription>
+FrankaHardwareInterface::export_unlisted_state_interface_descriptions() {
+  std::vector<hardware_interface::InterfaceDescription> descriptions;
 
-      RCLCPP_INFO(getLogger(),
-                  "Registering command interface: %s for command interface %s with index %d",
-                  joint.name.c_str(), command_interface.name.c_str(), joint_index);
-    }
+  descriptions.push_back(MakeUnlistedInterface(prefix_ + robot_type_, k_robot_state_interface_name));
+  descriptions.push_back(MakeUnlistedInterface(prefix_ + robot_type_, k_robot_model_interface_name));
+
+  for (auto i = 0U; i < cartesian_pose_state_.size(); i++) {
+    descriptions.push_back(
+        MakeUnlistedInterface(prefix_ + std::to_string(i), k_HW_IF_CARTESIAN_POSE_STATE));
   }
 
-  RCLCPP_INFO(getLogger(), "Register general purpose command interfaces");
-  for (const auto& gpio : info_.gpios) {
-    for (const auto& command_interface : gpio.command_interfaces) {
-      auto vector_index = std::stoul(gpio.parameters.at("index"));
-      command_interfaces.emplace_back(
-          CommandInterface(gpio.name, command_interface.name,
-                           &command_interface_map_.at(command_interface.name)[vector_index]));
-
-      RCLCPP_INFO(getLogger(),
-                  "Registering command interface: %s for command interface %s with index %ld",
-                  gpio.name.c_str(), command_interface.name.c_str(), vector_index);
-    }
+  for (auto i = 0U; i < elbow_state_names_.size(); i++) {
+    descriptions.push_back(
+        MakeUnlistedInterface(prefix_ + elbow_state_names_.at(i), k_HW_IF_ELBOW_STATE));
   }
 
-  return command_interfaces;
+  descriptions.push_back(MakeUnlistedInterface(prefix_ + robot_type_, "robot_time"));
+
+  return descriptions;
 }
 
 CallbackReturn FrankaHardwareInterface::on_activate(
@@ -198,7 +145,20 @@ CallbackReturn FrankaHardwareInterface::on_activate(
                  error_detail.c_str());
     return CallbackReturn::FAILURE;
   }
+  SeedCommandInterfaces();
   return CallbackReturn::SUCCESS;
+}
+
+void FrankaHardwareInterface::SeedCommandInterfaces() {
+  // A command interface that hasn't been claimed by any controller yet still gets pulled every
+  // write() cycle (hasInfinite() checks all of them unconditionally, regardless of active_mode_).
+  // The removed raw-pointer export aliased hw_*_commands_ directly, so an unclaimed interface's
+  // apparent value was always whatever hw_*_commands_ happened to hold (0, or an identity matrix
+  // for cartesian pose) - never hardware_interface::Handle's own NaN default for an unset double.
+  // Push the current buffer values through explicitly to preserve that.
+  for (const auto& pull : command_pulls_) {
+    set_command(pull.name, (*pull.target)[pull.index]);
+  }
 }
 
 FrankaHardwareInterface::~FrankaHardwareInterface() {
@@ -266,6 +226,10 @@ void FrankaHardwareInterface::initializePositionCommands(const franka::RobotStat
   }
 
   needs_initial_command_ = false;
+  // The bootstrap value just computed above needs to reach the exported command interface too,
+  // otherwise write()'s get_command() pull (later this same cycle) would read back whatever was
+  // seeded at the last mode switch instead - see SeedCommandInterfaces().
+  SeedCommandInterfaces();
 }
 
 void FrankaHardwareInterface::updateStateInterfaces(const franka::RobotState& robot_state) {
@@ -278,6 +242,34 @@ void FrankaHardwareInterface::updateStateInterfaces(const franka::RobotState& ro
   elbow_state_ = robot_state.elbow;
   cartesian_pose_state_ = robot_state.O_T_EE;
   force_torque_sensor_state_ = robot_state.K_F_ext_hat_K;
+
+  for (auto i = 0U; i < info_.joints.size(); i++) {
+    set_state(joint_position_state_names_.at(i), hw_positions_.at(i));
+    set_state(joint_velocity_state_names_.at(i), hw_velocities_.at(i));
+    set_state(joint_effort_state_names_.at(i), hw_efforts_.at(i));
+  }
+
+  // robot_state_box_ptr_/hw_franka_model_ptr_ are pointers smuggled through a StateInterface as
+  // the bit pattern of a double, read back by franka_semantic_components. Preserved as-is from
+  // the removed raw-pointer export, just pushed explicitly instead of aliased.
+  set_state(robot_state_interface_full_name_,
+           *reinterpret_cast<double*>(  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+               &robot_state_box_ptr_));
+  set_state(robot_model_interface_full_name_,
+           *reinterpret_cast<double*>(  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+               &hw_franka_model_ptr_));
+
+  for (auto i = 0U; i < cartesian_pose_state_names_.size(); i++) {
+    set_state(cartesian_pose_state_names_.at(i), cartesian_pose_state_.at(i));
+  }
+  for (auto i = 0U; i < elbow_state_full_names_.size(); i++) {
+    set_state(elbow_state_full_names_.at(i), elbow_state_.at(i));
+  }
+  for (const auto& [name, index] : force_torque_sensor_state_names_) {
+    set_state(name, force_torque_sensor_state_[index]);
+  }
+
+  set_state(robot_time_interface_full_name_, robot_time_state_);
 }
 
 hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time& /*time*/,
@@ -322,6 +314,10 @@ hardware_interface::return_type FrankaHardwareInterface::write(const rclcpp::Tim
                                                                const rclcpp::Duration& /*period*/) {
   if (control_fault_latched_.load()) {
     return hardware_interface::return_type::DEACTIVATE;
+  }
+
+  for (const auto& pull : command_pulls_) {
+    (*pull.target)[pull.index] = get_command<double>(pull.name);
   }
 
   if (hasInfinite(hw_position_commands_) || hasInfinite(hw_effort_commands_) ||
@@ -448,6 +444,45 @@ CallbackReturn FrankaHardwareInterface::on_init(const hardware_interface::Hardwa
     prefix_ = "";
   }
 
+  for (auto i = 0U; i < info_.joints.size(); i++) {
+    joint_position_state_names_.at(i) = info_.joints[i].name + "/" + hardware_interface::HW_IF_POSITION;
+    joint_velocity_state_names_.at(i) = info_.joints[i].name + "/" + hardware_interface::HW_IF_VELOCITY;
+    joint_effort_state_names_.at(i) = info_.joints[i].name + "/" + hardware_interface::HW_IF_EFFORT;
+  }
+
+  command_pulls_.clear();
+  for (auto joint_index = 0U; joint_index < info_.joints.size(); joint_index++) {
+    const auto& joint = info_.joints[joint_index];
+    for (const auto& command_interface : joint.command_interfaces) {
+      command_pulls_.push_back({joint.name + "/" + command_interface.name,
+                                &command_interface_map_.at(command_interface.name), joint_index});
+    }
+  }
+  for (const auto& gpio : info_.gpios) {
+    for (const auto& command_interface : gpio.command_interfaces) {
+      auto vector_index = std::stoul(gpio.parameters.at("index"));
+      command_pulls_.push_back({gpio.name + "/" + command_interface.name,
+                                &command_interface_map_.at(command_interface.name), vector_index});
+    }
+  }
+
+  for (auto i = 0U; i < cartesian_pose_state_names_.size(); i++) {
+    cartesian_pose_state_names_.at(i) = prefix_ + std::to_string(i) + "/" + k_HW_IF_CARTESIAN_POSE_STATE;
+  }
+  for (auto i = 0U; i < elbow_state_names_.size(); i++) {
+    elbow_state_full_names_.at(i) = prefix_ + elbow_state_names_.at(i) + "/" + k_HW_IF_ELBOW_STATE;
+  }
+  robot_state_interface_full_name_ = prefix_ + robot_type_ + "/" + k_robot_state_interface_name;
+  robot_model_interface_full_name_ = prefix_ + robot_type_ + "/" + k_robot_model_interface_name;
+  robot_time_interface_full_name_ = prefix_ + robot_type_ + "/robot_time";
+
+  force_torque_sensor_state_names_.clear();
+  for (const auto& sensor : info_.sensors) {
+    for (size_t i = 0; i < sensor.state_interfaces.size(); i++) {
+      force_torque_sensor_state_names_.push_back({sensor.name + "/" + sensor.state_interfaces[i].name, i});
+    }
+  }
+
   if (!robot_) {
     try {
       RCLCPP_INFO(getLogger(), "Connecting to robot at \"%s\" ...", robot_ip_.c_str());
@@ -554,6 +589,7 @@ hardware_interface::return_type FrankaHardwareInterface::perform_command_mode_sw
   }
 
   active_mode_ = desired;
+  SeedCommandInterfaces();
   return hardware_interface::return_type::OK;
 }
 

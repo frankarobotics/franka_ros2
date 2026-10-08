@@ -24,6 +24,8 @@
 
 #include <hardware_interface/component_parser.hpp>
 #include <hardware_interface/hardware_info.hpp>
+#include <hardware_interface/system.hpp>
+#include <hardware_interface/types/hardware_component_params.hpp>
 #include <hardware_interface/types/hardware_interface_return_values.hpp>
 #include <hardware_interface/types/hardware_interface_type_values.hpp>
 
@@ -71,35 +73,66 @@ class FrankaHardwareInterfaceTest : public ::testing::TestWithParam<std::string>
     ASSERT_EQ(parsed_hardware_infos.size(), number_of_expected_hardware_components);
 
     default_hardware_info = parsed_hardware_infos[0];
-    default_franka_hardware_interface.on_init(default_hardware_info);
+    InitializeHardwareComponent(default_hardware_info);
+  }
+
+  // Wraps a fresh FrankaHardwareInterface(default_mock_robot, robot_type) in
+  // hardware_interface::System, as the real resource_manager does, and exports interfaces
+  // exactly once. This is required before read()/write() are called: they now look values up by
+  // name (set_state()/get_command()) instead of writing through an aliased raw pointer, and that
+  // lookup only works once on_export_*_interfaces() has run - and must only be exported once,
+  // since each export call builds fresh interface objects.
+  auto InitializeHardwareComponent(const hardware_interface::HardwareInfo& hardware_info)
+      -> rclcpp_lifecycle::State {
+    hardware_interface::HardwareComponentParams params;
+    params.hardware_info = hardware_info;
+    params.clock = std::make_shared<rclcpp::Clock>();
+    params.logger = rclcpp::get_logger("franka_hardware_interface_test");
+
+    hw_ = std::make_unique<hardware_interface::System>(std::move(franka_driver_));
+    const auto state = hw_->initialize(params);
+    if (state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED) {
+      exported_state_interfaces_ = hw_->export_state_interfaces();
+      exported_command_interfaces_ = hw_->export_command_interfaces();
+    }
+    return state;
   }
 
  protected:
   std::string robot_type{"fr3"};
   std::shared_ptr<MockRobot> default_mock_robot = std::make_shared<MockRobot>();
   hardware_interface::HardwareInfo default_hardware_info;
-  franka_hardware::FrankaHardwareInterface default_franka_hardware_interface{default_mock_robot,
-                                                                             robot_type};
+
+  // franka_driver_ is moved into hw_ in InitializeHardwareComponent(). default_franka_hardware_interface
+  // stays a valid reference to the same object afterwards (now owned by hw_), so every existing
+  // call site below that calls a method directly on it (bypassing the wrapper's own
+  // lifecycle-state gating, same as before this migration) keeps working unchanged.
+  std::unique_ptr<franka_hardware::FrankaHardwareInterface> franka_driver_ =
+      std::make_unique<franka_hardware::FrankaHardwareInterface>(default_mock_robot, robot_type);
+  franka_hardware::FrankaHardwareInterface& default_franka_hardware_interface = *franka_driver_;
+  std::unique_ptr<hardware_interface::System> hw_;
+  std::vector<hardware_interface::StateInterface::ConstSharedPtr> exported_state_interfaces_;
+  std::vector<hardware_interface::CommandInterface::SharedPtr> exported_command_interfaces_;
   MockModel mock_model_;
 
   auto readAndExportStates(const franka::RobotState& robot_state = franka::RobotState{})
-      -> std::vector<hardware_interface::StateInterface> {
+      -> std::vector<hardware_interface::StateInterface::ConstSharedPtr>& {
     EXPECT_CALL(*default_mock_robot, readOnce()).WillOnce(testing::Return(robot_state));
     EXPECT_CALL(*default_mock_robot, getModel()).WillOnce(testing::Return(&mock_model_));
     auto time = rclcpp::Time(0);
     auto duration = rclcpp::Duration(0, 0);
     EXPECT_EQ(default_franka_hardware_interface.read(time, duration),
               hardware_interface::return_type::OK);
-    return default_franka_hardware_interface.export_state_interfaces();
+    return exported_state_interfaces_;
   }
 
   static auto assertExportedJointStatesMatch(
-      std::vector<hardware_interface::StateInterface>& states,
+      std::vector<hardware_interface::StateInterface::ConstSharedPtr>& states,
       const std::string& robot_type_name,
       const franka::RobotState& expected) -> void {
     auto find_state = [&states](const std::string& name) {
       return std::find_if(states.begin(), states.end(),
-                          [&name](const auto& state) { return state.get_name() == name; });
+                          [&name](const auto& state) { return state->get_name() == name; });
     };
     for (size_t joint_index = 0; joint_index < k_number_of_joints; ++joint_index) {
       const std::string joint_name =
@@ -107,15 +140,15 @@ class FrankaHardwareInterfaceTest : public ::testing::TestWithParam<std::string>
 
       auto position = find_state(joint_name + "/" + k_position_controller);
       ASSERT_NE(position, states.end()) << "Missing: " << joint_name << "/position";
-      EXPECT_NEAR(position->get_optional().value_or(-1.0), expected.q.at(joint_index), k_EPS);
+      EXPECT_NEAR((*position)->get_optional().value_or(-1.0), expected.q.at(joint_index), k_EPS);
 
       auto velocity = find_state(joint_name + "/" + k_velocity_controller);
       ASSERT_NE(velocity, states.end()) << "Missing: " << joint_name << "/velocity";
-      EXPECT_NEAR(velocity->get_optional().value_or(-1.0), expected.dq.at(joint_index), k_EPS);
+      EXPECT_NEAR((*velocity)->get_optional().value_or(-1.0), expected.dq.at(joint_index), k_EPS);
 
       auto effort = find_state(joint_name + "/" + k_effort_controller);
       ASSERT_NE(effort, states.end()) << "Missing: " << joint_name << "/effort";
-      EXPECT_NEAR(effort->get_optional().value_or(-1.0), expected.tau_J.at(joint_index), k_EPS);
+      EXPECT_NEAR((*effort)->get_optional().value_or(-1.0), expected.tau_J.at(joint_index), k_EPS);
     }
   }
 
@@ -159,6 +192,12 @@ auto FrankaHardwareInterfaceTest::get_param_service_response(
   response = *result.get();
 }
 
+// These two tests only care about on_init()'s own return value, so they run it on a fresh,
+// standalone driver instead of the fixture's default_franka_hardware_interface - that one has
+// already been through a full initialize()+export() via hw_ in SetUp(), and on_init() rebuilds
+// info_.joints/gpios-derived interface maps unconditionally; calling it a second time with a
+// different (or even the same) HardwareInfo on an already-exported component is not a supported
+// sequence and segfaults, independent of this migration's own changes.
 TEST_F(FrankaHardwareInterfaceTest, givenUnsupportedURDFVersion_thenReturnError) {
   auto urdf_string =
       readFileToString(TEST_CASE_DIRECTORY + robot_type + "_unsupported_version.urdf");
@@ -167,8 +206,9 @@ TEST_F(FrankaHardwareInterfaceTest, givenUnsupportedURDFVersion_thenReturnError)
 
   ASSERT_EQ(parsed_hardware_infos.size(), number_of_expected_hardware_components);
 
-  default_hardware_info = parsed_hardware_infos[0];
-  auto return_type = default_franka_hardware_interface.on_init(default_hardware_info);
+  auto standalone_mock_robot = std::make_shared<MockRobot>();
+  franka_hardware::FrankaHardwareInterface standalone_interface{standalone_mock_robot, robot_type};
+  auto return_type = standalone_interface.on_init(parsed_hardware_infos[0]);
 
   ASSERT_EQ(return_type,
             rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR);
@@ -181,21 +221,21 @@ TEST_F(FrankaHardwareInterfaceTest, givenFR3ComponentInfo_whenOnInitCalled_expec
 
   ASSERT_EQ(parsed_hardware_infos.size(), number_of_expected_hardware_components);
 
-  auto return_type = default_franka_hardware_interface.on_init(parsed_hardware_infos[0]);
+  auto standalone_mock_robot = std::make_shared<MockRobot>();
+  franka_hardware::FrankaHardwareInterface standalone_interface{standalone_mock_robot, robot_type};
+  auto return_type = standalone_interface.on_init(parsed_hardware_infos[0]);
 
   ASSERT_EQ(return_type,
             rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS);
 }
 
 TEST_F(FrankaHardwareInterfaceTest, givenFR3CommandInterfaces_thenNumberIsSetupCorrectly) {
-  const auto command_interfaces = default_franka_hardware_interface.export_command_interfaces();
-
   const auto number_of_fr3_command_interfaces = 7 + 7 + 7  // for joint command interfaces
                                                 + 6    // for cartesian velocity command interfaces
                                                 + 2    // for elbow command interfaces
                                                 + 16;  // for cartesian pose command interfaces
 
-  ASSERT_EQ(command_interfaces.size(), number_of_fr3_command_interfaces);
+  ASSERT_EQ(exported_command_interfaces_.size(), number_of_fr3_command_interfaces);
 }
 
 TEST_F(FrankaHardwareInterfaceTest, givenThatTheRobotInterfacesSet_whenReadCalled_returnOk) {
@@ -220,7 +260,7 @@ TEST_F(
   // Helper to find state interface by name
   auto findState = [&states](const std::string& name) {
     return std::find_if(states.begin(), states.end(),
-                        [&name](const auto& s) { return s.get_name() == name; });
+                        [&name](const auto& s) { return s->get_name() == name; });
   };
 
   // Verify joint state interfaces exist with correct initial values
@@ -229,15 +269,15 @@ TEST_F(
 
     auto pos = findState(joint_name + "/" + k_position_controller);
     ASSERT_NE(pos, states.end()) << "Missing: " << joint_name << "/position";
-    ASSERT_EQ(pos->get_optional().value_or(-1.0), 0.0);
+    ASSERT_EQ((*pos)->get_optional().value_or(-1.0), 0.0);
 
     auto vel = findState(joint_name + "/" + k_velocity_controller);
     ASSERT_NE(vel, states.end()) << "Missing: " << joint_name << "/velocity";
-    ASSERT_EQ(vel->get_optional().value_or(-1.0), 0.0);
+    ASSERT_EQ((*vel)->get_optional().value_or(-1.0), 0.0);
 
     auto eff = findState(joint_name + "/" + k_effort_controller);
     ASSERT_NE(eff, states.end()) << "Missing: " << joint_name << "/effort";
-    ASSERT_EQ(eff->get_optional().value_or(-1.0), 0.0);
+    ASSERT_EQ((*eff)->get_optional().value_or(-1.0), 0.0);
   }
 
   // Verify special interfaces exist
@@ -258,19 +298,35 @@ TEST_F(
   ASSERT_EQ(states.size(), kStateInterfaceSize);
 }
 
+namespace {
+// The order interfaces are exported in changed with the migration off the deprecated raw-pointer
+// Handle API (unlisted interfaces are now exported before joint interfaces, previously the other
+// way round), so tests look interfaces up by name instead of a fixed index.
+auto FindStateInterface(
+    const std::vector<hardware_interface::StateInterface::ConstSharedPtr>& states,
+    const std::string& name) -> hardware_interface::StateInterface::ConstSharedPtr {
+  for (const auto& state : states) {
+    if (state->get_name() == name) {
+      return state;
+    }
+  }
+  return nullptr;
+}
+}  // namespace
+
 TEST_F(
     FrankaHardwareInterfaceTest,
     given_that_the_robot_interfaces_are_set_when_call_export_state_interface_robot_model_interface_exists) {
   auto states = readAndExportStates();
   MockModel* model_address = &mock_model_;
 
-  ASSERT_EQ(states[22].get_name(),
-            "fr3/robot_model");  // joint states (3*7) + robot state (1)
+  const auto robot_model_state = FindStateInterface(states, "fr3/robot_model");
+  ASSERT_NE(robot_model_state, nullptr);
 
-  EXPECT_NEAR(states[22].get_optional().value_or(0.0),     // joint states (3*7) + robot state (1)
+  EXPECT_NEAR(robot_model_state->get_optional().value_or(0.0),
               *reinterpret_cast<double*>(&model_address),  // NOLINT
-              k_EPS);                                      // testing that the casted mock_model ptr
-                                                           // is correctly pushed to state interface
+              k_EPS);  // testing that the casted mock_model ptr is correctly pushed to the state
+                       // interface
 }
 
 TEST_F(
@@ -278,12 +334,12 @@ TEST_F(
     given_that_the_robot_interfaces_are_set_when_call_export_state_interface_robot_state_interface_exists) {
   auto states = readAndExportStates();
 
-  ASSERT_EQ(states[21].get_name(),
-            "fr3/robot_state");  // joint states (3*7) , then comes robot state
+  const auto robot_state_state = FindStateInterface(states, "fr3/robot_state");
+  ASSERT_NE(robot_state_state, nullptr);
 
   // The state interface exports a pointer to the RealtimeThreadSafeBox.
   // Verify it is a valid (non-zero) pointer value.
-  ASSERT_NE(states[21].get_optional().value_or(0.0), 0.0);
+  ASSERT_NE(robot_state_state->get_optional().value_or(0.0), 0.0);
 }
 
 TEST_F(FrankaHardwareInterfaceTest,
@@ -300,10 +356,10 @@ TEST_F(FrankaHardwareInterfaceTest,
 
   for (size_t i = 0; i < interface_names.size(); i++) {
     auto it = std::find_if(states.begin(), states.end(), [&](const auto& state) {
-      return state.get_name() == interface_names[i];
+      return state->get_name() == interface_names[i];
     });
     ASSERT_NE(it, states.end()) << "Missing: " << interface_names[i];
-    EXPECT_NEAR(it->get_optional().value_or(0.0), robot_state.K_F_ext_hat_K[i], k_EPS)
+    EXPECT_NEAR((*it)->get_optional().value_or(0.0), robot_state.K_F_ext_hat_K[i], k_EPS)
         << "Value mismatch for " << interface_names[i];
   }
 }
@@ -315,8 +371,16 @@ TEST_F(FrankaHardwareInterfaceTest,
   hardware_info_no_sensor.sensors.clear();
 
   auto mock_robot = std::make_shared<MockRobot>();
-  franka_hardware::FrankaHardwareInterface hw_interface{mock_robot, robot_type};
-  hw_interface.on_init(hardware_info_no_sensor);
+  auto driver = std::make_unique<franka_hardware::FrankaHardwareInterface>(mock_robot, robot_type);
+  franka_hardware::FrankaHardwareInterface& hw_interface = *driver;
+
+  hardware_interface::HardwareComponentParams params;
+  params.hardware_info = hardware_info_no_sensor;
+  params.clock = std::make_shared<rclcpp::Clock>();
+  params.logger = rclcpp::get_logger("franka_hardware_interface_test_no_sensor");
+  auto hw = std::make_unique<hardware_interface::System>(std::move(driver));
+  ASSERT_EQ(hw->initialize(params).id(), lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED);
+  auto states = hw->export_state_interfaces();
 
   franka::RobotState robot_state;
   MockModel mock_model;
@@ -327,16 +391,15 @@ TEST_F(FrankaHardwareInterfaceTest,
   auto time = rclcpp::Time(0);
   auto duration = rclcpp::Duration(0, 0);
   hw_interface.read(time, duration);
-  auto states = hw_interface.export_state_interfaces();
 
   ASSERT_EQ(states.size(), kStateInterfaceSizeWithoutSensor);
 
   // Verify no F/T interfaces exist
   for (const auto& state : states) {
-    ASSERT_EQ(state.get_name().find("force."), std::string::npos)
-        << "Unexpected F/T interface: " << state.get_name();
-    ASSERT_EQ(state.get_name().find("torque."), std::string::npos)
-        << "Unexpected F/T interface: " << state.get_name();
+    ASSERT_EQ(state->get_name().find("force."), std::string::npos)
+        << "Unexpected F/T interface: " << state->get_name();
+    ASSERT_EQ(state->get_name().find("torque."), std::string::npos)
+        << "Unexpected F/T interface: " << state->get_name();
   }
 }
 
@@ -928,7 +991,7 @@ TEST_F(FrankaHardwareInterfaceTest,
   ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
             hardware_interface::return_type::OK);
 
-  auto states = default_franka_hardware_interface.export_state_interfaces();
+  auto& states = exported_state_interfaces_;
   assertExportedJointStatesMatch(states, robot_type, pre_fault_state);
 
   // ControlException latches the fault and returns OK without refreshing exported state.
@@ -1044,7 +1107,7 @@ TEST_F(FrankaHardwareInterfaceTest,
   ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
             hardware_interface::return_type::OK);
 
-  auto states = default_franka_hardware_interface.export_state_interfaces();
+  auto& states = exported_state_interfaces_;
   assertExportedJointStatesMatch(states, robot_type, robot_state);
 
   ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
