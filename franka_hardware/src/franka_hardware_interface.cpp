@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <mutex>
 
 #include <franka/exception.h>
 #include <franka/logging/logger.hpp>
@@ -282,12 +283,28 @@ void FrankaHardwareInterface::updateStateInterfaces(const franka::RobotState& ro
 
 hardware_interface::return_type FrankaHardwareInterface::read(const rclcpp::Time& /*time*/,
                                                               const rclcpp::Duration& /*period*/) {
+
   if (control_fault_latched_.load()) {
     // Preserve the last captured state while the control fault remains latched.
     return hardware_interface::return_type::OK;
   }
-
-  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
+  // Try, do not wait.  perform_command_mode_switch() holds control_mutex_ across blocking
+  // libfranka calls: stopRobot() -> ~ActiveControl -> cancelMotion() busy-waits on the robot
+  // decelerating at one 1 kHz UDP packet per iteration, and initializeXInterface() ->
+  // startMotion() waits on the mode handshake.  That is tens of milliseconds.  Blocking here
+  // would stall this component's async read/write thread for the whole window, and on a
+  // synchronous component it would stall the controller manager's real-time thread as well.
+  //
+  // The lock deliberately is NOT released around those calls instead.  libfranka's Robot::Impl
+  // is single-consumer on the FCI socket, and Robot::stopRobot() resets active_control_ without
+  // holding Robot::control_mutex_, so a concurrent readOnce() would dereference that unique_ptr
+  // mid-reset.  control_mutex_ is the only thing serialising them.  Skipping the cycle is
+  // therefore the correct behaviour: no FCI traffic is possible while a switch owns the robot.
+  std::unique_lock<realtime_tools::prio_inherit_mutex> lock(control_mutex_, std::try_to_lock);
+  if (!lock.owns_lock()) {
+    RCLCPP_DEBUG(getLogger(), "read() skipped: a command mode switch owns the robot");
+    return hardware_interface::return_type::OK;
+  }
   if (hw_franka_model_ptr_ == nullptr) {
     hw_franka_model_ptr_ = robot_->getModel();
   }
@@ -330,7 +347,12 @@ hardware_interface::return_type FrankaHardwareInterface::write(const rclcpp::Tim
     RCLCPP_ERROR(getLogger(), "Rejecting non-finite command values.");
     return hardware_interface::return_type::ERROR;
   }
-  std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
+  // Try, do not wait.  Same reasoning as read() above.
+  std::unique_lock<realtime_tools::prio_inherit_mutex> lock(control_mutex_, std::try_to_lock);
+  if (!lock.owns_lock()) {
+    RCLCPP_DEBUG(getLogger(), "write() skipped: a command mode switch owns the robot");
+    return hardware_interface::return_type::OK;
+  }
 
   if (needs_initial_command_) {
     return hardware_interface::return_type::OK;
@@ -478,6 +500,11 @@ rclcpp::Logger FrankaHardwareInterface::getLogger() {
 hardware_interface::return_type FrankaHardwareInterface::perform_command_mode_switch(
     const std::vector<std::string>& /*start_interfaces*/,
     const std::vector<std::string>& /*stop_interfaces*/) {
+  // control_mutex_ is held across stopRobot() and initializeXInterface() ON PURPOSE, and must
+  // stay that way: it is what keeps libfranka's single-consumer Robot::Impl from being touched
+  // by read()/write() while this switch owns the FCI socket, and what stops a concurrent
+  // readOnce() from racing stopRobot()'s unguarded active_control_.reset().  read() and write()
+  // use try_to_lock so they skip rather than block; do not "fix" this by releasing the lock here.
   std::lock_guard<realtime_tools::prio_inherit_mutex> lock(control_mutex_);
 
   if (elbow_command_interface_claimed_ &&
