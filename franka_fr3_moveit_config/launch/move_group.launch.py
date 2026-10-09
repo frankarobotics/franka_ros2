@@ -55,6 +55,34 @@ def generate_robot_nodes(context, *args, **kwargs):
     namespace = LaunchConfiguration(namespace_parameter_name)
     arm_prefix = LaunchConfiguration(arm_prefix_parameter_name)
 
+    # Declare launch arguments used
+    robot_ip_arg = DeclareLaunchArgument(
+        robot_ip_parameter_name, 
+        description="Hostname or IP address of the robot."
+    )
+
+    load_gripper_arg = DeclareLaunchArgument(
+        load_gripper_parameter_name,
+        default_value='true',
+        description='Whether to load the gripper or not (true or false)'
+    )
+    use_fake_hardware_arg = DeclareLaunchArgument(
+        use_fake_hardware_parameter_name,
+        default_value='false',
+        description='Use fake hardware'
+    )
+    fake_sensor_commands_arg = DeclareLaunchArgument(
+        fake_sensor_commands_parameter_name,
+        default_value='false',
+        description="Fake sensor commands. Only valid when '{}' is true".format(
+            use_fake_hardware_parameter_name)
+    )
+    namespace_arg = DeclareLaunchArgument(
+        namespace_parameter_name,
+        default_value='',
+        description='Namespace for the robot.'
+    )
+
     prefix_str = arm_prefix.perform(context)
 
     franka_xacro_file = os.path.join(
@@ -175,15 +203,27 @@ def generate_robot_nodes(context, *args, **kwargs):
         ],
     )
 
-    return [run_move_group_node]
+    return [
+        robot_ip_arg,
+        load_gripper_arg,
+        use_fake_hardware_arg,
+        fake_sensor_commands_arg,
+        namespace_arg,
+        run_move_group_node,
+    ]
 
 
 def generate_launch_description():
     db_arg = DeclareLaunchArgument(
         'db', default_value='False', description='Database flag'
     )
+    arm_prefix_arg = DeclareLaunchArgument(
+        'arm_prefix',
+        default_value=''
+    )
 
     return LaunchDescription([
         db_arg,
+        arm_prefix_arg,
         OpaqueFunction(function=generate_robot_nodes)
     ])
