@@ -14,6 +14,7 @@
 
 #include "franka_semantic_components/franka_robot_state.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <optional>
 #include <stack>
@@ -26,9 +27,6 @@
 
 namespace {
 
-constexpr size_t kBaseLinkIndex = 0;
-constexpr size_t kFlangeLinkIndex = 8;
-constexpr size_t kLoadLinkIndex = 8;
 constexpr size_t kAccelerometerCount = 6;
 // libfranka reports exactly this many joints per arm; every std::array in
 // franka::RobotState that this component copies from is this wide.
@@ -97,11 +95,17 @@ FrankaRobotState::FrankaRobotState(const std::string& name, const std::string& r
   set_links_from_urdf();
   set_joints_from_urdf();
 
+  // The robot_description may describe more than one arm, so the base and flange frames are
+  // resolved from the bound arm by name, the same way the joints are. A description that does
+  // not contain them is rejected here, at construction.
+  base_link_index_ = get_link_index(robot_name_ + "_link0");
+  flange_link_index_ = get_link_index(robot_name_ + "_link8");
+
   if (gripper_loaded_) {
     kEndEffectorLinkIndex = get_link_index(robot_name_ + kTCPFrameName);
     kStiffnessLinkIndex = kEndEffectorLinkIndex;
   } else {
-    kEndEffectorLinkIndex = kFlangeLinkIndex;
+    kEndEffectorLinkIndex = flange_link_index_;
     kStiffnessLinkIndex = kEndEffectorLinkIndex;
   }
 }
@@ -111,7 +115,7 @@ auto FrankaRobotState::get_link_index(const std::string& link_name) -> size_t {
   if (link_index != link_names.end()) {
     return std::distance(link_names.cbegin(), link_index);
   } else {
-    throw std::runtime_error("Link name not found in URDF.");
+    throw std::runtime_error("Link '" + link_name + "' not found in URDF.");
   }
 }
 
@@ -179,33 +183,33 @@ auto FrankaRobotState::initialize_robot_state_msg(franka_msgs::msg::FrankaRobotS
   message.tau_ext_hat_filtered.name =
       std::vector<std::string>(joint_names.cbegin(), joint_names.cend());
 
-  message.measured_joint_state.header.frame_id = link_names[kBaseLinkIndex];
-  message.desired_joint_state.header.frame_id = link_names[kBaseLinkIndex];
-  message.measured_joint_motor_state.header.frame_id = link_names[kBaseLinkIndex];
-  message.tau_ext_hat_filtered.header.frame_id = link_names[kBaseLinkIndex];
+  message.measured_joint_state.header.frame_id = link_names[base_link_index_];
+  message.desired_joint_state.header.frame_id = link_names[base_link_index_];
+  message.measured_joint_motor_state.header.frame_id = link_names[base_link_index_];
+  message.tau_ext_hat_filtered.header.frame_id = link_names[base_link_index_];
 
   // Active wrenches
-  message.o_f_ext_hat_k.header.frame_id = link_names[kBaseLinkIndex];
+  message.o_f_ext_hat_k.header.frame_id = link_names[base_link_index_];
   message.k_f_ext_hat_k.header.frame_id = link_names[kStiffnessLinkIndex];
 
   // Current EE Pose
-  message.o_t_ee.header.frame_id = link_names[kBaseLinkIndex];
+  message.o_t_ee.header.frame_id = link_names[base_link_index_];
   // Desired EE Pose
-  message.o_t_ee_d.header.frame_id = link_names[kBaseLinkIndex];
+  message.o_t_ee_d.header.frame_id = link_names[base_link_index_];
   // Commanded EE Pose
-  message.o_t_ee_c.header.frame_id = link_names[kBaseLinkIndex];
+  message.o_t_ee_c.header.frame_id = link_names[base_link_index_];
 
-  message.f_t_ee.header.frame_id = link_names[kFlangeLinkIndex];
+  message.f_t_ee.header.frame_id = link_names[flange_link_index_];
   message.ee_t_k.header.frame_id = link_names[kEndEffectorLinkIndex];
 
-  message.o_dp_ee_d.header.frame_id = link_names[kBaseLinkIndex];
-  message.o_dp_ee_c.header.frame_id = link_names[kBaseLinkIndex];
-  message.o_ddp_ee_c.header.frame_id = link_names[kBaseLinkIndex];
+  message.o_dp_ee_d.header.frame_id = link_names[base_link_index_];
+  message.o_dp_ee_c.header.frame_id = link_names[base_link_index_];
+  message.o_ddp_ee_c.header.frame_id = link_names[base_link_index_];
 
   // The inertias are with respect to the Center Of Mass.
   // TODO(yazi_ba) frame ids should be referenced to the Center Of Mass
   message.inertia_ee.header.frame_id = link_names[kEndEffectorLinkIndex];
-  message.inertia_load.header.frame_id = link_names[kLoadLinkIndex];
+  message.inertia_load.header.frame_id = link_names[flange_link_index_];
   message.inertia_total.header.frame_id = link_names[kEndEffectorLinkIndex];
 
   // Resize dynamic vectors
@@ -226,15 +230,12 @@ auto FrankaRobotState::initialize_robot_state_msg(franka_msgs::msg::FrankaRobotS
   message.tau_ext_hat_filtered.effort.resize(joint_names.size(), 0.0);
 
   // libfranka's accelerometer index i belongs to joint i+1; a joint's sensors are mounted
-  // on its parent link and named "<parent link>_accelerometer_<side>" in the URDF.
+  // on its parent link and named "<parent link>_accelerometer_<side>" in the URDF. The joint
+  // names are resolved and validated in the constructor, so they are reused directly here.
   for (size_t i = 0; i < kAccelerometerCount; ++i) {
-    const auto joint_name = robot_name_ + "_joint" + std::to_string(i + 1);
-    const auto joint_it = model_->joints_.find(joint_name);
-    if (joint_it == model_->joints_.end()) {
-      throw std::runtime_error("Joint '" + joint_name + "' not found in URDF.");
-    }
-    const auto top_frame = joint_it->second->parent_link_name + "_accelerometer_top";
-    const auto bottom_frame = joint_it->second->parent_link_name + "_accelerometer_bottom";
+    const auto& joint = model_->joints_.at(joint_names[i]);
+    const auto top_frame = joint->parent_link_name + "_accelerometer_top";
+    const auto bottom_frame = joint->parent_link_name + "_accelerometer_bottom";
     if (model_->links_.find(top_frame) == model_->links_.end()) {
       throw std::runtime_error("Accelerometer frame '" + top_frame + "' not found in URDF.");
     }
@@ -315,7 +316,16 @@ auto FrankaRobotState::get_values_as_message(franka_msgs::msg::FrankaRobotState&
       robot_state_.joint_collision, robot_state_.joint_contact);
 
   // The joint states
-  const auto n_joints = message.measured_joint_state.position.size();
+  // Bound by the source and every written destination, not the caller: libfranka reports exactly
+  // kJointCount values per arm, and a message this function did not size must not widen a read or
+  // a write past them. std::min keeps this allocation-free on the 1 kHz path.
+  const auto n_joints = std::min(
+      {message.measured_joint_state.position.size(), message.measured_joint_state.velocity.size(),
+       message.measured_joint_state.effort.size(), message.desired_joint_state.position.size(),
+       message.desired_joint_state.velocity.size(), message.desired_joint_state.effort.size(),
+       message.measured_joint_motor_state.position.size(),
+       message.measured_joint_motor_state.velocity.size(),
+       message.tau_ext_hat_filtered.effort.size(), kJointCount});
   std::copy_n(robot_state_.q.cbegin(), n_joints, message.measured_joint_state.position.begin());
   std::copy_n(robot_state_.dq.cbegin(), n_joints, message.measured_joint_state.velocity.begin());
   std::copy_n(robot_state_.tau_J.cbegin(), n_joints, message.measured_joint_state.effort.begin());

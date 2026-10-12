@@ -1,6 +1,28 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+UNRELEASED
+----------
+Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
+
+* fix: ``franka_semantic_components::FrankaRobotState`` now sizes and labels the joint arrays of
+  ``FrankaRobotState`` from the arm the component is bound to, instead of from every revolute
+  joint in the global ``robot_description``. With more than seven revolute joints in the
+  description the arrays came out longer than seven, and the trailing entries were filled by
+  reading past the end of libfranka's seven-element arrays, so they carried a different quantity
+  than their joint name promised and each broadcaster labelled its own arm's data with another
+  arm's joint names. The arm's seven joints are looked up by name, so single-arm descriptions
+  with extra revolute end-effector joints are fixed as well. The message frame IDs are now
+  resolved from the same arm by name. Base-frame fields (joint states, ``o_*``) use
+  ``<arm>_link0``; on a stock single-arm launch they previously used ``base``. ``f_t_ee`` and
+  ``inertia_load`` use the flange ``<arm>_link8``, and without a gripper so do ``ee_t_k``,
+  ``k_f_ext_hat_k``, ``inertia_ee`` and ``inertia_total``; these previously used ``<arm>_link2``
+  on single-arm descriptions. This reaches ``~/current_pose`` and the other convenience topics. The
+  joint copy is additionally bounded by libfranka's seven-element arrays. A description missing
+  the arm's joints, ``link0`` or ``link8`` is rejected when the component is constructed; a
+  description missing an accelerometer frame is rejected when the message is initialized during
+  configure.
+
 v3.6.0 (2026-10-06)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
@@ -69,17 +91,6 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   ``Cannot start motion: spine is SwitchedOff (expected SwitchedOn)``.
 * fix: ``franka_mobile_fr3_duo_moveit_config`` test fixed for new franka hardware
   compensation plugin.
-UNRELEASED
-----------
-Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
-
-* fix: ``franka_semantic_components::FrankaRobotState`` now sizes and labels the joint arrays of
-  ``FrankaRobotState`` from the arm the component is bound to, instead of from every revolute
-  joint in the global ``robot_description``. With more than seven revolute joints in the
-  description the arrays came out longer than seven, and the trailing entries were filled by
-  reading past the end of libfranka's seven-element arrays, so they carried a different quantity
-  than their joint name promised and each broadcaster labelled its own arm's data with another
-  arm's joint names.
 
 v3.5.2 (2026-08-17)
 -------------------

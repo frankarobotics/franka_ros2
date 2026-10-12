@@ -86,6 +86,9 @@ class FrankaRobotState
   const std::string state_interface_name_{"robot_state"};
   std::string full_robot_state_interface_name_;
   bool gripper_loaded_{false};
+  // Arm-local link indices, resolved by name from the bound arm in the constructor.
+  size_t base_link_index_{0};
+  size_t flange_link_index_{0};
   size_t kEndEffectorLinkIndex{8};
   // TODO(yazi_ba) update stiffness frame with the user defined transformation
   size_t kStiffnessLinkIndex{8};
