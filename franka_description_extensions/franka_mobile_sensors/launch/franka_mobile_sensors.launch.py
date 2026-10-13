@@ -17,7 +17,15 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import (
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
+from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -42,6 +50,13 @@ def generate_launch_description() -> LaunchDescription:
             default_value='true',
             choices=['true', 'false'],
             description='Whether to start RViz visualization',
+        ),
+        DeclareLaunchArgument(
+            'publish_sensor_tf',
+            default_value='true',
+            choices=['true', 'false'],
+            description='Whether to publish the sensor frames to TF when RViz is off '
+                        '(with RViz, its robot_state_publisher publishes them)',
         ),
         DeclareLaunchArgument(
             'config_file',
@@ -75,6 +90,28 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(LaunchConfiguration('start_lidars')),
     )
 
+    robot_description = ParameterValue(
+        Command([
+            FindExecutable(name='xacro'), ' ',
+            PathJoinSubstitution([pkg_dir, 'robots', LaunchConfiguration('robot_xacro')]),
+        ]),
+        value_type=str,
+    )
+    # The namespace keeps this URDF off /robot_description and the node off
+    # /joint_states. The sensor tree starts at base_link, leaving base ->
+    # base_link to the swerve odometry.
+    sensor_tf_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        namespace='sensors',
+        output='screen',
+        parameters=[{'robot_description': robot_description}],
+        condition=IfCondition(PythonExpression([
+            "'", LaunchConfiguration('publish_sensor_tf'), "' == 'true' and '",
+            LaunchConfiguration('start_rviz'), "' == 'false'",
+        ])),
+    )
+
     rviz_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [pkg_dir, '/launch/visualization/rviz.launch.py']
@@ -90,6 +127,7 @@ def generate_launch_description() -> LaunchDescription:
             *global_args,
             camera_launch,
             lidar_launch,
+            sensor_tf_publisher,
             rviz_launch,
         ]
     )

@@ -46,6 +46,18 @@ Launch Arguments
   * Default: ``true``
   * Description: Whether to start RViz visualization.
 
+* ``publish_sensor_tf``
+
+  * Type: ``bool``
+  * Default: ``true``
+  * Description: Whether to publish the sensor frames (e.g. ``lidar_front``,
+    ``lidar_rear``) to TF when ``start_rviz`` is ``false``; with RViz, its
+    ``robot_state_publisher`` publishes them. This ``robot_state_publisher``
+    runs as ``/sensors/robot_state_publisher`` with its tree rooted at
+    ``base_link``. Next to ``tmrv0_2.launch.py``, set ``start_rviz:=false``:
+    the RViz path starts its own ``robot_state_publisher`` and
+    ``joint_state_publisher_gui`` and is meant for standalone visualization.
+
 * ``config_file``
 
   * Type: ``string``
@@ -56,7 +68,9 @@ Launch Arguments
 
   * Type: ``string``
   * Default: ``tmrv0_2_with_sensors.urdf.xacro``
-  * Description: XACRO file for the robot model used in RViz.
+  * Description: XACRO file for the robot model used in RViz and for the sensor frames.
+    A file used for the sensor frames must be rooted at ``base_link``, so
+    ``base`` -> ``base_link`` stays with the swerve odometry.
 
 Configuration
 -------------

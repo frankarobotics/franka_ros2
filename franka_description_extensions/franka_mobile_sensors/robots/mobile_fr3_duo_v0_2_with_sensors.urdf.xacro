@@ -53,13 +53,6 @@
   <!-- Should the arms be used? -->
   <xacro:arg name="use_arms" default="true" />
 
-  <link name="base"/>
-  <joint name="base_joint" type="fixed">
-    <parent link="base"/>
-    <child link="base_link"/>
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-  </joint>
-
   <xacro:mobile_fr3_duo_v0_2_with_sensors
         robot_types="$(arg robot_types)"
         hand="$(arg hand)"

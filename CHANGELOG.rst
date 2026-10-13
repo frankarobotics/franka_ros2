@@ -1,6 +1,32 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+UNRELEASED
+----------
+Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
+
+* fix: ``tmrv0_2.launch.py`` read ``robot_ip`` and ``use_rviz`` only from the
+  config file. Both are now launch arguments that override the config file
+  when given.
+* fix: ``franka_mobile_sensors`` started the ``robot_state_publisher`` for the
+  sensor frames only together with RViz, so ``start_rviz:=false`` dropped the
+  lidar and camera frames from TF. With RViz off, a ``robot_state_publisher``
+  in the ``sensors`` namespace now publishes them (``publish_sensor_tf``,
+  default ``true``). Its tree starts at ``base_link``, its URDF stays off
+  ``/robot_description`` and it does not read ``/joint_states``, so with
+  ``start_rviz:=false`` it can run next to ``tmrv0_2.launch.py``.
+* fix: ``tmrv0_2_with_sensors.urdf.xacro`` and
+  ``mobile_fr3_duo_v0_2_with_sensors.urdf.xacro`` no longer add the fixed
+  ``base`` -> ``base_link`` root. The tree starts at ``base_link``, which
+  leaves ``base`` -> ``base_link`` to the swerve odometry. The description and
+  the Gazebo wrapper never added it, and the sensor RViz config already uses
+  ``base_link`` as its fixed frame.
+* test: ``franka_bringup`` checks that every joint of ``tmrv0_2.urdf.xacro``
+  exists in ``tmrv0_2_with_sensors.urdf.xacro`` with the same type, parent,
+  child and origin, since both publish the base frames side by side.
+* fix: ``franka_mobile_sensors`` declares ``joint_state_publisher_gui``, which
+  its RViz launch file starts.
+
 v3.6.0 (2026-10-06)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy

@@ -55,6 +55,7 @@ The launch file declares:
 * ``start_cameras`` (default ``true``);
 * ``start_lidars`` (default ``true``);
 * ``start_rviz`` (default ``true``);
+* ``publish_sensor_tf`` (default ``true``, sensor frames in TF when RViz is off);
 * ``config_file`` (default ``default_sensor_suite``, without ``.yaml``); and
 * ``robot_xacro`` (default ``tmrv0_2_with_sensors.urdf.xacro``).
 

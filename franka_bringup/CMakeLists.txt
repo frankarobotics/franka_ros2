@@ -52,6 +52,8 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_mobile_fr3_duo_interfaces test/test_mobile_fr3_duo_interfaces.py)
   ament_add_pytest_test(test_gazebo_wrapper_expansion test/test_gazebo_wrapper_expansion.py)
   ament_add_pytest_test(test_launch_file_parsing test/test_launch_file_parsing.py)
+  ament_add_pytest_test(test_tmr_sensor_description_consistency
+    test/test_tmr_sensor_description_consistency.py)
 
   install(
     DIRECTORY test
