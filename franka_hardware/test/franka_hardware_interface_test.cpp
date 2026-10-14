@@ -15,7 +15,10 @@
 #include <gmock/gmock.h>
 #include <algorithm>
 #include <array>
+#include <condition_variable>
 #include <exception>
+#include <future>
+#include <mutex>
 #include <rclcpp/rclcpp.hpp>
 
 #include <franka_hardware/franka_hardware_interface.hpp>
@@ -61,6 +64,12 @@ auto makeRobotStateWithJointReflexError() -> franka::RobotState {
   return robot_state;
 }
 
+class TestableFrankaHardwareInterface : public franka_hardware::FrankaHardwareInterface {
+ public:
+  using franka_hardware::FrankaHardwareInterface::FrankaHardwareInterface;
+  using franka_hardware::FrankaHardwareInterface::getActiveMode;
+};
+
 class FrankaHardwareInterfaceTest : public ::testing::TestWithParam<std::string> {
  public:
   auto SetUp() -> void override {
@@ -78,8 +87,7 @@ class FrankaHardwareInterfaceTest : public ::testing::TestWithParam<std::string>
   std::string robot_type{"fr3"};
   std::shared_ptr<MockRobot> default_mock_robot = std::make_shared<MockRobot>();
   hardware_interface::HardwareInfo default_hardware_info;
-  franka_hardware::FrankaHardwareInterface default_franka_hardware_interface{default_mock_robot,
-                                                                             robot_type};
+  TestableFrankaHardwareInterface default_franka_hardware_interface{default_mock_robot, robot_type};
   MockModel mock_model_;
 
   auto readAndExportStates(const franka::RobotState& robot_state = franka::RobotState{})
@@ -413,8 +421,6 @@ TEST_P(
 TEST_P(FrankaHardwareInterfaceTest, whenWriteCalled_expectOk) {
   std::string command_interface = GetParam();
 
-  EXPECT_CALL(*default_mock_robot, writeOnce(std::vector<double>{0, 0, 0, 0, 0, 0, 0}));
-
   std::vector<std::string> start_interface;
 
   for (size_t i = 0; i < default_hardware_info.joints.size(); i++) {
@@ -435,10 +441,16 @@ TEST_P(FrankaHardwareInterfaceTest, whenWriteCalled_expectOk) {
   const auto time = rclcpp::Time(0, 0);
   const auto duration = rclcpp::Duration(0, 0);
 
-  if (command_interface == k_position_controller) {
-    ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
-              hardware_interface::return_type::OK);
-  }
+  // The switch marked the state stale: the first write() skips in every mode.
+  EXPECT_CALL(*default_mock_robot, writeOnce(testing::_)).Times(0);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  // A fresh read() clears the mark.
+  EXPECT_CALL(*default_mock_robot, writeOnce(std::vector<double>{0, 0, 0, 0, 0, 0, 0}));
+  ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
+            hardware_interface::return_type::OK);
   ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
             hardware_interface::return_type::OK);
 }
@@ -1264,13 +1276,8 @@ TEST_F(FrankaHardwareInterfaceTest,
 }
 
 TEST_F(FrankaHardwareInterfaceTest,
-       givenEffortModeActive_whenModeSwitchToNone_writeCallDuringStopRobotDoesNotThrow) {
-  // Regression test: perform_command_mode_switch must set active_mode_ to None
-  // *before* calling stopRobot(), so that a concurrent write() from the RT thread
-  // does not call writeOnce() on a stopped robot (which throws "Control hasn't been started").
-  //
-  // We simulate the race by having the stopRobot mock invoke write() — this is what the
-  // RT loop would do while the non-RT perform_command_mode_switch is executing.
+       givenEffortModeActive_whenModeSwitchToNone_activeModeIsNoneBeforeStopRobot) {
+  // A throw in stopRobot() or initialize*Interface() must leave the mode at None.
   franka::RobotState robot_state;
   MockModel mock_model;
   MockModel* model_address = &mock_model;
@@ -1278,6 +1285,121 @@ TEST_F(FrankaHardwareInterfaceTest,
   EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
   EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
   EXPECT_CALL(*default_mock_robot, initializeTorqueInterface());
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+
+  std::vector<std::string> start_interface;
+  for (size_t i = 0; i < default_hardware_info.joints.size(); i++) {
+    start_interface.push_back(k_robot_type + "_" + k_joint_name + std::to_string(i + 1) + "/" +
+                              k_effort_controller);
+  }
+  std::vector<std::string> stop_interface = {};
+
+  // Activate effort mode
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  // Switch effort -> None: stopRobot() must already observe active_mode_ == None.
+  EXPECT_CALL(*default_mock_robot, stopRobot()).WillOnce(testing::InvokeWithoutArgs([&]() {
+    EXPECT_EQ(default_franka_hardware_interface.getActiveMode(),
+              franka_hardware::ControlInterface::None);
+  }));
+
+  default_franka_hardware_interface.prepare_command_mode_switch(stop_interface, start_interface);
+  ASSERT_EQ(default_franka_hardware_interface.perform_command_mode_switch(stop_interface,
+                                                                          start_interface),
+            hardware_interface::return_type::OK);
+}
+
+TEST_F(FrankaHardwareInterfaceTest,
+       givenCommandModeSwitchInProgress_whenReadWriteCalled_thenCycleSkippedWithoutRobotTraffic) {
+  // stopRobot() blocks under control_mutex_; read()/write() issued after its signal must skip.
+  franka::RobotState robot_state;
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, initializeTorqueInterface());
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+
+  std::vector<std::string> start_interface;
+  for (size_t i = 0; i < default_hardware_info.joints.size(); i++) {
+    start_interface.push_back(k_robot_type + "_" + k_joint_name + std::to_string(i + 1) + "/" +
+                              k_effort_controller);
+  }
+  std::vector<std::string> stop_interface = {};
+
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  std::mutex handshake_mutex;
+  std::condition_variable stop_entered_cv;
+  std::condition_variable proceed_cv;
+  bool stop_entered = false;
+  bool proceed = false;
+
+  EXPECT_CALL(*default_mock_robot, stopRobot()).WillOnce(testing::InvokeWithoutArgs([&]() {
+    {
+      std::lock_guard<std::mutex> handshake_lock(handshake_mutex);
+      stop_entered = true;
+    }
+    stop_entered_cv.notify_one();
+    std::unique_lock<std::mutex> handshake_lock(handshake_mutex);
+    proceed_cv.wait(handshake_lock, [&]() { return proceed; });
+  }));
+  EXPECT_CALL(*default_mock_robot, readOnce()).Times(0);
+  EXPECT_CALL(*default_mock_robot, writeOnce(testing::_)).Times(0);
+
+  const auto time = rclcpp::Time(0, 0);
+  const auto duration = rclcpp::Duration(0, 0);
+
+  auto switch_result = hardware_interface::return_type::ERROR;
+  std::thread switch_thread([&]() {
+    default_franka_hardware_interface.prepare_command_mode_switch(stop_interface, start_interface);
+    switch_result = default_franka_hardware_interface.perform_command_mode_switch(stop_interface,
+                                                                                  start_interface);
+  });
+
+  // Bounded wait: a blocking-lock regression fails here instead of hanging ctest.
+  {
+    std::unique_lock<std::mutex> handshake_lock(handshake_mutex);
+    stop_entered_cv.wait(handshake_lock, [&]() { return stop_entered; });
+  }
+  auto cycle = std::async(std::launch::async, [&]() {
+    return std::make_pair(default_franka_hardware_interface.read(time, duration),
+                          default_franka_hardware_interface.write(time, duration));
+  });
+  const bool cycle_returned = cycle.wait_for(std::chrono::seconds(2)) == std::future_status::ready;
+  {  // Release the switch unconditionally so a failure cannot deadlock teardown.
+    std::lock_guard<std::mutex> handshake_lock(handshake_mutex);
+    proceed = true;
+  }
+  proceed_cv.notify_one();
+  switch_thread.join();
+  ASSERT_TRUE(cycle_returned) << "read()/write() blocked on control_mutex_ during a mode switch";
+  const auto [cycle_read, cycle_write] = cycle.get();
+  EXPECT_EQ(cycle_read, hardware_interface::return_type::OK);
+  EXPECT_EQ(cycle_write, hardware_interface::return_type::OK);
+
+  ASSERT_EQ(switch_result, hardware_interface::return_type::OK);
+}
+
+TEST_F(FrankaHardwareInterfaceTest,
+       givenSyncReadSwitchOrder_whenWriteCalled_thenFirstWriteSkippedUntilFreshRead) {
+  // Single-threaded: the try-lock never fails, so only the stale mark can skip write().
+  franka::RobotState robot_state;
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+  EXPECT_CALL(*default_mock_robot, initializeTorqueInterface());
+
+  ASSERT_EQ(default_franka_hardware_interface.on_activate(rclcpp_lifecycle::State()),
+            CallbackReturn::SUCCESS);
 
   std::vector<std::string> start_interface;
   for (size_t i = 0; i < default_hardware_info.joints.size(); i++) {
@@ -1289,40 +1411,157 @@ TEST_F(FrankaHardwareInterfaceTest,
   const auto time = rclcpp::Time(0, 0);
   const auto duration = rclcpp::Duration(0, 0);
 
-  // Activate effort mode
-  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
-  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+  ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
+            hardware_interface::return_type::OK);
 
-  // Verify write works normally
-  EXPECT_CALL(*default_mock_robot, writeOnce(std::vector<double>{0, 0, 0, 0, 0, 0, 0})).Times(1);
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  ASSERT_EQ(default_franka_hardware_interface.perform_command_mode_switch(start_interface,
+                                                                          stop_interface),
+            hardware_interface::return_type::OK);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  EXPECT_CALL(*default_mock_robot, writeOnce(testing::_)).Times(0);
   ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
             hardware_interface::return_type::OK);
   testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
 
-  // Now switch to None (deactivate). When stopRobot() is called, simulate the RT thread
-  // calling write(). After stopRobot, writeOnce must NOT be called — if it is, the real
-  // robot would throw "Control hasn't been started".
-  std::thread rt_thread;
-  EXPECT_CALL(*default_mock_robot, stopRobot()).WillOnce(testing::InvokeWithoutArgs([&]() {
-    // Simulate RT thread calling write() concurrently after stopRobot nulls active_control_.
-    // writeOnce must not be called — if active_mode_ wasn't reset, it would be.
-    EXPECT_CALL(*default_mock_robot, writeOnce(testing::_)).Times(0);
-    rt_thread = std::thread([&]() {
-      ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
-                hardware_interface::return_type::OK);
-    });
-  }));
-
-  // Perform the mode switch: effort → none
-  default_franka_hardware_interface.prepare_command_mode_switch(stop_interface, start_interface);
-  ASSERT_EQ(default_franka_hardware_interface.perform_command_mode_switch(stop_interface,
-                                                                          start_interface),
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, writeOnce(testing::_)).Times(1);
+  ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
             hardware_interface::return_type::OK);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+}
 
-  // Wait for the RT thread to finish
-  if (rt_thread.joinable()) {
-    rt_thread.join();
+TEST_F(FrankaHardwareInterfaceTest,
+       givenReadSkippedDuringSwitch_whenWriteCalled_thenWriteSkippedUntilFreshRead) {
+  // initializeTorqueInterface() blocks under control_mutex_; a read() after its signal skips.
+  franka::RobotState robot_state;
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+
+  ASSERT_EQ(default_franka_hardware_interface.on_activate(rclcpp_lifecycle::State()),
+            CallbackReturn::SUCCESS);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  std::mutex handshake_mutex;
+  std::condition_variable switch_entered_cv;
+  std::condition_variable proceed_cv;
+  bool switch_entered = false;
+  bool proceed = false;
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).Times(0);
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+  EXPECT_CALL(*default_mock_robot, initializeTorqueInterface())
+      .WillOnce(testing::InvokeWithoutArgs([&]() {
+        {
+          std::lock_guard<std::mutex> handshake_lock(handshake_mutex);
+          switch_entered = true;
+        }
+        switch_entered_cv.notify_one();
+        std::unique_lock<std::mutex> handshake_lock(handshake_mutex);
+        proceed_cv.wait(handshake_lock, [&]() { return proceed; });
+      }));
+
+  std::vector<std::string> start_interface;
+  for (size_t i = 0; i < default_hardware_info.joints.size(); i++) {
+    start_interface.push_back(k_robot_type + "_" + k_joint_name + std::to_string(i + 1) + "/" +
+                              k_effort_controller);
   }
+  std::vector<std::string> stop_interface = {};
+
+  auto switch_result = hardware_interface::return_type::ERROR;
+  std::thread switch_thread([&]() {
+    default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+    switch_result = default_franka_hardware_interface.perform_command_mode_switch(start_interface,
+                                                                                  stop_interface);
+  });
+
+  const auto time = rclcpp::Time(0, 0);
+  const auto duration = rclcpp::Duration(0, 0);
+
+  {
+    std::unique_lock<std::mutex> handshake_lock(handshake_mutex);
+    switch_entered_cv.wait(handshake_lock, [&]() { return switch_entered; });
+  }
+  // Bounded wait: a blocking-lock regression fails here instead of hanging ctest.
+  auto skipped_read = std::async(
+      std::launch::async, [&]() { return default_franka_hardware_interface.read(time, duration); });
+  const bool read_returned =
+      skipped_read.wait_for(std::chrono::seconds(2)) == std::future_status::ready;
+  {  // Release the switch unconditionally so a failure cannot deadlock teardown.
+    std::lock_guard<std::mutex> handshake_lock(handshake_mutex);
+    proceed = true;
+  }
+  proceed_cv.notify_one();
+  switch_thread.join();
+  ASSERT_TRUE(read_returned) << "read() blocked on control_mutex_ during a mode switch";
+  ASSERT_EQ(skipped_read.get(), hardware_interface::return_type::OK);
+  ASSERT_EQ(switch_result, hardware_interface::return_type::OK);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, writeOnce(testing::_)).Times(0);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, writeOnce(testing::_)).Times(1);
+  ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
+            hardware_interface::return_type::OK);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::OK);
+}
+
+TEST_F(FrankaHardwareInterfaceTest, givenRuntimeErrorDuringWrite_whenWriteCalled_thenReturnsError) {
+  franka::RobotState robot_state;
+  robot_state.q = std::array<double, 7>{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7};
+  robot_state.dq = std::array<double, 7>{1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7};
+  robot_state.tau_J = std::array<double, 7>{2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7};
+  MockModel mock_model;
+  MockModel* model_address = &mock_model;
+  auto expected_positions = std::vector<double>{robot_state.q.begin(), robot_state.q.end()};
+
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(testing::AnyNumber());
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, initializeJointPositionInterface());
+
+  ASSERT_EQ(default_franka_hardware_interface.on_activate(rclcpp_lifecycle::State()),
+            CallbackReturn::SUCCESS);
+
+  std::vector<std::string> start_interface;
+  for (size_t i = 0; i < default_hardware_info.joints.size(); i++) {
+    start_interface.push_back(k_robot_type + "_" + k_joint_name + std::to_string(i + 1) + "/" +
+                              k_position_controller);
+  }
+  std::vector<std::string> stop_interface = {};
+  default_franka_hardware_interface.prepare_command_mode_switch(start_interface, stop_interface);
+  default_franka_hardware_interface.perform_command_mode_switch(start_interface, stop_interface);
+  testing::Mock::VerifyAndClearExpectations(default_mock_robot.get());
+
+  EXPECT_CALL(*default_mock_robot, getModel()).WillRepeatedly(testing::Return(model_address));
+  EXPECT_CALL(*default_mock_robot, readOnce()).WillRepeatedly(testing::Return(robot_state));
+  EXPECT_CALL(*default_mock_robot, stopRobot()).Times(0);
+  EXPECT_CALL(*default_mock_robot, writeOnce(expected_positions))
+      .Times(1)
+      .WillOnce(testing::Throw(std::runtime_error("Control hasn't been started")));
+
+  auto time = rclcpp::Time(0, 0);
+  auto duration = rclcpp::Duration(0, 0);
+  ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
+            hardware_interface::return_type::OK);
+  ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
+            hardware_interface::return_type::ERROR);
 }
 
 int main(int argc, char** argv) {

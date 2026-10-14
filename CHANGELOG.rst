@@ -43,6 +43,10 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   the arm's joints, ``link0`` or ``link8`` is rejected when the component is constructed; a
   description missing an accelerometer frame is rejected when the message is initialized during
   configure.
+* fix: ``FrankaHardwareInterface::read()``/``write()`` skip the cycle instead of blocking while a
+  command mode switch holds the robot (tens of milliseconds) (GitHub Issue #243).
+* fix: the first ``write()`` after a command mode switch is skipped until a fresh ``read()``.
+* fix: ``write()`` returns ERROR instead of a warning when no robot control is active.
 
 v3.6.0 (2026-10-06)
 -------------------
