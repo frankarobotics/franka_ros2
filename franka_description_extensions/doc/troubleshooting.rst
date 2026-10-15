@@ -108,9 +108,11 @@ For ``franka_mobile_sensors``:
 
 * ``config_file`` is a file name resolved inside the package's ``config``
   directory and may omit ``.yaml``;
-* ``robot_xacro`` is the file name selected by the RViz launch helper; and
-* ``start_cameras``, ``start_lidars``, and ``start_rviz`` control runtime
-  nodes, not the links emitted by the xacro.
+* ``robot_xacro`` is the file name of the model used by RViz and for the
+  sensor frames; and
+* ``start_cameras``, ``start_lidars``, ``start_rviz``, and
+  ``publish_sensor_tf`` control runtime nodes, not the links emitted by the
+  xacro.
 
 For ``franka_vision_and_manipulation_kit``:
 

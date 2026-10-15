@@ -23,7 +23,10 @@
 # fake_sensor_commands: Fake sensor commands (default: 'false')
 # joint_state_rate: Rate for joint state publishing in Hz (default: '30')
 # namespace: Namespace for the robot (default: '')
-# use_rviz: Launch RViz for the robot (default: 'true')
+# robot_ip: Robot IP address; overrides robot_ip from the config file
+#           (default: from the config file)
+# use_rviz: Launch RViz for the robot, lowercase 'true' or 'false'; overrides
+#           use_rviz from the config file (default: from the config file)
 #
 # The tmrv0_2.launch.py launch file provides a self-contained interface for
 # launching a Franka Robotics TMR v0.2 mobile base. It generates the robot
@@ -77,12 +80,16 @@ def generate_robot_nodes(context):
     # Extract parameters from config
     robot_type = str(config.get('robot_type', 'tmrv0_2'))
     arm_prefix = str(config.get('arm_prefix', ''))
-    robot_ip = str(config.get('robot_ip', '172.16.16.10'))
+    robot_ip = LaunchConfiguration('robot_ip').perform(context) or str(
+        config.get('robot_ip', '172.16.16.10')
+    )
     use_fake_hardware_str = str(config.get('use_fake_hardware', 'false'))
     fake_sensor_commands_str = str(config.get('fake_sensor_commands', 'false'))
     namespace = str(config.get('namespace', ''))
     joint_state_rate = int(config.get('joint_state_rate', 30))
-    use_rviz = str(config.get('use_rviz', 'true')).lower() == 'true'
+    use_rviz = (
+        LaunchConfiguration('use_rviz').perform(context) or str(config.get('use_rviz', 'true'))
+    ).lower() == 'true'
 
     controllers_yaml = LaunchConfiguration('controllers_yaml').perform(context)
 
@@ -224,6 +231,17 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'controller_name',
             description='Controller name to spawn (required).',
+        ),
+        DeclareLaunchArgument(
+            'robot_ip',
+            default_value='',
+            description='Robot IP address. Overrides robot_ip from the config file if set.',
+        ),
+        DeclareLaunchArgument(
+            'use_rviz',
+            default_value='',
+            choices=['', 'true', 'false'],
+            description="'true' or 'false'. Overrides use_rviz from the config file if set.",
         ),
     ]
 

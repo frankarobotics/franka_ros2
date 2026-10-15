@@ -84,11 +84,12 @@ def mobile_sensor_xacro_path(filename: str) -> str:
 def expanded_mobile_sensor(request):
     """Expand one installed standalone mobile sensor entry point."""
     _, filename, mappings = request.param
+    # xacro adds the defaults to the dict it is given.
     urdf = xacro.process_file(
         mobile_sensor_xacro_path(filename),
-        mappings=mappings,
+        mappings=dict(mappings),
     ).toxml()
-    return ElementTree.fromstring(urdf), urdf
+    return ElementTree.fromstring(urdf), mappings
 
 
 def joint_links(root: ElementTree.Element, joint_name: str) -> tuple[str, str]:
@@ -198,7 +199,16 @@ def test_attaches_sensors_to_tmr_mounting_points(expanded_mobile_sensor):
     for joint_name, expected_parent in EXPECTED_SENSOR_PARENTS.items():
         parent_link, _ = joint_links(root, joint_name)
         assert parent_link == expected_parent
-    assert joint_links(root, 'base_joint') == ('base', 'base_link')
+
+
+def test_is_rooted_at_base_link(expanded_mobile_sensor):
+    """The tree starts at base_link, so base -> base_link stays with the odometry."""
+    root, _ = expanded_mobile_sensor
+    link_names = set(named_elements(root, 'link'))
+    child_link_names = {joint.find('child').get('link') for joint in root.findall('joint')}
+    assert link_names - child_link_names == {'base_link'}
+    assert 'base' not in link_names
+    assert 'base_joint' not in named_elements(root, 'joint')
 
 
 def test_has_no_gazebo_or_placeholder_elements(expanded_mobile_sensor):
