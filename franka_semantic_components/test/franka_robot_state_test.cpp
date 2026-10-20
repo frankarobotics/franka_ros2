@@ -23,16 +23,16 @@
 #include <research_interface/robot/rbk_types.h>
 
 void FrankaRobotStateTest::TearDown() {
-  franka_state_friend.reset(nullptr);
+  franka_state.reset(nullptr);
 }
 
 void FrankaRobotStateTest::SetUp() {
   full_interface_names.reserve(size);
   full_interface_names.emplace_back(robot_name + "/" + franka_state_interface_name);
-  franka_state_friend =
+  franka_state =
       std::make_unique<FrankaRobotStateTestFriend>(robot_name + "/" + franka_state_interface_name);
 
-  std::vector<std::string> interface_names = franka_state_friend->get_state_interface_names();
+  std::vector<std::string> interface_names = franka_state->get_state_interface_names();
 
   robot_state.q = joint_angles;
   robot_state.q_d = joint_velocities;
@@ -47,33 +47,33 @@ void FrankaRobotStateTest::SetUp() {
   temp_state_interfaces.reserve(size);
 
   temp_state_interfaces.emplace_back(franka_hw_state);
-  ASSERT_TRUE(franka_state_friend->assign_loaned_state_interfaces(temp_state_interfaces));
-  franka_state_friend->initialize_robot_state_msg(franka_robot_state_msg);
-  ASSERT_TRUE(franka_state_friend->get_values_as_message(franka_robot_state_msg));
+  ASSERT_TRUE(franka_state->assign_loaned_state_interfaces(temp_state_interfaces));
+  franka_state->initialize_robot_state_msg(franka_robot_state_msg);
+  ASSERT_TRUE(franka_state->get_values_as_message(franka_robot_state_msg));
 }
 
 TEST_F(FrankaRobotStateTest, validate_state_names_and_size) {
-  ASSERT_EQ(franka_state_friend->name_, robot_name + "/" + franka_state_interface_name);
+  ASSERT_EQ(franka_state->name_, robot_name + "/" + franka_state_interface_name);
 
-  ASSERT_EQ(franka_state_friend->interface_names_.size(), size);
-  ASSERT_EQ(franka_state_friend->state_interfaces_.capacity(), size);
+  ASSERT_EQ(franka_state->interface_names_.size(), size);
+  ASSERT_EQ(franka_state->state_interfaces_.capacity(), size);
 
-  ASSERT_TRUE(std::equal(franka_state_friend->interface_names_.begin(),
-                         franka_state_friend->interface_names_.end(), full_interface_names.begin(),
+  ASSERT_TRUE(std::equal(franka_state->interface_names_.begin(),
+                         franka_state->interface_names_.end(), full_interface_names.begin(),
                          full_interface_names.end()));
-  ASSERT_EQ(franka_state_friend->state_interfaces_.size(), size);
-  franka_state_friend->release_interfaces();
+  ASSERT_EQ(franka_state->state_interfaces_.size(), size);
+  franka_state->release_interfaces();
   // validate the count of state_interfaces_
-  ASSERT_EQ(franka_state_friend->state_interfaces_.size(), 0u);
+  ASSERT_EQ(franka_state->state_interfaces_.size(), 0u);
 }
 
 TEST_F(FrankaRobotStateTest, robot_state_ptr_uncasted_correctly) {
-  auto robot_state_ptr = franka_state_friend->get_robot_state();
+  auto robot_state_ptr = franka_state->get_robot_state();
   ASSERT_NE(robot_state_ptr, nullptr);
   ASSERT_EQ(robot_state_ptr->q, robot_state.q);
-  franka_state_friend->release_interfaces();
+  franka_state->release_interfaces();
   // validate the count of state_interfaces_
-  ASSERT_EQ(franka_state_friend->state_interfaces_.size(), 0u);
+  ASSERT_EQ(franka_state->state_interfaces_.size(), 0u);
 }
 
 TEST_F(FrankaRobotStateTest,
@@ -89,19 +89,19 @@ TEST_F(FrankaRobotStateTest,
 
   ASSERT_EQ(franka_msgs::msg::FrankaRobotState::ROBOT_MODE_USER_STOPPED,
             franka_robot_state_msg.robot_mode);
-  franka_state_friend->release_interfaces();
+  franka_state->release_interfaces();
   // validate the count of state_interfaces_
-  ASSERT_EQ(franka_state_friend->state_interfaces_.size(), 0u);
+  ASSERT_EQ(franka_state->state_interfaces_.size(), 0u);
 }
 
 TEST_F(FrankaRobotStateTest, a_released_buffer_stops_the_message_from_being_built) {
-  franka_state_friend->release_interfaces();
+  franka_state->release_interfaces();
 
-  ASSERT_FALSE(franka_state_friend->get_values_as_message(franka_robot_state_msg));
+  ASSERT_FALSE(franka_state->get_values_as_message(franka_robot_state_msg));
 }
 
 TEST_F(FrankaRobotStateTest, a_null_state_box_fails_assignment) {
-  franka_state_friend->release_interfaces();
+  franka_state->release_interfaces();
 
   realtime_tools::RealtimeThreadSafeBox<franka::RobotState>* null_box_ptr = nullptr;
   hardware_interface::StateInterface franka_hw_state{robot_name, franka_state_interface_name,
@@ -109,8 +109,8 @@ TEST_F(FrankaRobotStateTest, a_null_state_box_fails_assignment) {
   std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
   temp_state_interfaces.emplace_back(franka_hw_state);
 
-  ASSERT_FALSE(franka_state_friend->assign_loaned_state_interfaces(temp_state_interfaces));
-  ASSERT_EQ(franka_state_friend->state_interfaces_.size(), 0u);
+  ASSERT_FALSE(franka_state->assign_loaned_state_interfaces(temp_state_interfaces));
+  ASSERT_EQ(franka_state->state_interfaces_.size(), 0u);
 }
 
 TEST_F(FrankaRobotStateTest, the_cached_box_keeps_serving_fresh_state) {
@@ -120,7 +120,7 @@ TEST_F(FrankaRobotStateTest, the_cached_box_keeps_serving_fresh_state) {
   robot_state.q = moved_angles;
   robot_state_box.set(robot_state);
 
-  ASSERT_TRUE(franka_state_friend->get_values_as_message(franka_robot_state_msg));
+  ASSERT_TRUE(franka_state->get_values_as_message(franka_robot_state_msg));
   ASSERT_THAT(moved_angles,
               ::testing::ElementsAreArray(franka_robot_state_msg.measured_joint_state.position));
 }
@@ -145,7 +145,7 @@ TEST_F(FrankaRobotStateTest,
   robot_state.last_motion_errors = franka::Errors(last_motion_error_flags);
   robot_state_box.set(robot_state);
 
-  ASSERT_TRUE(franka_state_friend->get_values_as_message(franka_robot_state_msg));
+  ASSERT_TRUE(franka_state->get_values_as_message(franka_robot_state_msg));
 
   EXPECT_EQ(franka_msgs::msg::FrankaRobotState::ROBOT_MODE_REFLEX,
             franka_robot_state_msg.robot_mode);
@@ -154,11 +154,11 @@ TEST_F(FrankaRobotStateTest,
   EXPECT_TRUE(franka_robot_state_msg.last_motion_errors.cartesian_reflex);
   EXPECT_TRUE(franka_robot_state_msg.last_motion_errors.controller_torque_discontinuity);
 
-  franka_state_friend->release_interfaces();
+  franka_state->release_interfaces();
 }
 
 TEST_F(FrankaRobotStateTest, givenInitializedRobotStateMsg_thenCorrectFrameIDs) {
-  franka_state_friend->initialize_robot_state_msg(franka_robot_state_msg);
+  franka_state->initialize_robot_state_msg(franka_robot_state_msg);
 
   ASSERT_EQ(franka_robot_state_msg.o_t_ee.header.frame_id, "fr3_link0");
   ASSERT_EQ(franka_robot_state_msg.ee_t_k.header.frame_id, "fr3_hand_tcp");
@@ -167,10 +167,12 @@ TEST_F(FrankaRobotStateTest, givenInitializedRobotStateMsg_thenCorrectFrameIDs) 
   ASSERT_EQ(franka_robot_state_msg.o_f_ext_hat_k.header.frame_id, "fr3_link0");
   ASSERT_EQ(franka_robot_state_msg.o_dp_ee_c.header.frame_id, "fr3_link0");
   ASSERT_EQ(franka_robot_state_msg.o_ddp_ee_c.header.frame_id, "fr3_link0");
+  ASSERT_EQ(franka_robot_state_msg.f_t_ee.header.frame_id, "fr3_link8");
+  ASSERT_EQ(franka_robot_state_msg.inertia_load.header.frame_id, "fr3_link8");
 }
 
 TEST_F(FrankaRobotStateTest, givenInitializedRobotStateMsg_thenCorrectlySizedDynamicVectors) {
-  franka_state_friend->initialize_robot_state_msg(franka_robot_state_msg);
+  franka_state->initialize_robot_state_msg(franka_robot_state_msg);
   auto expected_size = franka_robot_state_msg.measured_joint_state.name.size();
 
   ASSERT_EQ(franka_robot_state_msg.desired_joint_state.position.size(), expected_size);
@@ -210,7 +212,7 @@ TEST_F(FrankaRobotStateTest,
   requested_stamp.nanosec = 456789;
   franka_robot_state_msg.header.stamp = requested_stamp;
 
-  ASSERT_TRUE(franka_state_friend->get_values_as_message(franka_robot_state_msg));
+  ASSERT_TRUE(franka_state->get_values_as_message(franka_robot_state_msg));
 
   ASSERT_EQ(franka_robot_state_msg.accelerometer_top.size(), kSensorCount);
   ASSERT_EQ(franka_robot_state_msg.accelerometer_bottom.size(), kSensorCount);
@@ -240,4 +242,179 @@ TEST_F(FrankaRobotStateTest,
     ASSERT_EQ(franka_robot_state_msg.accelerometer_bottom[sensor].vector.z,
               bottom_readings[sensor][2]);
   }
+}
+
+void FrankaRobotStateMultiArmTest::TearDown() {
+  franka_state.reset(nullptr);
+}
+
+void FrankaRobotStateMultiArmTest::SetUp() {
+  franka_state = std::make_unique<franka_semantic_components::FrankaRobotState>(
+      robot_name + "/" + franka_state_interface_name,
+      add_second_arm(read_robot_description("franka_semantic_components"), "a_fr3", "fr3_link0"));
+
+  robot_state.q = joint_angles;
+  robot_state.q_d = desired_joint_angles;
+  robot_state_box.set(robot_state);
+
+  hardware_interface::StateInterface franka_hw_state{
+      robot_name, franka_state_interface_name, reinterpret_cast<double*>(&robot_state_box_ptr)};
+  std::vector<hardware_interface::LoanedStateInterface> temp_state_interfaces;
+
+  temp_state_interfaces.reserve(size);
+  temp_state_interfaces.emplace_back(franka_hw_state);
+
+  ASSERT_TRUE(franka_state->assign_loaned_state_interfaces(temp_state_interfaces));
+  franka_state->initialize_robot_state_msg(franka_robot_state_msg);
+  ASSERT_TRUE(franka_state->get_values_as_message(franka_robot_state_msg));
+}
+
+// The robot_description holds fourteen revolute joints, but libfranka reports seven values for
+// the one arm this component is bound to. Sizing the arrays from the description made them
+// fourteen long and filled the extra entries by reading past the end of franka::RobotState's
+// seven-element arrays.
+TEST_F(FrankaRobotStateMultiArmTest, givenMultiArmRobotDescription_thenJointArraysAreArmLocal) {
+  const std::vector<std::string> expected_names = {"fr3_joint1", "fr3_joint2", "fr3_joint3",
+                                                   "fr3_joint4", "fr3_joint5", "fr3_joint6",
+                                                   "fr3_joint7"};
+
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.name, expected_names);
+  ASSERT_EQ(franka_robot_state_msg.desired_joint_state.name, expected_names);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_motor_state.name, expected_names);
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.name, expected_names);
+
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.position.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.velocity.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.effort.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.desired_joint_state.position.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.desired_joint_state.velocity.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.desired_joint_state.effort.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_motor_state.position.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_motor_state.velocity.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_motor_state.effort.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.position.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.velocity.size(), 7u);
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.effort.size(), 7u);
+}
+
+// Each entry has to carry the quantity its own field promises. Before the fix, entry seven of
+// measured_joint_state.position held q_d[0] rather than a measured position.
+TEST_F(FrankaRobotStateMultiArmTest, givenMultiArmRobotDescription_thenJointValuesAreNotMixed) {
+  ASSERT_THAT(joint_angles,
+              ::testing::ElementsAreArray(franka_robot_state_msg.measured_joint_state.position));
+  ASSERT_THAT(desired_joint_angles,
+              ::testing::ElementsAreArray(franka_robot_state_msg.desired_joint_state.position));
+}
+
+// The frame IDs come from the bound arm by name, not from positions in the global link tree.
+// Both arms hang off a shared `base` root, so a positional lookup returns `base` for the base
+// frame and mislabels the flange; resolving by name keeps this arm's frames.
+TEST_F(FrankaRobotStateMultiArmTest, givenMultiArmRobotDescription_thenFrameIDsAreArmLocal) {
+  ASSERT_EQ(franka_robot_state_msg.measured_joint_state.header.frame_id, "fr3_link0");
+  ASSERT_EQ(franka_robot_state_msg.o_t_ee.header.frame_id, "fr3_link0");
+  ASSERT_EQ(franka_robot_state_msg.o_f_ext_hat_k.header.frame_id, "fr3_link0");
+  ASSERT_EQ(franka_robot_state_msg.f_t_ee.header.frame_id, "fr3_link8");
+  ASSERT_EQ(franka_robot_state_msg.inertia_load.header.frame_id, "fr3_link8");
+  ASSERT_EQ(franka_robot_state_msg.ee_t_k.header.frame_id, "fr3_hand_tcp");
+  ASSERT_EQ(franka_robot_state_msg.k_f_ext_hat_k.header.frame_id, "fr3_hand_tcp");
+}
+
+// get_values_as_message() is public, so a caller may hand in a message this component did not
+// size. The copy stays bounded by libfranka's seven-element source: the arm's seven values land
+// in the first entries and anything past them is left untouched, never filled from reads past
+// the end of the source arrays.
+TEST_F(FrankaRobotStateMultiArmTest, givenOversizedMessage_thenJointCopyIsBoundedBySource) {
+  constexpr double kUntouched = -1234.5;
+  constexpr size_t kOversizedWidth = 14;
+  for (auto* joint_state :
+       {&franka_robot_state_msg.measured_joint_state, &franka_robot_state_msg.desired_joint_state,
+        &franka_robot_state_msg.measured_joint_motor_state,
+        &franka_robot_state_msg.tau_ext_hat_filtered}) {
+    joint_state->position.assign(kOversizedWidth, kUntouched);
+    joint_state->velocity.assign(kOversizedWidth, kUntouched);
+    joint_state->effort.assign(kOversizedWidth, kUntouched);
+  }
+
+  ASSERT_TRUE(franka_state->get_values_as_message(franka_robot_state_msg));
+
+  const std::vector<double> measured_head(
+      franka_robot_state_msg.measured_joint_state.position.cbegin(),
+      franka_robot_state_msg.measured_joint_state.position.cbegin() + 7);
+  const std::vector<double> desired_head(
+      franka_robot_state_msg.desired_joint_state.position.cbegin(),
+      franka_robot_state_msg.desired_joint_state.position.cbegin() + 7);
+  ASSERT_THAT(joint_angles, ::testing::ElementsAreArray(measured_head));
+  ASSERT_THAT(desired_joint_angles, ::testing::ElementsAreArray(desired_head));
+
+  const std::vector<const std::vector<double>*> fully_written_tails = {
+      &franka_robot_state_msg.measured_joint_state.position,
+      &franka_robot_state_msg.measured_joint_state.velocity,
+      &franka_robot_state_msg.measured_joint_state.effort,
+      &franka_robot_state_msg.desired_joint_state.position,
+      &franka_robot_state_msg.desired_joint_state.velocity,
+      &franka_robot_state_msg.desired_joint_state.effort,
+      &franka_robot_state_msg.measured_joint_motor_state.position,
+      &franka_robot_state_msg.measured_joint_motor_state.velocity,
+      &franka_robot_state_msg.tau_ext_hat_filtered.effort};
+  for (const auto* values : fully_written_tails) {
+    ASSERT_EQ(values->size(), kOversizedWidth);
+    for (size_t i = 7; i < kOversizedWidth; ++i) {
+      ASSERT_EQ((*values)[i], kUntouched);
+    }
+  }
+}
+
+// One short destination bounds the whole copy the same way: with a three-wide destination
+// only three values are written, so a clamp over a single destination would write past the
+// end of the short one and fill the other tails.
+TEST_F(FrankaRobotStateMultiArmTest, givenUndersizedDestination_thenJointCopyIsBoundedByAll) {
+  constexpr double kUntouched = -1234.5;
+  constexpr size_t kOversizedWidth = 14;
+  constexpr size_t kUndersizedWidth = 3;
+  for (auto* joint_state :
+       {&franka_robot_state_msg.measured_joint_state, &franka_robot_state_msg.desired_joint_state,
+        &franka_robot_state_msg.measured_joint_motor_state,
+        &franka_robot_state_msg.tau_ext_hat_filtered}) {
+    joint_state->position.assign(kOversizedWidth, kUntouched);
+    joint_state->velocity.assign(kOversizedWidth, kUntouched);
+    joint_state->effort.assign(kOversizedWidth, kUntouched);
+  }
+  franka_robot_state_msg.tau_ext_hat_filtered.effort.assign(kUndersizedWidth, kUntouched);
+
+  ASSERT_TRUE(franka_state->get_values_as_message(franka_robot_state_msg));
+
+  ASSERT_EQ(franka_robot_state_msg.tau_ext_hat_filtered.effort.size(), kUndersizedWidth);
+  for (size_t i = 0; i < kUndersizedWidth; ++i) {
+    ASSERT_EQ(franka_robot_state_msg.measured_joint_state.position[i], joint_angles[i]);
+  }
+  for (size_t i = kUndersizedWidth; i < 7; ++i) {
+    ASSERT_EQ(franka_robot_state_msg.measured_joint_state.position[i], kUntouched);
+  }
+}
+
+// A robot_description that does not describe this arm is a configuration error, not something to
+// publish around. initialize_robot_state_msg() already rejects a missing accelerometer frame the
+// same way.
+TEST(FrankaRobotStateStandaloneTest, givenDescriptionWithoutThisArm_thenConstructionThrows) {
+  EXPECT_THROW(franka_semantic_components::FrankaRobotState(
+                   "no_such_arm/robot_state", read_robot_description("franka_semantic_components")),
+               std::runtime_error);
+}
+
+// Without the hand TCP frame the end-effector, stiffness and inertia frames fall back to the
+// flange, the same default a gripper-less arm reports.
+TEST(FrankaRobotStateStandaloneTest, givenDescriptionWithoutHandTcp_thenFramesFallBackToFlange) {
+  franka_semantic_components::FrankaRobotState franka_state(
+      "fr3/robot_state",
+      remove_hand_tcp_frame(read_robot_description("franka_semantic_components"), "fr3"));
+  franka_msgs::msg::FrankaRobotState message;
+  franka_state.initialize_robot_state_msg(message);
+
+  EXPECT_EQ(message.o_t_ee.header.frame_id, "fr3_link0");
+  EXPECT_EQ(message.f_t_ee.header.frame_id, "fr3_link8");
+  EXPECT_EQ(message.ee_t_k.header.frame_id, "fr3_link8");
+  EXPECT_EQ(message.k_f_ext_hat_k.header.frame_id, "fr3_link8");
+  EXPECT_EQ(message.inertia_ee.header.frame_id, "fr3_link8");
+  EXPECT_EQ(message.inertia_load.header.frame_id, "fr3_link8");
+  EXPECT_EQ(message.inertia_total.header.frame_id, "fr3_link8");
 }

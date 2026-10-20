@@ -118,11 +118,19 @@ controller_interface::CallbackReturn FrankaRobotStateBroadcaster::on_configure(
   }
 
   if (!franka_robot_state_) {
-    std::string full_prefix = params_.arm_prefix.empty() ? "" : params_.arm_prefix + "_";
-    std::string hw_interface_name = full_prefix + params_.robot_type + "/" + state_interface_name_;
+    try {
+      const std::string full_prefix = params_.arm_prefix.empty() ? "" : params_.arm_prefix + "_";
+      const std::string hw_interface_name =
+          full_prefix + params_.robot_type + "/" + state_interface_name_;
 
-    franka_robot_state_ = std::make_unique<franka_semantic_components::FrankaRobotState>(
-        hw_interface_name, robot_description);
+      franka_robot_state_ = std::make_unique<franka_semantic_components::FrankaRobotState>(
+          hw_interface_name, robot_description);
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(this_node->get_logger(),
+                   "Failed to resolve this arm's joints and frames from robot_description: %s",
+                   e.what());
+      return CallbackReturn::ERROR;
+    }
   }
 
   const auto convenience_qos = rclcpp::QoS(rclcpp::KeepLast(1)).best_effort();
