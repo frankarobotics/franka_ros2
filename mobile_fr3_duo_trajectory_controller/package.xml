@@ -21,6 +21,7 @@
   <depend>controller_interface</depend>
   <depend>control_msgs</depend>
   <depend>hardware_interface</depend>
+  <depend>lifecycle_msgs</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
   <depend>rclcpp_lifecycle</depend>
