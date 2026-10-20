@@ -18,6 +18,7 @@
 #include <cmath>
 #include <string>
 
+#include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp_action/create_server.hpp"
 
 namespace mobile_fr3_duo_trajectory_controller {
