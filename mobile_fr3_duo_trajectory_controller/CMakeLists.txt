@@ -18,6 +18,7 @@ endif()
 
 find_package(control_msgs REQUIRED)
 find_package(controller_interface REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(trajectory_msgs REQUIRED)
@@ -52,6 +53,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 ament_target_dependencies(
         ${PROJECT_NAME}
         PUBLIC
+        lifecycle_msgs
         rclcpp
         rclcpp_action
         rclcpp_lifecycle
@@ -123,6 +125,7 @@ ament_export_libraries(
 ament_export_dependencies(
         control_msgs
         controller_interface
+        lifecycle_msgs
         rclcpp
         rclcpp_lifecycle
         realtime_tools
