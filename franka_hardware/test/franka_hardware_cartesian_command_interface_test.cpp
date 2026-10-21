@@ -244,6 +244,8 @@ TEST_F(FrankaCartesianCommandInterfaceTest,
   const auto time = rclcpp::Time(0, 0);
   const auto duration = rclcpp::Duration(0, 0);
 
+  ASSERT_EQ(default_franka_hardware_interface.read(time, duration),
+            hardware_interface::return_type::OK);
   ASSERT_EQ(default_franka_hardware_interface.write(time, duration),
             hardware_interface::return_type::OK);
 }
@@ -435,14 +437,12 @@ TEST_F(
             hardware_interface::return_type::OK);
 }
 
-TEST_F(
-    FrankaCartesianCommandInterfaceTest,
-    givenCartesianPoseActiveAndUsed_whenOnActivateCalledAgain_expectWriteBlocksUntilRead) {
+TEST_F(FrankaCartesianCommandInterfaceTest,
+       givenCartesianPoseActiveAndUsed_whenOnActivateCalledAgain_expectWriteBlocksUntilRead) {
   franka::RobotState robot_state;
   robot_state.O_T_EE = std::array<double, 16>{1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-                                               0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0};
-  auto expected_pose =
-      std::vector<double>{robot_state.O_T_EE.cbegin(), robot_state.O_T_EE.cend()};
+                                              0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0};
+  auto expected_pose = std::vector<double>{robot_state.O_T_EE.cbegin(), robot_state.O_T_EE.cend()};
 
   MockModel mock_model;
   MockModel* model_address = &mock_model;
@@ -490,13 +490,11 @@ TEST_F(
     givenCartesianPoseWithElbowActiveAndUsed_whenOnActivateCalledAgain_expectWriteBlocksUntilRead) {
   franka::RobotState robot_state;
   robot_state.O_T_EE = std::array<double, 16>{1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-                                               0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0};
+                                              0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0};
   robot_state.elbow = std::array<double, 2>{0.3, 1.0};
 
-  auto expected_pose =
-      std::vector<double>{robot_state.O_T_EE.cbegin(), robot_state.O_T_EE.cend()};
-  auto expected_elbow =
-      std::vector<double>{robot_state.elbow.cbegin(), robot_state.elbow.cend()};
+  auto expected_pose = std::vector<double>{robot_state.O_T_EE.cbegin(), robot_state.O_T_EE.cend()};
+  auto expected_elbow = std::vector<double>{robot_state.elbow.cbegin(), robot_state.elbow.cend()};
 
   MockModel mock_model;
   MockModel* model_address = &mock_model;
@@ -512,8 +510,7 @@ TEST_F(
                               k_cartesian_pose_command_interface_name);
   }
   for (size_t i = 0; i < k_hw_elbow_command_names.size(); i++) {
-    start_interface.push_back(k_hw_elbow_command_names[i] + "/" +
-                              k_elbow_command_interface_name);
+    start_interface.push_back(k_hw_elbow_command_names[i] + "/" + k_elbow_command_interface_name);
   }
   std::vector<std::string> stop_interface = {};
 
