@@ -274,8 +274,8 @@ CallbackReturn JointImpedanceWithIKExampleController::on_configure(
     if (timer > kMaxWaitingTime) {
       RCLCPP_FATAL(get_node()->get_logger(),
                    "Could not connect to IK service - did you start this example with its own "
-                   "launch file?\nros2 launch franka_bringup example.launch.py "
-                   "controller_names:=joint_impedance_with_ik_example_controller ");
+                   "launch file?\nros2 launch franka_bringup "
+                   "joint_impedance_with_ik_example_controller.launch.py");
       return CallbackReturn::ERROR;
     }
   }

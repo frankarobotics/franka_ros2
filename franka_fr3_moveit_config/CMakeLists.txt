@@ -33,6 +33,7 @@ if(BUILD_TESTING)
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
   add_ros_isolated_launch_test(test/test_moveit_planning_smoke.py TIMEOUT 120)
+  add_ros_isolated_launch_test(test/test_moveit_planning.py TIMEOUT 300)
 endif()
 
 ament_package()

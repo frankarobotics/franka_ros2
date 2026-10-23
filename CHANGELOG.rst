@@ -60,6 +60,12 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   leftover ``arm_id`` parameter. Rename ``arm_id`` to ``robot_type`` in custom configs
   (the default ``fr3`` behaviour is unchanged); a stale ``arm_id`` override logs a
   warning in ``on_configure``.
+* feat: ``move_group.launch.py`` takes a ``robot_type`` launch argument (default ``fr3``)
+  and builds the URDF/SRDF and the joint/group names in the MoveIt configs from it, so
+  other robot types (e.g. ``fr3v2``, whose model and ``fr3v2_arm`` group ship in
+  ``franka_description``) get a working MoveIt model instead of a hardcoded ``fr3`` one.
+  ``joint_impedance_with_ik_example_controller.launch.py`` forwards ``robot_type`` from
+  the robot config file to ``move_group.launch.py``.
 
 v3.6.0 (2026-10-06)
 -------------------
