@@ -47,6 +47,14 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   command mode switch holds the robot (tens of milliseconds) (GitHub Issue #243).
 * fix: the first ``write()`` after a command mode switch is skipped until a fresh ``read()``.
 * fix: ``write()`` returns ERROR instead of a warning when no robot control is active.
+* fix: ``move_to_start_example_controller`` performs no ``set_parameter`` on the
+  realtime thread: ``update()`` flips an atomic flag and a 20 ms wall timer publishes
+  the ``process_finished`` parameter off the thread. Setting the parameter every
+  1 kHz cycle stalled the controller for ~337 ms when a ``ros2`` CLI participant
+  joined and tripped a ``communication_constraints_violation`` reflex.
+  ``on_configure`` resets the parameter to false synchronously; after a
+  deactivate/activate without reconfigure, the previous value may remain visible for
+  up to one publish period (~20 ms).
 
 v3.6.0 (2026-10-06)
 -------------------

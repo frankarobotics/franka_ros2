@@ -15,6 +15,7 @@
 #include <franka_example_controllers/fr3/move_to_start_example_controller.hpp>
 
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <exception>
 
@@ -72,7 +73,9 @@ controller_interface::return_type MoveToStartExampleController::update(
     if (!ret) {
       RCLCPP_FATAL(get_node()->get_logger(), "Failure to clear the torque at the end of control. ");
     }
-    this->get_node()->set_parameter({"process_finished", true});
+    // Realtime path: only flip the flag. The wall timer created in on_configure()
+    // publishes it as the `process_finished` parameter off this thread.
+    process_finished_.store(true, std::memory_order_release);
   }
   return controller_interface::return_type::OK;
 }
@@ -130,7 +133,35 @@ CallbackReturn MoveToStartExampleController::on_configure(
     k_gains_(i) = k_gains.at(i);
   }
   dq_filtered_.setZero();
+  // Non-realtime context: single reset of the observable contract; every later
+  // change is published by the wall timer below. The atomic must go false too, or the
+  // new timer republishes the previous run's true on its first tick. Under the mutex:
+  // a callback of the dropped timer may still be executing on another thread.
+  const std::lock_guard<std::mutex> lock(publish_mutex_);
+  process_finished_.store(false, std::memory_order_release);
+  get_node()->set_parameter({"process_finished", false});
+  published_process_finished_ = false;
+  process_finished_timer_ = get_node()->create_wall_timer(std::chrono::milliseconds(20),
+                                                          [this]() { publishProcessFinished(); });
   return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn MoveToStartExampleController::on_cleanup(
+    const rclcpp_lifecycle::State& /*previous_state*/) {
+  // The wall timer belongs to the configured state: drop it here so no further callback
+  // is scheduled. reset() does not join one already executing — that single stale
+  // callback can still publish, but nothing after it.
+  process_finished_timer_.reset();
+  return CallbackReturn::SUCCESS;
+}
+
+void MoveToStartExampleController::publishProcessFinished() {
+  const std::lock_guard<std::mutex> lock(publish_mutex_);
+  const bool finished = process_finished_.load(std::memory_order_acquire);
+  if (published_process_finished_ != finished &&
+      get_node()->set_parameter({"process_finished", finished}).successful) {
+    published_process_finished_ = finished;
+  }
 }
 
 CallbackReturn MoveToStartExampleController::on_activate(
@@ -138,6 +169,8 @@ CallbackReturn MoveToStartExampleController::on_activate(
   updateJointStates();
   motion_generator_ = std::make_unique<MotionGenerator>(0.2, q_, q_goal_);
   start_time_ = this->get_node()->now();
+  // Realtime-safe reset: the timer picks it up on its next tick (see header contract).
+  process_finished_.store(false, std::memory_order_release);
   return CallbackReturn::SUCCESS;
 }
 
