@@ -55,6 +55,11 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   ``on_configure`` resets the parameter to false synchronously; after a
   deactivate/activate without reconfigure, the previous value may remain visible for
   up to one publish period (~20 ms).
+* fix: ``cartesian_impedance_example_controller`` resolves its interface names from the
+  ``robot_type`` (+ ``arm_prefix``) parameters like all other examples, instead of the
+  leftover ``arm_id`` parameter. Rename ``arm_id`` to ``robot_type`` in custom configs
+  (the default ``fr3`` behaviour is unchanged); a stale ``arm_id`` override logs a
+  warning in ``on_configure``.
 
 v3.6.0 (2026-10-06)
 -------------------

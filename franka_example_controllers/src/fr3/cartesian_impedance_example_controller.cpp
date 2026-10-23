@@ -31,8 +31,11 @@ CartesianImpedanceExampleController::CartesianGains CartesianImpedanceExampleCon
 
 CartesianImpedanceExampleController::CallbackReturn CartesianImpedanceExampleController::on_init() {
   try {
-    auto_declare<std::string>("arm_id", "fr3");
+    auto_declare<std::string>("robot_type", "fr3");
     auto_declare<std::string>("arm_prefix", "");
+    // Declared only to detect stale configs: without this, an arm_id override stays
+    // undeclared and the on_configure() warning below can never fire.
+    auto_declare<std::string>("arm_id", "");
     auto_declare<double>("nullspace_stiffness", 20.0);
     auto_declare<double>("translational_stiffness", 150.0);
     auto_declare<double>("rotational_stiffness", 10.0);
@@ -48,7 +51,8 @@ CartesianImpedanceExampleController::command_interface_configuration() const {
   controller_interface::InterfaceConfiguration command_interfaces_config;
   command_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
   for (int i = 1; i <= num_joints; i++) {
-    command_interfaces_config.names.push_back(arm_id_ + "_joint" + std::to_string(i) + "/effort");
+    command_interfaces_config.names.push_back(arm_prefix_ + robot_type_ + "_joint" +
+                                              std::to_string(i) + "/effort");
   }
   return command_interfaces_config;
 }
@@ -61,8 +65,10 @@ CartesianImpedanceExampleController::state_interface_configuration() const {
   // 1) Joint position/velocity — read directly from hardware_interface state interfaces.
   //    Order is (j1.pos, j1.vel, j2.pos, j2.vel, ...) so readJointState() can index by 2*i.
   for (int i = 1; i <= num_joints; ++i) {
-    state_interfaces_config.names.push_back(arm_id_ + "_joint" + std::to_string(i) + "/position");
-    state_interfaces_config.names.push_back(arm_id_ + "_joint" + std::to_string(i) + "/velocity");
+    state_interfaces_config.names.push_back(arm_prefix_ + robot_type_ + "_joint" +
+                                            std::to_string(i) + "/position");
+    state_interfaces_config.names.push_back(arm_prefix_ + robot_type_ + "_joint" +
+                                            std::to_string(i) + "/velocity");
   }
 
   // 2) Cartesian pose state via FrankaCartesianPoseInterface (16 column-major matrix entries).
@@ -81,17 +87,23 @@ CartesianImpedanceExampleController::state_interface_configuration() const {
 CartesianImpedanceExampleController::CallbackReturn
 CartesianImpedanceExampleController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
-  arm_id_ = get_node()->get_parameter("arm_id").as_string();
+  robot_type_ = get_node()->get_parameter("robot_type").as_string();
+  const std::string stale_arm_id = get_node()->get_parameter("arm_id").as_string();
+  if (!stale_arm_id.empty()) {
+    RCLCPP_WARN(get_node()->get_logger(),
+                "Ignoring stale 'arm_id' parameter '%s'; set 'robot_type' instead.",
+                stale_arm_id.c_str());
+  }
   arm_prefix_ = get_node()->get_parameter("arm_prefix").as_string();
+  arm_prefix_ = arm_prefix_.empty() ? "" : arm_prefix_ + "_";
   // Match the franka_hardware export pattern: prefix + index + "/cartesian_pose_state".
-  const std::string cartesian_pose_prefix = arm_prefix_.empty() ? std::string{} : arm_prefix_ + "_";
-
   franka_cartesian_pose_ =
       std::make_unique<franka_semantic_components::FrankaCartesianPoseInterface>(
-          cartesian_pose_prefix, k_elbow_activated_);
+          arm_prefix_, k_elbow_activated_);
 
   franka_robot_model_ = std::make_unique<franka_semantic_components::FrankaRobotModel>(
-      arm_id_ + "/" + k_robot_model_interface_name, arm_id_ + "/" + k_robot_state_interface_name);
+      arm_prefix_ + robot_type_ + "/" + k_robot_model_interface_name,
+      arm_prefix_ + robot_type_ + "/" + k_robot_state_interface_name);
 
   const double t_k = get_node()->get_parameter("translational_stiffness").as_double();
   const double r_k = get_node()->get_parameter("rotational_stiffness").as_double();

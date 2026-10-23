@@ -142,6 +142,14 @@ if(BUILD_TESTING)
         ros2_control_test_assets
     )
 
+    ament_add_gmock(${PROJECT_NAME}_cartesian_impedance_test test/test_cartesian_impedance_example_controller.cpp)
+    target_include_directories(${PROJECT_NAME}_cartesian_impedance_test PRIVATE include)
+    target_link_libraries(${PROJECT_NAME}_cartesian_impedance_test ${PROJECT_NAME})
+    ament_target_dependencies(${PROJECT_NAME}_cartesian_impedance_test
+        controller_manager
+        ros2_control_test_assets
+    )
+
     ament_add_gmock(${PROJECT_NAME}_load_all_test
         test/test_load_all_example_controllers.cpp)
     target_include_directories(${PROJECT_NAME}_load_all_test PRIVATE include)

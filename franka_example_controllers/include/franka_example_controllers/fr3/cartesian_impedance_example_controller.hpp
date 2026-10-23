@@ -76,7 +76,7 @@ class CartesianImpedanceExampleController : public controller_interface::Control
 
   static constexpr bool k_elbow_activated_{false};
 
-  std::string arm_id_;
+  std::string robot_type_;
   std::string arm_prefix_;
 
   Eigen::Matrix<double, num_joints, 1> q_{Eigen::Matrix<double, num_joints, 1>::Zero()};
