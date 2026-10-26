@@ -15,6 +15,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <atomic>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -31,6 +32,7 @@
 #include "franka_semantic_components/franka_cartesian_pose_interface.hpp"
 #include "franka_semantic_components/franka_robot_model.hpp"
 
+#include "franka_example_controllers/detail/cartesian_impedance_math.hpp"
 #include "franka_example_controllers/visibility_control.h"
 
 namespace franka_example_controllers {
@@ -53,13 +55,14 @@ class CartesianImpedanceExampleController : public controller_interface::Control
                                            const rclcpp::Duration& period) override;
 
  private:
+  // Dimension aliases; canonical values live in detail/cartesian_impedance_math.hpp.
+  static constexpr int num_joints = detail::num_joints;
+  static constexpr int num_cartesian_dof = detail::num_cartesian_dof;
+
   struct TargetPose {
     Eigen::Vector3d position{Eigen::Vector3d::Zero()};
     Eigen::Quaterniond orientation{1.0, 0.0, 0.0, 0.0};
   };
-
-  static constexpr int num_joints{7};
-  static constexpr int num_cartesian_dof{6};
 
   struct CartesianGains {
     Eigen::Matrix<double, num_cartesian_dof, num_cartesian_dof> stiffness{
@@ -95,7 +98,16 @@ class CartesianImpedanceExampleController : public controller_interface::Control
 
   Eigen::Matrix<double, num_joints, 1> q_d_nullspace_;
 
-  realtime_tools::RealtimeBuffer<TargetPose> target_pose_buffer_;
+  realtime_tools::RealtimeBuffer<TargetPose> target_pose_buffer_{};
+  // RT-side working copy of the latest equilibrium target written by updateMotionTarget().
+  // Kept in a plain member (never in the RealtimeBuffer) so update() performs no heap
+  // allocation on the real-time thread.
+  TargetPose motion_target_{};
+  // Set by equilibriumPoseCallback() when a new external target arrives; consumed once by
+  // update() on the real-time thread. Worst case the external target takes effect one cycle
+  // later; no update is ever lost. A read racing a concurrent write misses try_lock and
+  // applies the previous target for one cycle, then heals; the pose filter makes it negligible.
+  std::atomic<bool> external_target_pending_{false};
   realtime_tools::RealtimeBuffer<CartesianGains> cartesian_gains_buffer_;
   realtime_tools::RealtimeBuffer<double> nullspace_stiffness_buffer_;
 

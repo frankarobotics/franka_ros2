@@ -60,6 +60,10 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   leftover ``arm_id`` parameter. Rename ``arm_id`` to ``robot_type`` in custom configs
   (the default ``fr3`` behaviour is unchanged); a stale ``arm_id`` override logs a
   warning in ``on_configure``.
+* fix: ``cartesian_impedance_example_controller`` performs no controller-side heap
+  allocation on the realtime thread: the Jacobian damped pseudo-inverse uses a
+  fixed-size LDLT formulation instead of a dynamic-matrix SVD, and the demo motion
+  target lives in a realtime-side member. Behaviour is numerically unchanged.
 * feat: ``move_group.launch.py`` takes a ``robot_type`` launch argument (default ``fr3``)
   and builds the URDF/SRDF and the joint/group names in the MoveIt configs from it, so
   other robot types (e.g. ``fr3v2``, whose model and ``fr3v2_arm`` group ship in

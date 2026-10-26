@@ -29,6 +29,12 @@ CartesianImpedanceExampleController::CartesianGains CartesianImpedanceExampleCon
   return g;
 }
 
+namespace {
+// Damping factor for the Jacobian pseudo-inverse, same damping as the former SVD-based
+// implementation.
+constexpr double kDampingFactor = 0.2;
+}  // namespace
+
 CartesianImpedanceExampleController::CallbackReturn CartesianImpedanceExampleController::on_init() {
   try {
     auto_declare<std::string>("robot_type", "fr3");
@@ -144,8 +150,11 @@ CartesianImpedanceExampleController::on_activate(
   readJointState();
   Eigen::Quaterniond orientation_init;
   Eigen::Vector3d position_init;
-  std::tie(orientation_init, position_init) =
-      franka_cartesian_pose_->getCurrentOrientationAndTranslation();
+  if (!franka_cartesian_pose_->getCurrentOrientationAndTranslation(orientation_init,
+                                                                   position_init)) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Failed to read Cartesian pose state interfaces");
+    return CallbackReturn::FAILURE;
+  }
   orientation_init.normalize();
 
   position_d_ = position_init;
@@ -158,6 +167,14 @@ CartesianImpedanceExampleController::on_activate(
   initial_target.position = position_init;
   initial_target.orientation = orientation_init;
   target_pose_buffer_.initRT(initial_target);
+  motion_target_ = initial_target;
+  external_target_pending_.store(false, std::memory_order_relaxed);
+
+  // Deliberate: on_activate() runs on the controller_manager update thread, so this
+  // first-call cost (page faults, allocator setup, the coriolis persistent data_)
+  // lands on the switch cycle instead of the first update().
+  static_cast<void>(franka_robot_model_->getCoriolisForceVector());
+  static_cast<void>(franka_robot_model_->getZeroJacobian(franka::Frame::kEndEffector));
 
   return CallbackReturn::SUCCESS;
 }
@@ -189,7 +206,10 @@ controller_interface::return_type CartesianImpedanceExampleController::update(
 
   Eigen::Quaterniond orientation;
   Eigen::Vector3d position;
-  std::tie(orientation, position) = franka_cartesian_pose_->getCurrentOrientationAndTranslation();
+  if (!franka_cartesian_pose_->getCurrentOrientationAndTranslation(orientation, position)) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Failed to read Cartesian pose state interfaces");
+    return controller_interface::return_type::ERROR;
+  }
 
   std::array<double, num_joints> coriolis_array = franka_robot_model_->getCoriolisForceVector();
   std::array<double, num_cartesian_dof * num_joints> jacobian_array =
@@ -202,7 +222,14 @@ controller_interface::return_type CartesianImpedanceExampleController::update(
   transform.translation() = position;
   transform.rotate(orientation.toRotationMatrix());
 
-  const TargetPose target = *target_pose_buffer_.readFromRT();
+  if (external_target_pending_.exchange(false, std::memory_order_acquire)) {
+    motion_target_ = *target_pose_buffer_.readFromRT();
+  }
+  // Snapshot first: updateMotionTarget() overwrites motion_target_ below, and the filters
+  // consume the previous cycle's target — the same one-cycle cadence as the former RT buffer
+  // round-trip. The orientation likewise comes from the previous target (initial or last
+  // external pose), so orientation_d_ holds rather than chases the measured orientation.
+  const TargetPose target = motion_target_;
   updateMotionTarget(period.seconds(), target.orientation);
 
   const CartesianGains target_gains = *cartesian_gains_buffer_.readFromRT();
@@ -212,18 +239,10 @@ controller_interface::return_type CartesianImpedanceExampleController::update(
 
   Eigen::Matrix<double, num_joints, 1> tau_task, tau_nullspace, tau_d;
 
-  // Damped pseudo-inverse of jacobian transpose
-  Eigen::MatrixXd jacobian_transpose_pinv;
-  double lambda = 0.2;
-  Eigen::JacobiSVD<Eigen::MatrixXd> svd(jacobian.transpose(),
-                                        Eigen::ComputeFullU | Eigen::ComputeFullV);
-  Eigen::JacobiSVD<Eigen::MatrixXd>::SingularValuesType sing_vals = svd.singularValues();
-  Eigen::MatrixXd S = jacobian.transpose();
-  S.setZero();
-  for (int i = 0; i < sing_vals.size(); i++) {
-    S(i, i) = sing_vals(i) / (sing_vals(i) * sing_vals(i) + lambda * lambda);
-  }
-  jacobian_transpose_pinv = svd.matrixV() * S.transpose() * svd.matrixU().transpose();
+  // Damped pseudo-inverse of jacobian transpose; fixed-size LDLT formulation,
+  // allocation-free on the real-time thread.
+  const Eigen::Matrix<double, num_cartesian_dof, num_joints> jacobian_transpose_pinv =
+      detail::computeDampedPseudoInverse(jacobian, kDampingFactor);
 
   tau_task << jacobian.transpose() *
                   (-cartesian_stiffness_ * error - cartesian_damping_ * (jacobian * dq_));
@@ -266,10 +285,8 @@ void CartesianImpedanceExampleController::updateMotionTarget(
   double angle = M_PI / 4.0 * (1 - std::cos(M_PI / 5.0 * elapsed_time_));
   double delta_x = 0.1 * std::sin(angle);
   double delta_z = 0.1 * (std::cos(angle) - 1);
-  TargetPose motion_target;
-  motion_target.position = initial_position_ + Eigen::Vector3d(delta_x, 0.0, delta_z);
-  motion_target.orientation = orientation;
-  target_pose_buffer_.writeFromNonRT(motion_target);
+  motion_target_.position = initial_position_ + Eigen::Vector3d(delta_x, 0.0, delta_z);
+  motion_target_.orientation = orientation;
 }
 
 Eigen::Matrix<double, 6, 1> CartesianImpedanceExampleController::computeError(
@@ -304,6 +321,7 @@ void CartesianImpedanceExampleController::equilibriumPoseCallback(
   target.orientation.normalize();
 
   target_pose_buffer_.writeFromNonRT(target);
+  external_target_pending_.store(true, std::memory_order_release);
 }
 
 void CartesianImpedanceExampleController::setCartesianStiffnessCallback(
