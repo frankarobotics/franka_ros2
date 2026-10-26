@@ -47,6 +47,29 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   command mode switch holds the robot (tens of milliseconds) (GitHub Issue #243).
 * fix: the first ``write()`` after a command mode switch is skipped until a fresh ``read()``.
 * fix: ``write()`` returns ERROR instead of a warning when no robot control is active.
+* fix: ``move_to_start_example_controller`` performs no ``set_parameter`` on the
+  realtime thread: ``update()`` flips an atomic flag and a 20 ms wall timer publishes
+  the ``process_finished`` parameter off the thread. Setting the parameter every
+  1 kHz cycle stalled the controller for ~337 ms when a ``ros2`` CLI participant
+  joined and tripped a ``communication_constraints_violation`` reflex.
+  ``on_configure`` resets the parameter to false synchronously; after a
+  deactivate/activate without reconfigure, the previous value may remain visible for
+  up to one publish period (~20 ms).
+* fix: ``cartesian_impedance_example_controller`` resolves its interface names from the
+  ``robot_type`` (+ ``arm_prefix``) parameters like all other examples, instead of the
+  leftover ``arm_id`` parameter. Rename ``arm_id`` to ``robot_type`` in custom configs
+  (the default ``fr3`` behaviour is unchanged); a stale ``arm_id`` override logs a
+  warning in ``on_configure``.
+* fix: ``cartesian_impedance_example_controller`` performs no controller-side heap
+  allocation on the realtime thread: the Jacobian damped pseudo-inverse uses a
+  fixed-size LDLT formulation instead of a dynamic-matrix SVD, and the demo motion
+  target lives in a realtime-side member. Behaviour is numerically unchanged.
+* feat: ``move_group.launch.py`` takes a ``robot_type`` launch argument (default ``fr3``)
+  and builds the URDF/SRDF and the joint/group names in the MoveIt configs from it, so
+  other robot types (e.g. ``fr3v2``, whose model and ``fr3v2_arm`` group ship in
+  ``franka_description``) get a working MoveIt model instead of a hardcoded ``fr3`` one.
+  ``joint_impedance_with_ik_example_controller.launch.py`` forwards ``robot_type`` from
+  the robot config file to ``move_group.launch.py``.
 
 v3.6.0 (2026-10-06)
 -------------------

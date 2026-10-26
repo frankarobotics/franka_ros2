@@ -205,7 +205,7 @@ full_body_controller:
 
 cartesian_impedance_example_controller:
   ros__parameters:
-    arm_id: fr3
+    robot_type: 'fr3'
     translational_stiffness: 150.0
     rotational_stiffness: 10.0
     nullspace_stiffness: 20.0

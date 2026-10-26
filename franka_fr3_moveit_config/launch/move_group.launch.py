@@ -26,14 +26,18 @@ from launch_ros.parameter_descriptions import ParameterValue
 import yaml
 
 
-def load_yaml(package_name, file_path, prefix=None):
+def load_yaml(package_name, file_path, prefix=None, robot_type='fr3'):
     package_path = get_package_share_directory(package_name)
     absolute_file_path = os.path.join(package_path, file_path)
     try:
         with open(absolute_file_path, 'r') as file:
             yaml_string = file.read()
-            if prefix:
-                yaml_string = yaml_string.replace('fr3', prefix + '_fr3')
+            # Joint and group names carry '<arm_prefix>_<robot_type>', e.g.
+            # 'left_fr3v2_joint1' or 'fr3v2_arm', while the shipped yamls only
+            # contain the bare 'fr3' names.
+            if prefix or robot_type != 'fr3':
+                arm_identifier = (prefix + '_' if prefix else '') + robot_type
+                yaml_string = yaml_string.replace('fr3', arm_identifier)
             return yaml.safe_load(yaml_string)
     except EnvironmentError:  # parent of IOError, OSError *and* Windows Error where available
         return None
@@ -46,6 +50,7 @@ def generate_robot_nodes(context, *args, **kwargs):
     fake_sensor_commands_parameter_name = 'fake_sensor_commands'
     namespace_parameter_name = 'namespace'
     arm_prefix_parameter_name = 'arm_prefix'
+    robot_type_parameter_name = 'robot_type'
 
     robot_ip = LaunchConfiguration(robot_ip_parameter_name)
     load_gripper = LaunchConfiguration(load_gripper_parameter_name)
@@ -54,12 +59,14 @@ def generate_robot_nodes(context, *args, **kwargs):
         fake_sensor_commands_parameter_name)
     namespace = LaunchConfiguration(namespace_parameter_name)
     arm_prefix = LaunchConfiguration(arm_prefix_parameter_name)
+    robot_type = LaunchConfiguration(robot_type_parameter_name)
 
     prefix_str = arm_prefix.perform(context)
+    robot_type_str = robot_type.perform(context)
 
     franka_xacro_file = os.path.join(
         get_package_share_directory('franka_description'),
-        'robots', 'fr3', 'fr3.urdf.xacro'
+        'robots', robot_type_str, robot_type_str + '.urdf.xacro'
     )
 
     robot_description_command = Command(
@@ -69,7 +76,7 @@ def generate_robot_nodes(context, *args, **kwargs):
             franka_xacro_file,
             ' ros2_control:=false',
             ' hand:=', load_gripper,
-            ' robot_type:=fr3',
+            ' robot_type:=', robot_type,
             ' arm_prefix:=', arm_prefix,
             ' robot_ip:=', robot_ip,
             ' use_fake_hardware:=', use_fake_hardware,
@@ -82,7 +89,7 @@ def generate_robot_nodes(context, *args, **kwargs):
 
     franka_semantic_xacro_file = os.path.join(
         get_package_share_directory('franka_description'),
-        'robots', 'fr3', 'fr3.srdf.xacro'
+        'robots', robot_type_str, robot_type_str + '.srdf.xacro'
     )
 
     robot_description_semantic_command = Command(
@@ -91,6 +98,7 @@ def generate_robot_nodes(context, *args, **kwargs):
             ' ',
             franka_semantic_xacro_file,
             ' hand:=', load_gripper,
+            ' robot_type:=', robot_type,
             ' arm_prefix:=', arm_prefix]
     )
 
@@ -99,14 +107,14 @@ def generate_robot_nodes(context, *args, **kwargs):
         robot_description_semantic_command, value_type=str)}
 
     kinematics_yaml = load_yaml(
-        'franka_fr3_moveit_config', 'config/kinematics.yaml', prefix_str)
+        'franka_fr3_moveit_config', 'config/kinematics.yaml', prefix_str, robot_type_str)
 
     kinematics_config = {
         'robot_description_kinematics': kinematics_yaml
     }
 
     joint_limits_yaml = load_yaml(
-        'franka_fr3_moveit_config', 'config/fr3_joint_limits.yaml', prefix_str
+        'franka_fr3_moveit_config', 'config/fr3_joint_limits.yaml', prefix_str, robot_type_str
     )
 
     joint_limits_config = {
@@ -137,7 +145,7 @@ def generate_robot_nodes(context, *args, **kwargs):
     ompl_planning_pipeline_config['move_group'].update(ompl_planning_yaml)
 
     moveit_simple_controllers_yaml = load_yaml(
-        'franka_fr3_moveit_config', 'config/fr3_controllers.yaml', prefix_str
+        'franka_fr3_moveit_config', 'config/fr3_controllers.yaml', prefix_str, robot_type_str
     )
     moveit_controllers = {
         'moveit_simple_controller_manager': moveit_simple_controllers_yaml,
@@ -182,8 +190,12 @@ def generate_launch_description():
     db_arg = DeclareLaunchArgument(
         'db', default_value='False', description='Database flag'
     )
+    robot_type_arg = DeclareLaunchArgument(
+        'robot_type', default_value='fr3', description='ID of the type of arm used'
+    )
 
     return LaunchDescription([
         db_arg,
+        robot_type_arg,
         OpaqueFunction(function=generate_robot_nodes)
     ])
