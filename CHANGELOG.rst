@@ -1,8 +1,8 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-UNRELEASED
-----------
+v3.6.1 (2026-10-27)
+-------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
 
 * fix: ``tmrv0_2.launch.py`` read ``robot_ip`` and ``use_rviz`` only from the
@@ -21,9 +21,6 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   leaves ``base`` -> ``base_link`` to the swerve odometry. The description and
   the Gazebo wrapper never added it, and the sensor RViz config already uses
   ``base_link`` as its fixed frame.
-* test: ``franka_bringup`` checks that every joint of ``tmrv0_2.urdf.xacro``
-  exists in ``tmrv0_2_with_sensors.urdf.xacro`` with the same type, parent,
-  child and origin, since both publish the base frames side by side.
 * fix: ``franka_mobile_sensors`` declares ``joint_state_publisher_gui``, which
   its RViz launch file starts.
 * fix: ``franka_semantic_components::FrankaRobotState`` now sizes and labels the joint arrays of
@@ -160,8 +157,8 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   topic at 1 Hz and ``std_srvs/Trigger`` services for wireless charging), with an
   internal ``franka_desk_api`` HTTPS helper used by the spine and battery clients.
 * fix: franka_hardware tests now run in isolated ROS domains to avoid possible collisions.
-* fix: fixed franka_hardware stop motion test to check for stopping_joint_positions matching the last 
-        commanded target instead of zero positions. 
+* fix: fixed franka_hardware stop motion test to check for stopping_joint_positions matching the last
+        commanded target instead of zero positions.
 * fix: tune mobile teleop velocity/acceleration limits to stay within the RCU
   2-norm bounds. Raise swerve translational limits to 0.35 m/s / 0.4 m/s^2 and
   rotational to 0.5 rad/s / 0.3 rad/s^2 in ``controllers.yaml``, rescale the xbox
@@ -174,10 +171,10 @@ Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazz
   ``tcp_xyz`` default. MIGRATION: pass ``tcp_xyz`` explicitly to keep the previous value; the franka
   hand is unaffected.
 * fix: **BREAKING CHANGE** thread-safe access to robot state interface (changed from RealtimeBuffer to RealtimeThreadSafeBox).
-  This fixes possible race conditions that could happen when running the broadcaster and the 
-  cartesian impedance example controller (e.g. via the `franka_semantic_components::FrankaRobotModel`) with async=true. 
+  This fixes possible race conditions that could happen when running the broadcaster and the
+  cartesian impedance example controller (e.g. via the `franka_semantic_components::FrankaRobotModel`) with async=true.
   Users of the `franka_semantic_components::FrankaRobotState` should be not impacted, only direct state interface users claiming the hardware interface.
-* fix: default thread priority for franka_hardware interface threads is now 98 (was 50) to 
+* fix: default thread priority for franka_hardware interface threads is now 98 (was 50) to
   ensure RT stability.
 * fix: recover from a ``franka::ControlException`` without restarting
   ``ros2_control_node``. ``franka_robot_state_broadcaster`` and
