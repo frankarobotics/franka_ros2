@@ -1,6 +1,22 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Unreleased
+-------------------
+Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
+
+* fix: ``swerve_drive_controller`` published its ``nav_msgs/Odometry`` with an
+  empty ``child_frame_id``, so consumers such as ``robot_localization`` could
+  not tell which frame the twist is in. It is now ``base_link_frame_id``, the
+  frame the odometry TF already uses.
+* fix: with closed-loop odometry (``odom_open_loop: false``), ``swerve_drive_controller``
+  published the pose's difference in the odometry frame as its twist, while
+  ``nav_msgs/Odometry`` defines the twist in the base frame: it was only right at heading 0,
+  and a base turned by 90° driving forward was reported moving sideways. The twist is now in
+  the base frame (``detail::bodyTwist``).
+* fix: that twist was a 1 ms difference of the pose, sampled at the publish rate, so mostly
+  noise. It is now the pose's difference over the publish period.
+
 v3.6.1 (2026-10-27)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy

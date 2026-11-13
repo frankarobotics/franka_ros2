@@ -27,7 +27,7 @@ swerve_drive_controller:
   odom_open_loop: {
     type: bool,
     default_value: false,
-    description: "If true, the odometry will be computed using the command/reference twist. If false, we will use the estimate twist from the forward kinematics coming from joint position/velocities",
+    description: "If true, the odometry integrates the command/reference twist. If false, it is the base pose from the state interfaces, and its twist (in the base frame) that pose differenced over each publish period.",
   }
 
   base_link_frame_id: {
@@ -75,7 +75,7 @@ swerve_drive_controller:
   velocity_rolling_window_size: {
     type: int,
     default_value: 1,
-    description: "Size of the rolling window for averaging wheel velocities in odometry. 1 means no averaging.",
+    description: "Open loop only: size of the rolling window averaging the twist the odometry integrates. 1 means no averaging (closed loop averages over the publish period).",
     validation: {
       gt_eq<>: [1]
     }

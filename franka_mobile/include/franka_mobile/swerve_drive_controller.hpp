@@ -108,12 +108,13 @@ class SwerveDriveController : public controller_interface::ChainableControllerIn
 
   // pose integration in open loop
   Odometry odometry_;
-  // First open-loop update after activation re-seeds the odometry timestamp so the inactive
-  // gap is not integrated into the pose.
+  // First update after activation re-seeds the odometry's start, so that the inactive gap is
+  // neither integrated into the open-loop pose nor differenced into the closed-loop twist.
   bool reset_odometry_timestamp_{false};
-  // twist differentiation in closed loop
+  // closed loop: the pose and time the twist is differenced against, the last publish's
   Eigen::Vector3d p_;
   Eigen::Quaterniond q_;
+  rclcpp::Time twist_start_time_;
 
   // rate limiting
   std::unique_ptr<diff_drive_controller::SpeedLimiter> linear_x_limiter_;

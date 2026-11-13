@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
 #include <Eigen/Dense>
+#include <franka_mobile/detail/body_twist.hpp>
 #include <franka_mobile/detail/swerve_command_limits.hpp>
 
 #include <array>
+#include <cmath>
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -237,6 +239,50 @@ TEST_F(SwerveCommandLimitsTest, WhenSecondUpdateRunsAssertHistoryFeedsLimiter) {
   EXPECT_NEAR(command_x, 2.0 * kAccelerationLimit, kTol);
   expectHistory(Eigen::Vector3d(kAccelerationLimit, 0.0, 0.0),
                 Eigen::Vector3d(2.0 * kAccelerationLimit, 0.0, 0.0));
+}
+
+// ===========================================================================
+// Closed-loop twist: the pose differenced into the base frame
+// ===========================================================================
+
+static Eigen::Quaterniond yawRotation(double yaw) {
+  return Eigen::Quaterniond(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()));
+}
+
+TEST(BodyTwistTest, WhenTurnedAQuarterAndDrivingForwardAssertTwistIsForward) {
+  // Heading +90°: forward in the base is +y in the odometry frame.
+  const Eigen::Vector3d twist =
+      franka_mobile::detail::bodyTwist(Eigen::Vector3d(1.0, 2.0, 0.0), yawRotation(M_PI_2),
+                                       Eigen::Vector3d(1.0, 2.01, 0.0), yawRotation(M_PI_2), 0.02);
+  EXPECT_NEAR(twist.x(), 0.5, kTol);
+  EXPECT_NEAR(twist.y(), 0.0, kTol);
+  EXPECT_NEAR(twist.z(), 0.0, kTol);
+}
+
+TEST(BodyTwistTest, WhenDrivingAnArcAssertTwistIsRecovered) {
+  // A constant body twist v over a period T moves the base by
+  // R(yaw0) * integral_0^T R(wz t) dt * v.
+  const Eigen::Vector3d expected(0.3, -0.2, 1.0);
+  const double yaw0 = 2.5, period = 0.02, turn = expected.z() * period;
+  const Eigen::Vector2d step =
+      Eigen::Rotation2Dd(yaw0) *
+      Eigen::Vector2d(std::sin(turn) * expected.x() - (1.0 - std::cos(turn)) * expected.y(),
+                      (1.0 - std::cos(turn)) * expected.x() + std::sin(turn) * expected.y()) /
+      expected.z();
+  const Eigen::Vector3d p0(-0.4, 0.7, 0.0);
+  const Eigen::Vector3d twist = franka_mobile::detail::bodyTwist(
+      p0, yawRotation(yaw0), p0 + Eigen::Vector3d(step.x(), step.y(), 0.0),
+      yawRotation(yaw0 + turn), period);
+  EXPECT_NEAR(twist.x(), expected.x(), 1e-4);
+  EXPECT_NEAR(twist.y(), expected.y(), 1e-4);
+  EXPECT_NEAR(twist.z(), expected.z(), kTol);
+}
+
+TEST(BodyTwistTest, WhenHeadingCrossesPiAssertTurnIsTheShortWay) {
+  const Eigen::Vector3d p(0.0, 0.0, 0.0);
+  const Eigen::Vector3d twist = franka_mobile::detail::bodyTwist(
+      p, yawRotation(M_PI - 0.01), p, yawRotation(-M_PI + 0.01), 0.02);
+  EXPECT_NEAR(twist.z(), 1.0, kTol);
 }
 
 // ===========================================================================
