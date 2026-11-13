@@ -1,6 +1,15 @@
 Changelog for package franka_ros2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Unreleased
+-------------------
+Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
+
+* fix: ``swerve_drive_controller`` published its ``nav_msgs/Odometry`` with an
+  empty ``child_frame_id``, so consumers such as ``robot_localization`` could
+  not tell which frame the twist is in. It is now ``base_link_frame_id``, the
+  frame the odometry TF already uses.
+
 v3.6.1 (2026-10-27)
 -------------------
 Requires libfranka >= 0.20.4 and franka_description >= 2.9.0 requires ROS 2 Jazzy
