@@ -165,6 +165,7 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
     if (enable_odom_nav_msg_ && realtime_odom_nav_publisher_) {
       odom_nav_message_.header.stamp = time;
       odom_nav_message_.header.frame_id = odom_frame_id_;
+      odom_nav_message_.child_frame_id = base_link_frame_id_;
       odom_nav_message_.pose.pose.position.x = x;
       odom_nav_message_.pose.pose.position.y = y;
       odom_nav_message_.pose.pose.orientation.x = orientation.x();
