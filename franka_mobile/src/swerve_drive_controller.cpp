@@ -14,6 +14,7 @@
 
 #include <franka_mobile/swerve_drive_controller.hpp>
 
+#include <franka_mobile/detail/body_twist.hpp>
 #include <franka_mobile/detail/swerve_command_limits.hpp>
 
 #include <algorithm>
@@ -95,6 +96,20 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
   double command_linear_y = reference_interfaces_[FrankaCartesianVelocityInterface::VY];
   double command_angular_z = reference_interfaces_[FrankaCartesianVelocityInterface::WZ];
 
+  bool should_publish = false;
+  const rclcpp::Duration publish_period = rclcpp::Duration::from_seconds(1 / publish_rate_);
+
+  try {
+    if (previous_publish_timestamp_ + publish_period < time) {
+      previous_publish_timestamp_ += publish_period;
+      should_publish = true;
+    }
+  } catch (const std::runtime_error&) {
+    // Handle exceptions when the time source changes and initialize publish timestamp
+    previous_publish_timestamp_ = time;
+    should_publish = true;
+  }
+
   double x = 0, y = 0, yaw = 0, vx = 0, vy = 0, wz = 0;
   if (odom_open_loop_) {  // update odometry from command interface
     if (std::isfinite(command_linear_x) && std::isfinite(command_linear_y) &&
@@ -111,9 +126,7 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
       wz = odometry_.getAngular();
       yaw = odometry_.getHeading();
     }
-  } else {
-    // update twist by differentiating the cartesian pose from the state interface
-    // warning: noisy at 1khz!!
+  } else {  // pose from the state interface, twist by differencing it
     Eigen::Quaterniond q;
     Eigen::Vector3d p;
     if (!franka_cartesian_pose_->getCurrentOrientationAndTranslation(q, p)) {
@@ -122,38 +135,31 @@ controller_interface::return_type SwerveDriveController::update_and_write_comman
           "Failed to read the cartesian pose state interfaces; skipping closed-loop update");
       return controller_interface::return_type::ERROR;
     }
-    const double dt = period.seconds();
     x = p.x();
     y = p.y();
-    yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
-                     1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
-    if (dt > 0.0) {
-      const Eigen::Vector3d dp = (p - p_) / dt;
-      const Eigen::Quaterniond dq = q_.conjugate() * q;
-      const Eigen::Vector3d w = 2.0 * dq.vec() / dt;
-      vx = dp.x();
-      vy = dp.y();
-      wz = w.z();
+    yaw = detail::yawOf(q);
+    if (reset_odometry_timestamp_) {
+      twist_start_time_ = time;
+      p_ = p;
+      q_ = q;
+      reset_odometry_timestamp_ = false;
+    }
+    // Over a publish period rather than one tick: a 1 kHz difference of the pose is mostly noise.
+    if (should_publish) {
+      const double dt = (time - twist_start_time_).seconds();
+      if (dt > 0.0) {
+        const Eigen::Vector3d twist = detail::bodyTwist(p_, q_, p, q, dt);
+        vx = twist.x();
+        vy = twist.y();
+        wz = twist.z();
+      }
+      twist_start_time_ = time;
       p_ = p;
       q_ = q;
     }
   }
 
   const Eigen::Quaterniond orientation{Eigen::AngleAxisd{yaw, Eigen::Vector3d::UnitZ()}};
-
-  bool should_publish = false;
-  const rclcpp::Duration publish_period = rclcpp::Duration::from_seconds(1 / publish_rate_);
-
-  try {
-    if (previous_publish_timestamp_ + publish_period < time) {
-      previous_publish_timestamp_ += publish_period;
-      should_publish = true;
-    }
-  } catch (const std::runtime_error&) {
-    // Handle exceptions when the time source changes and initialize publish timestamp
-    previous_publish_timestamp_ = time;
-    should_publish = true;
-  }
 
   if (should_publish) {
     if (enable_odom_nav_msg_ && realtime_odom_nav_publisher_) {
@@ -349,15 +355,9 @@ controller_interface::CallbackReturn SwerveDriveController::on_activate(
   franka_cartesian_pose_->assign_loaned_state_interfaces(state_interfaces_);
   previous_commands_[0].setZero();
   previous_commands_[1].setZero();
-  // Closed-loop odometry differentiates against p_ and q_. Seeding them from
-  // the pose the robot is actually in keeps the first update after activation
-  // from dividing a stale offset by the period. Requires the state interfaces
-  // assigned above.
-  const auto [q, p] = franka_cartesian_pose_->getCurrentOrientationAndTranslation();
-  p_ = p;
-  q_ = q;
-  // The open-loop odometry timestamp is re-seeded on the next update instead: its clock is the
-  // update time, which is only known once updates run.
+  // The odometry's start (the open-loop timestamp; the closed-loop pose and time the twist
+  // differences against) is re-seeded on the next update: its clock is the update time, which is
+  // only known once updates run.
   reset_odometry_timestamp_ = true;
   return CallbackReturn::SUCCESS;
 }
